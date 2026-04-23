@@ -87,7 +87,7 @@ class _MainScreenState extends State<MainScreen> {
             _currentIndex = index;
           });
         },
-        selectedItemColor: Colors.blueAccent,
+        selectedItemColor: const Color(0xFF26A69A),
         unselectedItemColor: Colors.grey,
         items: const [
           BottomNavigationBarItem(

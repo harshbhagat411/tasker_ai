@@ -88,13 +88,14 @@ class _HomeScreenState extends State<HomeScreen> {
                                 setDialogState(() => _selectedPriority = value);
                               }
                             },
-                            selectedColor: _getPriorityColor(value).withOpacity(0.2),
-                            side: BorderSide(
-                              color: isSelected ? _getPriorityColor(value) : Colors.grey[300]!,
+                            selectedColor: const Color(0xFF26A69A),
+                            backgroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20),
+                              side: BorderSide(color: isSelected ? const Color(0xFF26A69A) : Colors.grey[300]!),
                             ),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                             labelStyle: TextStyle(
-                              color: isSelected ? _getPriorityColor(value) : Colors.black87,
+                              color: isSelected ? Colors.white : Colors.black87,
                               fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                             ),
                           );
@@ -140,7 +141,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    backgroundColor: Colors.blueAccent,
+                    backgroundColor: const Color(0xFF26A69A),
                     foregroundColor: Colors.white,
                   ),
                   onPressed: () async {
@@ -279,9 +280,16 @@ class _HomeScreenState extends State<HomeScreen> {
                       hintStyle: TextStyle(color: Colors.grey[500]),
                       prefixIcon: const Padding(
                         padding: EdgeInsets.only(left: 12.0, right: 8.0),
-                        child: Icon(Icons.search, color: Colors.blueAccent),
+                        child: Icon(Icons.search, color: Color(0xFF26A69A)),
                       ),
-                      border: InputBorder.none,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(30),
+                        borderSide: BorderSide.none,
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(30),
+                        borderSide: const BorderSide(color: Color(0xFF26A69A), width: 1.5),
+                      ),
                       contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
                     ),
                   ),
@@ -302,7 +310,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           onSelected: (selected) {
                             if (selected) setState(() => _filter = filter);
                           },
-                          selectedColor: Colors.blueAccent,
+                          selectedColor: const Color(0xFF26A69A),
                           backgroundColor: Colors.white,
                           labelStyle: TextStyle(
                             color: isSelected ? Colors.white : Colors.black87,
@@ -310,7 +318,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(20),
-                            side: BorderSide(color: isSelected ? Colors.blueAccent : Colors.grey[300]!),
+                            side: BorderSide(color: isSelected ? const Color(0xFF26A69A) : Colors.grey[300]!),
                           ),
                         ),
                       );
@@ -386,7 +394,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           if (dA == null) return 1;
                           if (dB == null) return -1;
                           
-                          return _isAscending ? dA.compareTo(dB) : dB.compareTo(dA);
+                          return _isAscending ? dA.compareTo(dB) : dB.compareTo(dB);
                       }
                     });
 
@@ -602,9 +610,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                       children: [
                                         Checkbox(
                                           value: isDone,
-                                          activeColor: Colors.blueAccent,
+                                          activeColor: const Color(0xFF26A69A),
+                                          side: BorderSide(color: isDone ? Colors.transparent : const Color(0xFF26A69A).withOpacity(0.5), width: 2),
                                           shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(4),
+                                            borderRadius: BorderRadius.circular(6),
                                           ),
                                           onChanged: (value) {
                                             if (value != null) {
@@ -668,7 +677,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                           ),
                                         ),
                                         IconButton(
-                                          icon: const Icon(Icons.edit_outlined, color: Colors.blueAccent),
+                                          icon: const Icon(Icons.edit_outlined, color: Color(0xFF26A69A)),
                                           onPressed: () => _showTaskDialog(
                                             taskId: task.id, 
                                             currentTitle: title, 
@@ -702,9 +711,9 @@ class _HomeScreenState extends State<HomeScreen> {
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showTaskDialog(),
-        backgroundColor: Colors.blueAccent,
+        backgroundColor: const Color(0xFF26A69A),
         icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text("Add Task", style: const TextStyle(color: Colors.white)),
+        label: const Text("Add Task", style: TextStyle(color: Colors.white)),
       ),
     );
   }

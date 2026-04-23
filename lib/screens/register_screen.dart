@@ -87,10 +87,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Icon(
+                Icon(
                   Icons.person_add_alt_1,
                   size: 80,
-                  color: Colors.blueAccent,
+                  color: const Color(0xFF26A69A),
                 ),
                 const SizedBox(height: 20),
                 const Text(
@@ -164,7 +164,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          backgroundColor: Colors.blueAccent,
+                          backgroundColor: const Color(0xFF26A69A),
                           foregroundColor: Colors.white,
                           elevation: 2,
                         ),

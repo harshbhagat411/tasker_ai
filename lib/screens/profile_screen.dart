@@ -74,7 +74,7 @@ class ProfileScreen extends StatelessWidget {
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
-                backgroundColor: Colors.blueAccent,
+                backgroundColor: const Color(0xFF26A69A),
                 foregroundColor: Colors.white,
               ),
               onPressed: () async {
@@ -111,7 +111,7 @@ class ProfileScreen extends StatelessWidget {
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
         title: const Text("Profile", style: TextStyle(fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.blueAccent,
+        backgroundColor: const Color(0xFF26A69A),
         foregroundColor: Colors.white,
         elevation: 0,
       ),
@@ -168,7 +168,7 @@ class ProfileScreen extends StatelessWidget {
                             ),
                           ),
                           IconButton(
-                            icon: const Icon(Icons.edit, size: 20, color: Colors.blueAccent),
+                            icon: const Icon(Icons.edit, size: 20, color: Color(0xFF26A69A)),
                             onPressed: () => _showEditProfileDialog(context, displayName),
                             tooltip: "Edit Profile",
                           ),
@@ -188,14 +188,14 @@ class ProfileScreen extends StatelessWidget {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                           decoration: BoxDecoration(
-                            color: Colors.blueAccent.withOpacity(0.1),
+                            color: const Color(0xFF26A69A).withOpacity(0.1),
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Text(
                             joinedDateString,
                             style: const TextStyle(
                               fontSize: 14,
-                              color: Colors.blueAccent,
+                              color: Color(0xFF26A69A),
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -241,7 +241,7 @@ class ProfileScreen extends StatelessWidget {
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                                 children: [
-                                  _buildStatItem("Total", total, Colors.blueAccent),
+                                  _buildStatItem("Total", total, const Color(0xFF26A69A)),
                                   _buildDivider(),
                                   _buildStatItem("Completed", completed, Colors.green),
                                   _buildDivider(),

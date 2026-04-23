@@ -71,15 +71,15 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final isWeekend = day.weekday == DateTime.saturday || day.weekday == DateTime.sunday;
     final isPastDay = _isPast(day);
     
-    final cellColor = isToday ? Colors.orange.shade200 : const Color(0xFFD6DFE8); 
+    final cellColor = isSelected ? const Color(0xFF26A69A) : (isToday ? const Color(0xFFE0F2F1) : const Color(0xFFD6DFE8)); 
     final stripeColor = Colors.grey.withOpacity(0.2);
-    final borderColor = isSelected ? Colors.black87 : Colors.transparent;
+    final borderColor = Colors.transparent;
 
     Widget dayNumberText = Padding(
       padding: const EdgeInsets.all(4.0),
       child: Align(
         alignment: Alignment.topCenter,
-        child: Text('${day.day}', style: TextStyle(color: (isPastDay || isOutside) ? Colors.grey[400] : Colors.black87, fontWeight: FontWeight.bold, fontSize: 13)),
+        child: Text('${day.day}', style: TextStyle(color: isSelected ? Colors.white : ((isPastDay || isOutside) ? Colors.grey[400] : Colors.black87), fontWeight: FontWeight.bold, fontSize: 13)),
       ),
     );
 
@@ -242,7 +242,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                               width: 6,
                               height: 6,
                               decoration: const BoxDecoration(
-                                color: Colors.orangeAccent,
+                                color: Color(0xFF26A69A),
                                 shape: BoxShape.circle,
                               ),
                             ),
@@ -320,7 +320,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                                         leading: Icon(
                                           isDone ? Icons.check_circle : Icons.radio_button_unchecked,
-                                          color: isDone ? Colors.green : Colors.blueAccent,
+                                          color: isDone ? const Color(0xFF26A69A) : const Color(0xFF26A69A).withOpacity(0.5),
                                         ),
                                         title: Text(
                                           title,
