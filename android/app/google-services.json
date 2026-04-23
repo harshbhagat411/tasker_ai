@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "392307752111",
+    "project_id": "taskerapp-197ed",
+    "storage_bucket": "taskerapp-197ed.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:392307752111:android:5aaaead4fd533125f2e85a",
+        "android_client_info": {
+          "package_name": "com.example.tasker_ai"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAAjtruobWb0iVJELxzDf3V006Uj9a6sLo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
