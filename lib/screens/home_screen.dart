@@ -3,6 +3,12 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/task_service.dart';
 import '../services/auth_service.dart';
 
+enum SortType {
+  priority,
+  createdDate,
+  dueDate,
+}
+
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -19,6 +25,8 @@ class _HomeScreenState extends State<HomeScreen> {
   String _searchQuery = '';
   String _filter = 'All'; // 'All', 'Completed', 'Pending'
   String _selectedPriority = 'low';
+  SortType _selectedSortType = SortType.createdDate;
+  bool _isAscending = false;
 
   String _formatDate(DateTime date) {
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -62,8 +70,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    if (taskId == null) ...[
-                      const Padding(
+                    const Padding(
                         padding: EdgeInsets.only(left: 4.0, bottom: 8.0),
                         child: Text("Priority", style: TextStyle(fontSize: 14, color: Colors.black54)),
                       ),
@@ -119,7 +126,6 @@ class _HomeScreenState extends State<HomeScreen> {
                           )
                         ],
                       ),
-                    ],
                   ],
                 ),
               ),
@@ -143,7 +149,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     if (taskId == null) {
                       await _taskService.addTask(title, priority: _selectedPriority, dueDate: tempDate);
                     } else {
-                      await _taskService.updateTaskTitle(taskId, title);
+                      await _taskService.updateTask(taskId, title, priority: _selectedPriority, dueDate: tempDate);
                     }
                     
                     if (mounted) Navigator.pop(context);
@@ -180,6 +186,23 @@ class _HomeScreenState extends State<HomeScreen> {
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
+          // 🔹 Sorting Direction Toggle
+          IconButton(
+            onPressed: () => setState(() => _isAscending = !_isAscending),
+            icon: Icon(_isAscending ? Icons.arrow_upward : Icons.arrow_downward),
+            tooltip: _isAscending ? 'Ascending' : 'Descending',
+          ),
+          // 🔹 Sorting Options Menu
+          PopupMenuButton<SortType>(
+            icon: const Icon(Icons.sort),
+            tooltip: 'Sort by',
+            onSelected: (option) => setState(() => _selectedSortType = option),
+            itemBuilder: (context) => [
+              const PopupMenuItem(value: SortType.priority, child: Text('Priority')),
+              const PopupMenuItem(value: SortType.createdDate, child: Text('Created Date')),
+              const PopupMenuItem(value: SortType.dueDate, child: Text('Due Date')),
+            ],
+          ),
           IconButton(
             onPressed: () async {
               await _authService.logout();
@@ -274,6 +297,54 @@ class _HomeScreenState extends State<HomeScreen> {
 
                   return true;
                 }).toList();
+
+                // 🔹 Apply Sorting
+                tasks.sort((a, b) {
+                  final dataA = a.data() as Map<String, dynamic>?;
+                  final dataB = b.data() as Map<String, dynamic>?;
+
+                  switch (_selectedSortType) {
+                    case SortType.priority:
+                      final pA = dataA?['priority']?.toString() ?? 'low';
+                      final pB = dataB?['priority']?.toString() ?? 'low';
+                      
+                      int valA = pA == 'high' ? 3 : (pA == 'medium' ? 2 : 1);
+                      int valB = pB == 'high' ? 3 : (pB == 'medium' ? 2 : 1);
+                      
+                      int cmp = _isAscending ? valA.compareTo(valB) : valB.compareTo(valA);
+                      
+                      // Fallback to newest if same priority
+                      if (cmp == 0) {
+                        final tA = dataA?['createdAt'] as Timestamp?;
+                        final tB = dataB?['createdAt'] as Timestamp?;
+                        if (tA == null && tB == null) return 0;
+                        if (tA == null) return 1;
+                        if (tB == null) return -1;
+                        return tB.compareTo(tA);
+                      }
+                      return cmp;
+                          
+                    case SortType.createdDate:
+                      final tA = dataA?['createdAt'] as Timestamp?;
+                      final tB = dataB?['createdAt'] as Timestamp?;
+                      
+                      if (tA == null && tB == null) return 0;
+                      if (tA == null) return 1;
+                      if (tB == null) return -1;
+                      
+                      return _isAscending ? tA.compareTo(tB) : tB.compareTo(tA);
+                          
+                    case SortType.dueDate:
+                      final dA = dataA?['dueDate'] as Timestamp?;
+                      final dB = dataB?['dueDate'] as Timestamp?;
+                      
+                      if (dA == null && dB == null) return 0;
+                      if (dA == null) return 1; // push nulls to bottom
+                      if (dB == null) return -1; // push nulls to bottom
+                      
+                      return _isAscending ? dA.compareTo(dB) : dB.compareTo(dA);
+                  }
+                });
 
                 if (tasks.isEmpty) {
                   return _buildEmptyState("No matching tasks found", "Try different filters or search terms");

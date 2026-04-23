@@ -62,16 +62,25 @@ class TaskService {
     });
   }
 
-  Future<void> updateTaskTitle(String id, String newTitle) async {
+  Future<void> updateTask(String id, String newTitle, {String priority = 'low', DateTime? dueDate}) async {
     if (userId == null) return;
+
+    final Map<String, dynamic> data = {
+      'title': newTitle,
+      'priority': priority,
+    };
+
+    if (dueDate != null) {
+      data['dueDate'] = Timestamp.fromDate(dueDate);
+    } else {
+      data['dueDate'] = FieldValue.delete();
+    }
 
     await _firestore
         .collection('users')
         .doc(userId)
         .collection('tasks')
         .doc(id)
-        .update({
-      'title': newTitle,
-    });
+        .update(data);
   }
 }
