@@ -23,9 +23,31 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
+    return MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: AuthWrapper(),
+      theme: ThemeData(
+        primaryColor: const Color(0xFF26A69A),
+        scaffoldBackgroundColor: const Color(0xFFF5F6FA),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF26A69A),
+          primary: const Color(0xFF26A69A),
+        ),
+        textSelectionTheme: const TextSelectionThemeData(
+          cursorColor: Color(0xFF26A69A),
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Color(0xFF26A69A), width: 2.0),
+          ),
+          floatingLabelStyle: const TextStyle(color: Color(0xFF26A69A)),
+        ),
+        datePickerTheme: const DatePickerThemeData(
+          headerBackgroundColor: Color(0xFF26A69A),
+          headerForegroundColor: Colors.white,
+        ),
+      ),
+      home: const AuthWrapper(),
     );
   }
 }

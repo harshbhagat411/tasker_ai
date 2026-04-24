@@ -224,7 +224,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           children: [
                             CircleAvatar(
                               radius: 24,
-                              backgroundColor: Colors.primaries[(user?.uid.hashCode ?? 0).abs() % Colors.primaries.length],
+                              backgroundColor: const Color(0xFF26A69A),
                               child: Text(currentInitial, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20)),
                             ),
                             const SizedBox(width: 12),
