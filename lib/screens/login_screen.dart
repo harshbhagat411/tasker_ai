@@ -77,10 +77,13 @@ class _LoginScreenState extends State<LoginScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Icon(
-                  Icons.task_alt,
-                  size: 80,
-                  color: const Color(0xFF26A69A),
+                Opacity(
+                  opacity: 0.95,
+                  child: Image.asset(
+                    "assets/images/login.png",
+                    height: 380,
+                    fit: BoxFit.contain,
+                  ),
                 ),
                 const SizedBox(height: 20),
                 const Text(
@@ -97,82 +100,101 @@ class _LoginScreenState extends State<LoginScreen> {
                   "Login to manage your tasks",
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.black54,
+                    fontSize: 15,
+                    color: Colors.grey,
                   ),
                 ),
-                const SizedBox(height: 40),
-
-                // 📧 Email
+                const SizedBox(height: 30),
                 TextField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
                   decoration: InputDecoration(
                     labelText: "Email",
                     prefixIcon: const Icon(Icons.email_outlined),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(30),
+                      borderSide: BorderSide.none,
                     ),
                     filled: true,
-                    fillColor: Colors.white,
+                    fillColor: const Color(0xFFF5F5F5),
                   ),
                 ),
                 const SizedBox(height: 16),
-
-                // 🔑 Password
                 TextField(
                   controller: _passwordController,
                   obscureText: true,
                   decoration: InputDecoration(
                     labelText: "Password",
                     prefixIcon: const Icon(Icons.lock_outline),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(30),
+                      borderSide: BorderSide.none,
                     ),
                     filled: true,
-                    fillColor: Colors.white,
+                    fillColor: const Color(0xFFF5F5F5),
                   ),
                 ),
-                const SizedBox(height: 30),
-
-                // 🔄 Button / Loader
-                isLoading
-                    ? const Center(child: CircularProgressIndicator())
-                    : ElevatedButton(
-                        onPressed: _login,
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          backgroundColor: const Color(0xFF26A69A),
-                          foregroundColor: Colors.white,
-                          elevation: 2,
-                        ),
-                        child: const Text(
-                          "Login",
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
                 const SizedBox(height: 20),
-
-                // 👉 Go to Register
-                TextButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const RegisterScreen(),
+                SizedBox(
+                  height: 55,
+                  child: ElevatedButton(
+                    onPressed: isLoading ? null : _login,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF0D47A1),
+                      foregroundColor: Colors.white,
+                      elevation: 4,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(30),
                       ),
-                    );
-                  },
-                  child: const Text(
-                    "Register Here",
-                    style: TextStyle(fontSize: 16, color: Color(0xFF26A69A)),
+                      disabledBackgroundColor: const Color(0xFF0D47A1).withOpacity(0.7),
+                    ),
+                    child: isLoading
+                        ? const SizedBox(
+                            height: 24,
+                            width: 24,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2.5,
+                            ),
+                          )
+                        : const Text(
+                            "Login",
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                   ),
+                ),
+                const SizedBox(height: 15),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text(
+                      "Don't have an account? ",
+                      style: TextStyle(fontSize: 15, color: Colors.grey),
+                    ),
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const RegisterScreen(),
+                          ),
+                        );
+                      },
+                      child: const Text(
+                        "Register",
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF0D47A1),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),

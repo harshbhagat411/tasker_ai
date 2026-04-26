@@ -15,8 +15,10 @@ class AuthService {
 
       if (cred.user != null) {
         await _firestore.collection('users').doc(cred.user!.uid).set({
-          'name': name,
-          'createdAt': FieldValue.serverTimestamp(),
+          'email': email,
+          'displayName': name,
+          'joinedAt': FieldValue.serverTimestamp(),
+          'name': name, // Keep existing logic as a fallback
         }, SetOptions(merge: true));
       }
 

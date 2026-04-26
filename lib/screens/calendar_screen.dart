@@ -71,7 +71,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final isWeekend = day.weekday == DateTime.saturday || day.weekday == DateTime.sunday;
     final isPastDay = _isPast(day);
     
-    final cellColor = isSelected ? const Color(0xFF26A69A) : (isToday ? const Color(0xFFE0F2F1) : const Color(0xFFD6DFE8)); 
+    final cellColor = isSelected ? const Color(0xFF0D47A1) : (isToday ? const Color(0xFFE0F2F1) : const Color(0xFFD6DFE8)); 
     final stripeColor = Colors.grey.withOpacity(0.2);
     final borderColor = Colors.transparent;
 
@@ -242,7 +242,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                               width: 6,
                               height: 6,
                               decoration: const BoxDecoration(
-                                color: Color(0xFF26A69A),
+                                color: Color(0xFF0D47A1),
                                 shape: BoxShape.circle,
                               ),
                             ),
@@ -320,7 +320,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                                         leading: Icon(
                                           isDone ? Icons.check_circle : Icons.radio_button_unchecked,
-                                          color: isDone ? const Color(0xFF26A69A) : const Color(0xFF26A69A).withOpacity(0.5),
+                                          color: isDone ? const Color(0xFF0D47A1) : const Color(0xFF0D47A1).withOpacity(0.5),
                                         ),
                                         title: Text(
                                           title,

@@ -88,11 +88,11 @@ class _HomeScreenState extends State<HomeScreen> {
                                 setDialogState(() => _selectedPriority = value);
                               }
                             },
-                            selectedColor: const Color(0xFF26A69A),
+                            selectedColor: const Color(0xFF0D47A1),
                             backgroundColor: Colors.white,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(20),
-                              side: BorderSide(color: isSelected ? const Color(0xFF26A69A) : Colors.grey[300]!),
+                              side: BorderSide(color: isSelected ? const Color(0xFF0D47A1) : Colors.grey[300]!),
                             ),
                             labelStyle: TextStyle(
                               color: isSelected ? Colors.white : Colors.black87,
@@ -141,7 +141,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    backgroundColor: const Color(0xFF26A69A),
+                    backgroundColor: const Color(0xFF0D47A1),
                     foregroundColor: Colors.white,
                   ),
                   onPressed: () async {
@@ -224,7 +224,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           children: [
                             CircleAvatar(
                               radius: 24,
-                              backgroundColor: const Color(0xFF26A69A),
+                              backgroundColor: const Color(0xFF0D47A1),
                               child: Text(currentInitial, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20)),
                             ),
                             const SizedBox(width: 12),
@@ -280,7 +280,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       hintStyle: TextStyle(color: Colors.grey[500]),
                       prefixIcon: const Padding(
                         padding: EdgeInsets.only(left: 12.0, right: 8.0),
-                        child: Icon(Icons.search, color: Color(0xFF26A69A)),
+                        child: Icon(Icons.search, color: Color(0xFF0D47A1)),
                       ),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(30),
@@ -288,7 +288,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(30),
-                        borderSide: const BorderSide(color: Color(0xFF26A69A), width: 1.5),
+                        borderSide: const BorderSide(color: Color(0xFF0D47A1), width: 1.5),
                       ),
                       contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
                     ),
@@ -310,7 +310,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           onSelected: (selected) {
                             if (selected) setState(() => _filter = filter);
                           },
-                          selectedColor: const Color(0xFF26A69A),
+                          selectedColor: const Color(0xFF0D47A1),
                           backgroundColor: Colors.white,
                           labelStyle: TextStyle(
                             color: isSelected ? Colors.white : Colors.black87,
@@ -318,7 +318,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(20),
-                            side: BorderSide(color: isSelected ? const Color(0xFF26A69A) : Colors.grey[300]!),
+                            side: BorderSide(color: isSelected ? const Color(0xFF0D47A1) : Colors.grey[300]!),
                           ),
                         ),
                       );
@@ -610,8 +610,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                       children: [
                                         Checkbox(
                                           value: isDone,
-                                          activeColor: const Color(0xFF26A69A),
-                                          side: BorderSide(color: isDone ? Colors.transparent : const Color(0xFF26A69A).withOpacity(0.5), width: 2),
+                                          activeColor: const Color(0xFF0D47A1),
+                                          side: BorderSide(color: isDone ? Colors.transparent : const Color(0xFF0D47A1).withOpacity(0.5), width: 2),
                                           shape: RoundedRectangleBorder(
                                             borderRadius: BorderRadius.circular(6),
                                           ),
@@ -677,7 +677,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                           ),
                                         ),
                                         IconButton(
-                                          icon: const Icon(Icons.edit_outlined, color: Color(0xFF26A69A)),
+                                          icon: const Icon(Icons.edit_outlined, color: Color(0xFF0D47A1)),
                                           onPressed: () => _showTaskDialog(
                                             taskId: task.id, 
                                             currentTitle: title, 
@@ -711,7 +711,7 @@ class _HomeScreenState extends State<HomeScreen> {
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showTaskDialog(),
-        backgroundColor: const Color(0xFF26A69A),
+        backgroundColor: const Color(0xFF0D47A1),
         icon: const Icon(Icons.add, color: Colors.white),
         label: const Text("Add Task", style: TextStyle(color: Colors.white)),
       ),

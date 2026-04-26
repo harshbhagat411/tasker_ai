@@ -7,10 +7,13 @@ class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
 
   String _formatJoinedDate(Timestamp? timestamp) {
-    if (timestamp == null) return "";
+    if (timestamp == null) return "Joined recently";
     final date = timestamp.toDate();
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    return "Joined: ${months[date.month - 1]} ${date.year}";
+    const months = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    return "Joined ${months[date.month - 1]} ${date.year}";
   }
 
   Widget _buildStatItem(String label, int count, Color color) {
@@ -74,7 +77,7 @@ class ProfileScreen extends StatelessWidget {
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
-                backgroundColor: const Color(0xFF26A69A),
+                backgroundColor: const Color(0xFF0D47A1),
                 foregroundColor: Colors.white,
               ),
               onPressed: () async {
@@ -111,7 +114,7 @@ class ProfileScreen extends StatelessWidget {
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
         title: const Text("Profile", style: TextStyle(fontWeight: FontWeight.bold)),
-        backgroundColor: const Color(0xFF26A69A),
+        backgroundColor: const Color(0xFF0D47A1),
         foregroundColor: Colors.white,
         elevation: 0,
       ),
@@ -124,17 +127,45 @@ class ProfileScreen extends StatelessWidget {
                   return const Center(child: CircularProgressIndicator());
                 }
 
-                String joinedDateString = "";
+                String joinedDateString = "Joined recently";
 
-                if (snapshot.hasData && snapshot.data!.exists) {
-                  final data = snapshot.data!.data() as Map<String, dynamic>?;
+                if (snapshot.hasData) {
+                  final doc = snapshot.data!;
+                  final data = doc.data() as Map<String, dynamic>?;
+
+                  Timestamp? joinedTimestamp;
+                  
+                  if (data != null) {
+                    if (data['createdAt'] is Timestamp) {
+                      joinedTimestamp = data['createdAt'] as Timestamp;
+                    } else if (data['joinedAt'] is Timestamp) {
+                      joinedTimestamp = data['joinedAt'] as Timestamp;
+                    }
+                  }
+
+                  if (joinedTimestamp != null) {
+                    joinedDateString = _formatJoinedDate(joinedTimestamp);
+                    
+                    // If old user only has createdAt, sync it to joinedAt
+                    if (data != null && data['joinedAt'] == null && data['createdAt'] != null) {
+                      FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+                        'joinedAt': data['createdAt'],
+                      }, SetOptions(merge: true));
+                    }
+                  } else {
+                    joinedDateString = _formatJoinedDate(Timestamp.now());
+                    FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+                      'joinedAt': FieldValue.serverTimestamp(),
+                    }, SetOptions(merge: true));
+                  }
+
                   if (data != null) {
                     if (data.containsKey('name') && data['name'] != null && data['name'].toString().trim().isNotEmpty) {
                       displayName = data['name'].toString().trim();
                       initial = displayName[0].toUpperCase();
-                    }
-                    if (data.containsKey('createdAt') && data['createdAt'] is Timestamp) {
-                      joinedDateString = _formatJoinedDate(data['createdAt'] as Timestamp);
+                    } else if (data.containsKey('displayName') && data['displayName'] != null && data['displayName'].toString().trim().isNotEmpty) {
+                      displayName = data['displayName'].toString().trim();
+                      initial = displayName[0].toUpperCase();
                     }
                   }
                 }
@@ -148,7 +179,7 @@ class ProfileScreen extends StatelessWidget {
                       // Profile Avatar
                       CircleAvatar(
                         radius: 50,
-                        backgroundColor: const Color(0xFF26A69A),
+                        backgroundColor: const Color(0xFF0D47A1),
                         child: Text(
                           initial,
                           style: const TextStyle(fontSize: 40, color: Colors.white, fontWeight: FontWeight.bold),
@@ -168,7 +199,7 @@ class ProfileScreen extends StatelessWidget {
                             ),
                           ),
                           IconButton(
-                            icon: const Icon(Icons.edit, size: 20, color: Color(0xFF26A69A)),
+                            icon: const Icon(Icons.edit, size: 20, color: Color(0xFF0D47A1)),
                             onPressed: () => _showEditProfileDialog(context, displayName),
                             tooltip: "Edit Profile",
                           ),
@@ -184,20 +215,12 @@ class ProfileScreen extends StatelessWidget {
                         ),
                       ),
                       if (joinedDateString.isNotEmpty) ...[
-                        const SizedBox(height: 12),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF26A69A).withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Text(
-                            joinedDateString,
-                            style: const TextStyle(
-                              fontSize: 14,
-                              color: Color(0xFF26A69A),
-                              fontWeight: FontWeight.w600,
-                            ),
+                        const SizedBox(height: 4),
+                        Text(
+                          joinedDateString,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey,
                           ),
                         ),
                       ],
@@ -241,7 +264,7 @@ class ProfileScreen extends StatelessWidget {
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                                 children: [
-                                  _buildStatItem("Total", total, const Color(0xFF26A69A)),
+                                  _buildStatItem("Total", total, const Color(0xFF0D47A1)),
                                   _buildDivider(),
                                   _buildStatItem("Completed", completed, Colors.green),
                                   _buildDivider(),
