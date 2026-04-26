@@ -12,7 +12,20 @@
           "package_name": "com.example.tasker_ai"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "392307752111-hteujtmhpoqkhpascd15sggeoodk4cqj.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.tasker_ai",
+            "certificate_hash": "60cfa83923b1382b809eea42fba5504a701300e0"
+          }
+        },
+        {
+          "client_id": "392307752111-pnk8j5n11pm54hv2sn1o5ruh0b0ou2je.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyAAjtruobWb0iVJELxzDf3V006Uj9a6sLo"
@@ -20,7 +33,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "392307752111-pnk8j5n11pm54hv2sn1o5ruh0b0ou2je.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "392307752111-29jt6i7fs533qqes6fubb1s5rkqkjjol.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.taskerAi"
+              }
+            }
+          ]
         }
       }
     }

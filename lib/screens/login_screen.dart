@@ -16,6 +16,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _passwordController = TextEditingController();
 
   bool isLoading = false;
+  bool isGoogleLoading = false;
 
   Future<void> _login() async {
     setState(() => isLoading = true);
@@ -55,6 +56,35 @@ class _LoginScreenState extends State<LoginScreen> {
           behavior: SnackBarBehavior.floating,
         ),
       );
+    }
+  }
+
+  Future<void> _googleLogin() async {
+    setState(() => isGoogleLoading = true);
+
+    final error = await _authService.signInWithGoogle();
+
+    if (!mounted) return;
+    setState(() => isGoogleLoading = false);
+
+    if (error == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Google Sign-In Successful ✅"),
+          backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } else {
+      if (error != "Google sign in aborted") {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(error),
+            backgroundColor: Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     }
   }
 
@@ -165,6 +195,45 @@ class _LoginScreenState extends State<LoginScreen> {
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
                             ),
+                          ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  height: 55,
+                  child: ElevatedButton(
+                    onPressed: (isLoading || isGoogleLoading) ? null : _googleLogin,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: Colors.black87,
+                      elevation: 2,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(30),
+                        side: BorderSide(color: Colors.grey.shade300),
+                      ),
+                    ),
+                    child: isGoogleLoading
+                        ? const SizedBox(
+                            height: 24,
+                            width: 24,
+                            child: CircularProgressIndicator(
+                              color: Colors.black87,
+                              strokeWidth: 2.5,
+                            ),
+                          )
+                        : Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.g_mobiledata, size: 32, color: Colors.blue),
+                              const SizedBox(width: 8),
+                              const Text(
+                                "Continue with Google",
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
                           ),
                   ),
                 ),
