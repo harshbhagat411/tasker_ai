@@ -12,7 +12,11 @@ class OnboardingScreen extends StatefulWidget {
 
 class _OnboardingScreenState extends State<OnboardingScreen> {
   final PageController _controller = PageController();
-  bool onLastPage = false;
+  int _currentIndex = 0;
+  bool _isNextPressed = false;
+  bool _isGetStartedPressed = false;
+
+  bool get onLastPage => _currentIndex == 2;
 
   Future<void> _completeOnboarding() async {
     final prefs = await SharedPreferences.getInstance();
@@ -35,21 +39,24 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             controller: _controller,
             onPageChanged: (index) {
               setState(() {
-                onLastPage = (index == 2);
+                _currentIndex = index;
               });
             },
             children: [
               _buildPage(
+                index: 0,
                 title: "Create productive work",
                 subtitle: "Stay focused and start managing your tasks easily",
                 imagePath: "assets/images/onboarding1.png",
               ),
               _buildPage(
+                index: 1,
                 title: "Manage tasks easily",
                 subtitle: "Organize, track and complete your daily tasks efficiently",
                 imagePath: "assets/images/onboarding2.png",
               ),
               _buildPage(
+                index: 2,
                 title: "Achieve your goals",
                 subtitle: "Stay consistent and accomplish more every day",
                 imagePath: "assets/images/onboarding3.png",
@@ -93,39 +100,57 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     ),
                   ),
                   onLastPage
-                      ? ElevatedButton(
-                          onPressed: _completeOnboarding,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF0D47A1),
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+                      ? Listener(
+                          onPointerDown: (_) => setState(() => _isGetStartedPressed = true),
+                          onPointerUp: (_) => setState(() => _isGetStartedPressed = false),
+                          onPointerCancel: (_) => setState(() => _isGetStartedPressed = false),
+                          child: AnimatedScale(
+                            scale: _isGetStartedPressed ? 0.95 : 1.0,
+                            duration: const Duration(milliseconds: 200),
+                            child: ElevatedButton(
+                              onPressed: _completeOnboarding,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF0D47A1),
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                              ),
+                              child: const Text(
+                                "Get Started",
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
                             ),
-                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                          ),
-                          child: const Text(
-                            "Get Started",
-                            style: TextStyle(fontWeight: FontWeight.bold),
                           ),
                         )
-                      : ElevatedButton(
-                          onPressed: () {
-                            _controller.nextPage(
-                              duration: const Duration(milliseconds: 500),
-                              curve: Curves.easeIn,
-                            );
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF0D47A1),
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+                      : Listener(
+                          onPointerDown: (_) => setState(() => _isNextPressed = true),
+                          onPointerUp: (_) => setState(() => _isNextPressed = false),
+                          onPointerCancel: (_) => setState(() => _isNextPressed = false),
+                          child: AnimatedScale(
+                            scale: _isNextPressed ? 0.95 : 1.0,
+                            duration: const Duration(milliseconds: 200),
+                            child: ElevatedButton(
+                              onPressed: () {
+                                _controller.nextPage(
+                                  duration: const Duration(milliseconds: 500),
+                                  curve: Curves.easeIn,
+                                );
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF0D47A1),
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                              ),
+                              child: const Text(
+                                "Next",
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
                             ),
-                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                          ),
-                          child: const Text(
-                            "Next",
-                            style: TextStyle(fontWeight: FontWeight.bold),
                           ),
                         ),
                 ],
@@ -138,37 +163,70 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   }
 
   Widget _buildPage({
+    required int index,
     required String title,
     required String subtitle,
     required String imagePath,
   }) {
+    bool isVisible = (index == _currentIndex);
+
     return Padding(
       padding: const EdgeInsets.all(40.0),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Image.asset(
-            imagePath,
-            height: 550,
-            fit: BoxFit.contain,
+          AnimatedOpacity(
+            opacity: isVisible ? 1.0 : 0.0,
+            duration: const Duration(milliseconds: 500),
+            curve: Curves.easeInOut,
+            child: AnimatedScale(
+              scale: isVisible ? 1.0 : 0.8,
+              duration: const Duration(milliseconds: 500),
+              curve: Curves.easeInOut,
+              child: Image.asset(
+                imagePath,
+                height: 550,
+                fit: BoxFit.contain,
+              ),
+            ),
           ),
           const SizedBox(height: 1),
-          Text(
-            title,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
+          AnimatedOpacity(
+            opacity: isVisible ? 1.0 : 0.0,
+            duration: const Duration(milliseconds: 400),
+            curve: Curves.easeInOut,
+            child: AnimatedSlide(
+              offset: isVisible ? Offset.zero : const Offset(0, 0.5),
+              duration: const Duration(milliseconds: 400),
+              curve: Curves.easeInOut,
+              child: Text(
+                title,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
             ),
           ),
           const SizedBox(height: 16),
-          Text(
-            subtitle,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 16,
-              color: Colors.grey,
+          AnimatedOpacity(
+            opacity: isVisible ? 1.0 : 0.0,
+            duration: const Duration(milliseconds: 500),
+            curve: const Interval(0.2, 1.0, curve: Curves.easeInOut),
+            child: AnimatedSlide(
+              offset: isVisible ? Offset.zero : const Offset(0, 0.5),
+              duration: const Duration(milliseconds: 500),
+              curve: const Interval(0.2, 1.0, curve: Curves.easeInOut),
+              child: Text(
+                subtitle,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 16,
+                  color: Colors.grey,
+                ),
+              ),
             ),
           ),
         ],
