@@ -78,6 +78,7 @@ class AuthService {
   // 🌐 Google Sign-In
   Future<String?> signInWithGoogle() async {
     try {
+      await _googleSignIn.signOut(); // Force account picker
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
       if (googleUser == null) {
         return "Google sign in aborted";
@@ -116,6 +117,7 @@ class AuthService {
   // 🚪 Logout
   Future<void> logout() async {
     await _auth.signOut();
+    await _googleSignIn.signOut();
   }
 
   // 👤 Current user
