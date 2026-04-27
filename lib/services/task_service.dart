@@ -21,11 +21,14 @@ class TaskService {
       data['dueDate'] = Timestamp.fromDate(dueDate);
     }
 
-    await _firestore
+    final docRef = _firestore
         .collection('users')
         .doc(userId)
         .collection('tasks')
-        .add(data);
+        .doc();
+
+    // We don't await this so the UI doesn't hang if the user is offline
+    docRef.set(data).catchError((e) => print("Error saving task: \$e"));
   }
 
   Stream<QuerySnapshot> getTasks() {
@@ -72,15 +75,17 @@ class TaskService {
 
     if (dueDate != null) {
       data['dueDate'] = Timestamp.fromDate(dueDate);
-    } else {
+    }
+    if (dueDate == null) {
       data['dueDate'] = FieldValue.delete();
     }
 
-    await _firestore
+    // We don't await this so the UI doesn't hang if the user is offline
+    _firestore
         .collection('users')
         .doc(userId)
         .collection('tasks')
         .doc(id)
-        .update(data);
+        .update(data).catchError((e) => print("Error updating task: \$e"));
   }
 }

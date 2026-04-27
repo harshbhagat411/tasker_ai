@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:provider/provider.dart';
 import '../services/task_service.dart';
+import '../providers/theme_provider.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -16,7 +18,7 @@ class ProfileScreen extends StatelessWidget {
     return "Joined ${months[date.month - 1]} ${date.year}";
   }
 
-  Widget _buildStatItem(String label, int count, Color color) {
+  Widget _buildStatItem(BuildContext context, String label, int count, Color color) {
     return Column(
       children: [
         Text(
@@ -30,9 +32,9 @@ class ProfileScreen extends StatelessWidget {
         const SizedBox(height: 4),
         Text(
           label,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 14,
-            color: Colors.black54,
+            color: Theme.of(context).textTheme.bodyMedium?.color,
             fontWeight: FontWeight.w500,
           ),
         ),
@@ -111,10 +113,10 @@ class ProfileScreen extends StatelessWidget {
     String initial = displayName.isNotEmpty ? displayName[0].toUpperCase() : "?";
 
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text("Profile", style: TextStyle(fontWeight: FontWeight.bold)),
-        backgroundColor: const Color(0xFF0D47A1),
+        backgroundColor: Theme.of(context).primaryColor,
         foregroundColor: Colors.white,
         elevation: 0,
       ),
@@ -179,7 +181,7 @@ class ProfileScreen extends StatelessWidget {
                       // Profile Avatar
                       CircleAvatar(
                         radius: 50,
-                        backgroundColor: const Color(0xFF0D47A1),
+                        backgroundColor: Theme.of(context).primaryColor,
                         child: Text(
                           initial,
                           style: const TextStyle(fontSize: 40, color: Colors.white, fontWeight: FontWeight.bold),
@@ -192,14 +194,14 @@ class ProfileScreen extends StatelessWidget {
                         children: [
                           Text(
                             displayName,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 22,
                               fontWeight: FontWeight.bold,
-                              color: Colors.black87,
+                              color: Theme.of(context).textTheme.bodyLarge?.color,
                             ),
                           ),
                           IconButton(
-                            icon: const Icon(Icons.edit, size: 20, color: Color(0xFF0D47A1)),
+                            icon: Icon(Icons.edit, size: 20, color: Theme.of(context).primaryColor),
                             onPressed: () => _showEditProfileDialog(context, displayName),
                             tooltip: "Edit Profile",
                           ),
@@ -209,18 +211,18 @@ class ProfileScreen extends StatelessWidget {
                       // User Email
                       Text(
                         email,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 16,
-                          color: Colors.black54,
+                          color: Theme.of(context).textTheme.bodyMedium?.color,
                         ),
                       ),
                       if (joinedDateString.isNotEmpty) ...[
                         const SizedBox(height: 4),
                         Text(
                           joinedDateString,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 12,
-                            color: Colors.grey,
+                            color: Theme.of(context).textTheme.bodySmall?.color,
                           ),
                         ),
                       ],
@@ -254,21 +256,21 @@ class ProfileScreen extends StatelessWidget {
 
                           return Card(
                             elevation: 0,
-                            color: Colors.white,
+                            color: Theme.of(context).cardColor,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(16),
-                              side: BorderSide(color: Colors.grey[200]!),
+                              side: BorderSide(color: Colors.grey[300]!),
                             ),
                             child: Padding(
                               padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                                 children: [
-                                  _buildStatItem("Total", total, const Color(0xFF0D47A1)),
+                                  _buildStatItem(context, "Total", total, Theme.of(context).primaryColor),
                                   _buildDivider(),
-                                  _buildStatItem("Completed", completed, Colors.green),
+                                  _buildStatItem(context, "Completed", completed, Colors.green),
                                   _buildDivider(),
-                                  _buildStatItem("Pending", pending, Colors.orange),
+                                  _buildStatItem(context, "Pending", pending, Colors.orange),
                                 ],
                               ),
                             ),
@@ -276,6 +278,40 @@ class ProfileScreen extends StatelessWidget {
                         },
                       ),
                       const SizedBox(height: 40),
+
+                      // 🔹 Dark Mode Toggle
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).cardColor,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.grey[300]!),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.dark_mode, color: Theme.of(context).iconTheme.color ?? Colors.grey),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Text(
+                                "Dark Mode",
+                                style: TextStyle(
+                                  fontSize: 16, 
+                                  fontWeight: FontWeight.w500,
+                                  color: Theme.of(context).textTheme.bodyLarge?.color,
+                                ),
+                              ),
+                            ),
+                            Switch(
+                              value: Provider.of<ThemeProvider>(context).isDarkMode,
+                              onChanged: (value) {
+                                Provider.of<ThemeProvider>(context, listen: false).toggleTheme();
+                              },
+                              activeColor: const Color(0xFF1A237E),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 20),
 
                       // Logout Button
                       SizedBox(

@@ -67,13 +67,13 @@ class _HomeScreenState extends State<HomeScreen> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         filled: true,
-                        fillColor: Colors.grey[100],
+                        fillColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF2A2A2A) : Colors.grey[100],
                       ),
                     ),
                     const SizedBox(height: 16),
-                    const Padding(
+                    Padding(
                         padding: EdgeInsets.only(left: 4.0, bottom: 8.0),
-                        child: Text("Priority", style: TextStyle(fontSize: 14, color: Colors.black54)),
+                        child: Text("Priority", style: TextStyle(fontSize: 14, color: Theme.of(context).textTheme.bodyMedium?.color)),
                       ),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -89,13 +89,13 @@ class _HomeScreenState extends State<HomeScreen> {
                               }
                             },
                             selectedColor: const Color(0xFF0D47A1),
-                            backgroundColor: Colors.white,
+                            backgroundColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF2A2A2A) : Colors.white,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(20),
                               side: BorderSide(color: isSelected ? const Color(0xFF0D47A1) : Colors.grey[300]!),
                             ),
                             labelStyle: TextStyle(
-                              color: isSelected ? Colors.white : Colors.black87,
+                              color: isSelected ? Colors.white : Theme.of(context).textTheme.bodyLarge?.color,
                               fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                             ),
                           );
@@ -198,7 +198,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final initial = displayName.isNotEmpty ? displayName[0].toUpperCase() : "?";
 
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: SingleChildScrollView(
           child: Padding(
@@ -232,7 +232,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 const Text("Hey 👋", style: TextStyle(color: Colors.grey, fontSize: 14)),
-                                Text(displayStr, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.black87)),
+                                Text(displayStr, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Theme.of(context).textTheme.bodyLarge?.color)),
                               ],
                             ),
                           ],
@@ -241,11 +241,11 @@ class _HomeScreenState extends State<HomeScreen> {
                           children: [
                             IconButton(
                               onPressed: () => setState(() => _isAscending = !_isAscending),
-                              icon: Icon(_isAscending ? Icons.arrow_upward : Icons.arrow_downward, color: Colors.black87),
+                              icon: Icon(_isAscending ? Icons.arrow_upward : Icons.arrow_downward, color: Theme.of(context).textTheme.bodyLarge?.color),
                               tooltip: _isAscending ? 'Ascending' : 'Descending',
                             ),
                             PopupMenuButton<SortType>(
-                              icon: const Icon(Icons.sort, color: Colors.black87),
+                              icon: Icon(Icons.sort, color: Theme.of(context).textTheme.bodyLarge?.color),
                               tooltip: 'Sort by',
                               onSelected: (option) => setState(() => _selectedSortType = option),
                               itemBuilder: (context) => [
@@ -263,14 +263,14 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox(height: 30),
 
                 // SECTION 2: Title
-                const Text("Tasker", style: TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: Colors.black87)),
-                const Text("Manage your tasks", style: TextStyle(fontSize: 16, color: Colors.black54)),
+                Text("Tasker", style: TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyLarge?.color)),
+                Text("Manage your tasks", style: TextStyle(fontSize: 16, color: Theme.of(context).textTheme.bodyMedium?.color)),
                 const SizedBox(height: 24),
 
                 // SECTION 3: Search Bar
                 Container(
                   decoration: BoxDecoration(
-                    color: Colors.grey[100],
+                    color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF1E1E1E) : Colors.grey[100],
                     borderRadius: BorderRadius.circular(30),
                   ),
                   child: TextField(
@@ -311,9 +311,9 @@ class _HomeScreenState extends State<HomeScreen> {
                             if (selected) setState(() => _filter = filter);
                           },
                           selectedColor: const Color(0xFF0D47A1),
-                          backgroundColor: Colors.white,
+                          backgroundColor: Theme.of(context).cardColor,
                           labelStyle: TextStyle(
-                            color: isSelected ? Colors.white : Colors.black87,
+                            color: isSelected ? Colors.white : Theme.of(context).textTheme.bodyLarge?.color,
                             fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
                           ),
                           shape: RoundedRectangleBorder(
@@ -456,7 +456,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       children: [
                         // SECTION 5: Horizontal Task Cards
                         if (horizontalTasks.isNotEmpty && _filter != 'Completed') ...[
-                          const Text("Priority & Today", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black87)),
+                          Text("Priority & Today", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyLarge?.color)),
                           const SizedBox(height: 16),
                           SizedBox(
                             height: 160,
@@ -567,7 +567,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
                         // SECTION 6: "My Tasks" title
                         if (verticalTasks.isNotEmpty) ...[
-                          const Text("My Tasks", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black87)),
+                          Text("My Tasks", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyLarge?.color)),
                           const SizedBox(height: 16),
 
                           // SECTION 7: Vertical list
@@ -590,7 +590,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
                               return Card(
                                 elevation: 0,
-                                color: Colors.white,
+                                color: Theme.of(context).cardColor,
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(16),
                                   side: BorderSide(color: Colors.grey.shade200),
@@ -611,7 +611,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                         Checkbox(
                                           value: isDone,
                                           activeColor: const Color(0xFF0D47A1),
-                                          side: BorderSide(color: isDone ? Colors.transparent : const Color(0xFF0D47A1).withOpacity(0.5), width: 2),
+                                          side: BorderSide(color: isDone ? Colors.transparent : (Theme.of(context).brightness == Brightness.dark ? Colors.grey.shade500 : const Color(0xFF0D47A1).withOpacity(0.5)), width: 2),
                                           shape: RoundedRectangleBorder(
                                             borderRadius: BorderRadius.circular(6),
                                           ),
@@ -632,7 +632,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                                   fontSize: 16,
                                                   fontWeight: isDone ? FontWeight.normal : FontWeight.w600,
                                                   decoration: isDone ? TextDecoration.lineThrough : TextDecoration.none,
-                                                  color: isDone ? Colors.grey : Colors.black87,
+                                                  color: isDone ? Colors.grey : Theme.of(context).textTheme.bodyLarge?.color,
                                                 ),
                                               ),
                                               if (dueDate != null) ...[
@@ -727,12 +727,12 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(height: 16),
           Text(
             title,
-            style: TextStyle(fontSize: 18, color: Colors.grey[500]),
+            style: TextStyle(fontSize: 18, color: Theme.of(context).textTheme.bodyMedium?.color),
           ),
           const SizedBox(height: 8),
           Text(
             subtitle,
-            style: TextStyle(fontSize: 14, color: Colors.grey[400]),
+            style: TextStyle(fontSize: 14, color: Theme.of(context).textTheme.bodySmall?.color),
           ),
         ],
       ),

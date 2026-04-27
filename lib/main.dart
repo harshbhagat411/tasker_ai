@@ -9,6 +9,8 @@ import 'screens/home_screen.dart';
 import 'screens/calendar_screen.dart';
 import 'screens/profile_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:provider/provider.dart';
+import 'providers/theme_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -20,7 +22,12 @@ void main() async {
   final prefs = await SharedPreferences.getInstance();
   final seenOnboarding = prefs.getBool('seenOnboarding') ?? false;
 
-  runApp(MyApp(seenOnboarding: seenOnboarding));
+  runApp(
+    ChangeNotifierProvider(
+      create: (_) => ThemeProvider(),
+      child: MyApp(seenOnboarding: seenOnboarding),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -29,43 +36,87 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        primaryColor: const Color(0xFF0D47A1),
-        scaffoldBackgroundColor: const Color(0xFFF5F6FA),
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF0D47A1),
-          primary: const Color(0xFF0D47A1),
-        ),
-        textSelectionTheme: const TextSelectionThemeData(
-          cursorColor: Color(0xFF0D47A1),
-        ),
-        inputDecorationTheme: InputDecorationTheme(
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: Color(0xFF0D47A1), width: 2.0),
+    return Consumer<ThemeProvider>(
+      builder: (context, themeProvider, child) {
+        return MaterialApp(
+          debugShowCheckedModeBanner: false,
+          themeMode: themeProvider.isDarkMode ? ThemeMode.dark : ThemeMode.light,
+          theme: ThemeData(
+            primaryColor: const Color(0xFF0D47A1),
+            scaffoldBackgroundColor: const Color(0xFFF5F6FA),
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: const Color(0xFF0D47A1),
+              primary: const Color(0xFF0D47A1),
+              brightness: Brightness.light,
+            ),
+            textSelectionTheme: const TextSelectionThemeData(
+              cursorColor: Color(0xFF0D47A1),
+            ),
+            inputDecorationTheme: InputDecorationTheme(
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: Color(0xFF0D47A1), width: 2.0),
+              ),
+              floatingLabelStyle: const TextStyle(color: Color(0xFF0D47A1)),
+            ),
+            datePickerTheme: const DatePickerThemeData(
+              headerBackgroundColor: Color(0xFF0D47A1),
+              headerForegroundColor: Colors.white,
+            ),
           ),
-          floatingLabelStyle: const TextStyle(color: Color(0xFF0D47A1)),
-        ),
-        datePickerTheme: const DatePickerThemeData(
-          headerBackgroundColor: Color(0xFF0D47A1),
-          headerForegroundColor: Colors.white,
-        ),
-      ),
-      home: AuthWrapper(seenOnboarding: seenOnboarding),
+          darkTheme: ThemeData(
+            primaryColor: const Color(0xFF0D47A1),
+            scaffoldBackgroundColor: const Color(0xFF121212),
+            cardColor: const Color(0xFF1E1E1E),
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: const Color(0xFF0D47A1),
+              primary: const Color(0xFF0D47A1),
+              brightness: Brightness.dark,
+            ),
+            textTheme: Typography.material2021().white,
+            textSelectionTheme: const TextSelectionThemeData(
+              cursorColor: Color(0xFF0D47A1),
+            ),
+            inputDecorationTheme: InputDecorationTheme(
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: Color(0xFF0D47A1), width: 2.0),
+              ),
+              floatingLabelStyle: const TextStyle(color: Color(0xFF0D47A1)),
+            ),
+            datePickerTheme: const DatePickerThemeData(
+              headerBackgroundColor: Color(0xFF0D47A1),
+              headerForegroundColor: Colors.white,
+            ),
+          ),
+          home: AuthWrapper(seenOnboarding: seenOnboarding),
+        );
+      },
     );
   }
 }
 
-class AuthWrapper extends StatelessWidget {
+class AuthWrapper extends StatefulWidget {
   final bool seenOnboarding;
   const AuthWrapper({super.key, required this.seenOnboarding});
 
   @override
+  State<AuthWrapper> createState() => _AuthWrapperState();
+}
+
+class _AuthWrapperState extends State<AuthWrapper> {
+  late final Stream<User?> _authStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _authStream = FirebaseAuth.instance.authStateChanges();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return StreamBuilder<User?>(
-      stream: FirebaseAuth.instance.authStateChanges(),
+      stream: _authStream,
       builder: (context, snapshot) {
         // Loading
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -80,7 +131,7 @@ class AuthWrapper extends StatelessWidget {
         }
 
         // Not logged in
-        return seenOnboarding ? const LoginScreen() : const OnboardingScreen();
+        return widget.seenOnboarding ? const LoginScreen() : const OnboardingScreen();
       },
     );
   }
@@ -116,7 +167,7 @@ class _MainScreenState extends State<MainScreen> {
             _currentIndex = index;
           });
         },
-        selectedItemColor: const Color(0xFF0D47A1),
+        selectedItemColor: Theme.of(context).primaryColor,
         unselectedItemColor: Colors.grey,
         items: const [
           BottomNavigationBarItem(

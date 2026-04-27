@@ -67,19 +67,25 @@ class _CalendarScreenState extends State<CalendarScreen> {
     return day.isBefore(today);
   }
 
-  Widget _buildCell(DateTime day, {bool isOutside = false, bool isSelected = false, bool isToday = false}) {
+  Widget _buildCell(BuildContext context, DateTime day, {bool isOutside = false, bool isSelected = false, bool isToday = false}) {
     final isWeekend = day.weekday == DateTime.saturday || day.weekday == DateTime.sunday;
     final isPastDay = _isPast(day);
     
-    final cellColor = isSelected ? const Color(0xFF0D47A1) : (isToday ? const Color(0xFFE0F2F1) : const Color(0xFFD6DFE8)); 
-    final stripeColor = Colors.grey.withOpacity(0.2);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    final cellColor = isSelected 
+        ? const Color(0xFF0D47A1) 
+        : (isToday 
+            ? (isDark ? const Color(0xFF004D40) : const Color(0xFFE0F2F1)) 
+            : (isDark ? const Color(0xFF2A2A2A) : const Color(0xFFD6DFE8))); 
+    final stripeColor = isDark ? Colors.white.withOpacity(0.1) : Colors.grey.withOpacity(0.2);
     final borderColor = Colors.transparent;
 
     Widget dayNumberText = Padding(
       padding: const EdgeInsets.all(4.0),
       child: Align(
         alignment: Alignment.topCenter,
-        child: Text('${day.day}', style: TextStyle(color: isSelected ? Colors.white : ((isPastDay || isOutside) ? Colors.grey[400] : Colors.black87), fontWeight: FontWeight.bold, fontSize: 13)),
+        child: Text('${day.day}', style: TextStyle(color: isSelected ? Colors.white : ((isPastDay || isOutside) ? Colors.grey[500] : (isDark ? Colors.white : Colors.black87)), fontWeight: FontWeight.bold, fontSize: 13)),
       ),
     );
 
@@ -106,7 +112,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
             ),
             Expanded(
               child: Container(
-                color: Colors.white,
+                color: Theme.of(context).cardColor,
                 child: CustomPaint(
                   painter: DiagonalStripePainter(color: stripeColor),
                   child: Container(),
@@ -139,7 +145,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF3F1ED), // Light warm beige from the image
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: StreamBuilder<QuerySnapshot>(
           stream: _taskService.getTasks(),
@@ -164,11 +170,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       RichText(
-                        text: const TextSpan(
-                          style: TextStyle(fontSize: 34, height: 1.1, letterSpacing: -0.5),
+                        text: TextSpan(
+                          style: const TextStyle(fontSize: 34, height: 1.1, letterSpacing: -0.5),
                           children: [
-                            TextSpan(text: "Track Your\n", style: TextStyle(fontWeight: FontWeight.w800, color: Colors.black)),
-                            TextSpan(text: "Schedule", style: TextStyle(fontWeight: FontWeight.w400, color: Colors.black45)),
+                            TextSpan(text: "Track Your\n", style: TextStyle(fontWeight: FontWeight.w800, color: Theme.of(context).textTheme.bodyLarge?.color)),
+                            TextSpan(text: "Schedule", style: TextStyle(fontWeight: FontWeight.w400, color: Theme.of(context).textTheme.bodyMedium?.color)),
                           ]
                         )
                       ),
@@ -192,13 +198,13 @@ class _CalendarScreenState extends State<CalendarScreen> {
                           decoration: BoxDecoration(
                             border: Border.all(color: Colors.black12),
                             borderRadius: BorderRadius.circular(24),
-                            color: Colors.white.withOpacity(0.5),
+                            color: Theme.of(context).cardColor.withOpacity(0.5),
                           ),
                           child: Row(
                             children: [
-                              Text(DateFormat('MMM, yyyy').format(_focusedDay), style: const TextStyle(color: Colors.black54, fontWeight: FontWeight.w600)),
+                              Text(DateFormat('MMM, yyyy').format(_focusedDay), style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color, fontWeight: FontWeight.w600)),
                               const SizedBox(width: 6),
-                              const Icon(Icons.keyboard_arrow_down, size: 18, color: Colors.black45),
+                              Icon(Icons.keyboard_arrow_down, size: 18, color: Theme.of(context).textTheme.bodyMedium?.color),
                             ],
                           ),
                         ),
@@ -229,10 +235,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     eventLoader: (day) => _getEventsForDay(day, allTasks),
                     headerVisible: false, // We built our own header
                     calendarBuilders: CalendarBuilders(
-                      defaultBuilder: (context, day, focusedDay) => _buildCell(day),
-                      outsideBuilder: (context, day, focusedDay) => _buildCell(day, isOutside: true),
-                      todayBuilder: (context, day, focusedDay) => _buildCell(day, isToday: true),
-                      selectedBuilder: (context, day, focusedDay) => _buildCell(day, isSelected: true),
+                      defaultBuilder: (context, day, focusedDay) => _buildCell(context, day),
+                      outsideBuilder: (context, day, focusedDay) => _buildCell(context, day, isOutside: true),
+                      todayBuilder: (context, day, focusedDay) => _buildCell(context, day, isToday: true),
+                      selectedBuilder: (context, day, focusedDay) => _buildCell(context, day, isSelected: true),
                       markerBuilder: (context, day, events) {
                         if (events.isNotEmpty) {
                           return Positioned(
@@ -257,7 +263,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                           child: Text(
                             text,
                             style: TextStyle(
-                              color: isWeekend ? Colors.amber.shade600 : Colors.black45,
+                              color: isWeekend ? Colors.amber.shade600 : Theme.of(context).textTheme.bodyMedium?.color,
                               fontWeight: FontWeight.w600,
                               fontSize: 13,
                             ),
@@ -273,8 +279,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 // Tasks for the selected day
                 Expanded(
                   child: Container(
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).cardColor,
                       borderRadius: BorderRadius.only(topLeft: Radius.circular(32), topRight: Radius.circular(32)),
                     ),
                     child: Column(
@@ -284,7 +290,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                           padding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
                           child: Text(
                             _selectedDay != null ? DateFormat('EEEE, MMMM d').format(_selectedDay!) : "Tasks",
-                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
+                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyLarge?.color),
                           ),
                         ),
                         Expanded(
@@ -310,7 +316,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
                                     return Card(
                                       elevation: 0,
-                                      color: const Color(0xFFF8F9FA),
+                                      color: Theme.of(context).cardColor,
                                       margin: const EdgeInsets.only(bottom: 12),
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(16),
@@ -326,7 +332,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                           title,
                                           style: TextStyle(
                                             decoration: isDone ? TextDecoration.lineThrough : null,
-                                            color: isDone ? Colors.grey : Colors.black87,
+                                            color: isDone ? Colors.grey : Theme.of(context).textTheme.bodyLarge?.color,
                                             fontWeight: isDone ? FontWeight.normal : FontWeight.w600,
                                           ),
                                         ),
