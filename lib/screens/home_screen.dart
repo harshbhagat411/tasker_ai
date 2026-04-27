@@ -486,12 +486,6 @@ class _HomeScreenState extends State<HomeScreen> {
                                   ),
                                   child: InkWell(
                                     borderRadius: BorderRadius.circular(20),
-                                    onTap: () => _showTaskDialog(
-                                      taskId: task.id, 
-                                      currentTitle: title, 
-                                      currentPriority: priority,
-                                      currentDueDate: dueDate,
-                                    ),
                                     child: Padding(
                                       padding: const EdgeInsets.all(20.0),
                                       child: Column(
@@ -598,12 +592,6 @@ class _HomeScreenState extends State<HomeScreen> {
                                 margin: const EdgeInsets.only(bottom: 12),
                                 child: InkWell(
                                   borderRadius: BorderRadius.circular(16),
-                                  onTap: () => _showTaskDialog(
-                                    taskId: task.id, 
-                                    currentTitle: title, 
-                                    currentPriority: priority,
-                                    currentDueDate: dueDate,
-                                  ),
                                   child: Padding(
                                     padding: const EdgeInsets.all(12.0),
                                     child: Row(
