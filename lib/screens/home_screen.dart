@@ -585,14 +585,41 @@ class _HomeScreenState extends State<HomeScreen> {
                               return Card(
                                 elevation: 0,
                                 color: Theme.of(context).cardColor,
+                                clipBehavior: Clip.antiAlias,
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(16),
                                   side: BorderSide(color: Colors.grey.shade200),
                                 ),
                                 margin: const EdgeInsets.only(bottom: 12),
-                                child: InkWell(
-                                  borderRadius: BorderRadius.circular(16),
-                                  child: Padding(
+                                child: Dismissible(
+                                  key: Key(task.id),
+                                  background: Container(
+                                    color: Colors.green,
+                                    alignment: Alignment.centerLeft,
+                                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                                    child: const Icon(Icons.check, color: Colors.white),
+                                  ),
+                                  secondaryBackground: Container(
+                                    color: Colors.red,
+                                    alignment: Alignment.centerRight,
+                                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                                    child: const Icon(Icons.delete, color: Colors.white),
+                                  ),
+                                  confirmDismiss: (direction) async {
+                                    if (direction == DismissDirection.startToEnd) {
+                                      _taskService.toggleTask(task.id, true);
+                                      return false;
+                                    }
+                                    return true;
+                                  },
+                                  onDismissed: (direction) {
+                                    if (direction == DismissDirection.endToStart) {
+                                      _taskService.deleteTask(task.id);
+                                    }
+                                  },
+                                  child: InkWell(
+                                    borderRadius: BorderRadius.circular(16),
+                                    child: Padding(
                                     padding: const EdgeInsets.all(12.0),
                                     child: Row(
                                       children: [
@@ -682,6 +709,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                       ],
                                     ),
                                   ),
+                                ),
                                 ),
                               );
                             },
