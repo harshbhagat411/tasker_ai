@@ -18,9 +18,11 @@ class ProfileScreen extends StatelessWidget {
     return "Joined ${months[date.month - 1]} ${date.year}";
   }
 
-  Widget _buildStatItem(BuildContext context, String label, int count, Color color) {
+  Widget _buildStatItem(BuildContext context, String label, int count, Color color, IconData icon) {
     return Column(
       children: [
+        Icon(icon, color: color, size: 28),
+        const SizedBox(height: 8),
         Text(
           count.toString(),
           style: TextStyle(
@@ -239,10 +241,15 @@ class ProfileScreen extends StatelessWidget {
                           int total = 0;
                           int completed = 0;
                           int pending = 0;
+                          int weeklyTotal = 0;
+                          int weeklyCompleted = 0;
 
                           if (taskSnapshot.hasData && taskSnapshot.data != null) {
                             final docs = taskSnapshot.data!.docs;
                             total = docs.length;
+                            final now = DateTime.now();
+                            final oneWeekAgo = now.subtract(const Duration(days: 7));
+
                             for (var doc in docs) {
                               final data = doc.data() as Map<String, dynamic>?;
                               final isDone = (data?['isDone'] as bool?) ?? false;
@@ -251,29 +258,125 @@ class ProfileScreen extends StatelessWidget {
                               } else {
                                 pending++;
                               }
+
+                              if (data != null && data['createdAt'] is Timestamp) {
+                                final createdAt = (data['createdAt'] as Timestamp).toDate();
+                                if (createdAt.isAfter(oneWeekAgo)) {
+                                  weeklyTotal++;
+                                  if (isDone) weeklyCompleted++;
+                                }
+                              }
                             }
                           }
 
-                          return Card(
-                            elevation: 0,
-                            color: Theme.of(context).cardColor,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                              side: BorderSide(color: Colors.grey[300]!),
-                            ),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          final double progress = total > 0 ? completed / total : 0.0;
+
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Card(
+                                elevation: 4,
+                                shadowColor: Colors.black12,
+                                color: Theme.of(context).cardColor,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(20),
+                                  side: BorderSide(color: Colors.grey[300]!, width: 0.5),
+                                ),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                    children: [
+                                      _buildStatItem(context, "Total", total, Theme.of(context).primaryColor, Icons.assignment),
+                                      _buildDivider(),
+                                      _buildStatItem(context, "Completed", completed, Colors.green, Icons.check_circle_outline),
+                                      _buildDivider(),
+                                      _buildStatItem(context, "Pending", pending, Colors.orange, Icons.hourglass_bottom),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 24),
+                              Text(
+                                "Overall Progress",
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Theme.of(context).textTheme.bodyLarge?.color,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              Row(
                                 children: [
-                                  _buildStatItem(context, "Total", total, Theme.of(context).primaryColor),
-                                  _buildDivider(),
-                                  _buildStatItem(context, "Completed", completed, Colors.green),
-                                  _buildDivider(),
-                                  _buildStatItem(context, "Pending", pending, Colors.orange),
+                                  Expanded(
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(8),
+                                      child: LinearProgressIndicator(
+                                        value: progress,
+                                        minHeight: 10,
+                                        backgroundColor: Colors.grey[300],
+                                        color: Colors.green,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Text(
+                                    "${(progress * 100).toInt()}%",
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                      color: Theme.of(context).textTheme.bodyLarge?.color,
+                                    ),
+                                  ),
                                 ],
                               ),
-                            ),
+                              const SizedBox(height: 8),
+                              Text(
+                                "You have completed ${(progress * 100).toInt()}% of your tasks.",
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Theme.of(context).textTheme.bodyMedium?.color,
+                                ),
+                              ),
+                              const SizedBox(height: 24),
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context).primaryColor.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(color: Theme.of(context).primaryColor.withOpacity(0.3)),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Icon(Icons.trending_up, color: Theme.of(context).primaryColor),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          "Weekly Insights",
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold,
+                                            color: Theme.of(context).primaryColor,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      "$weeklyCompleted of $weeklyTotal tasks created in the last 7 days are completed.",
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: Theme.of(context).textTheme.bodyLarge?.color,
+                                        height: 1.4,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           );
                         },
                       ),
