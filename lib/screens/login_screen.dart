@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import 'register_screen.dart';
+import 'home_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -62,29 +63,24 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _googleLogin() async {
     setState(() => isGoogleLoading = true);
 
-    final error = await _authService.signInWithGoogle();
+    final user = await _authService.signInWithGoogle();
 
     if (!mounted) return;
     setState(() => isGoogleLoading = false);
 
-    if (error == null) {
+    if (user != null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text("Google Sign-In Successful ✅"),
+          content: Text("Login successful"),
           backgroundColor: Colors.green,
           behavior: SnackBarBehavior.floating,
         ),
       );
-    } else {
-      if (error != "Google sign in aborted") {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(error),
-            backgroundColor: Colors.redAccent,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const HomeScreen()),
+        (route) => false,
+      );
     }
   }
 

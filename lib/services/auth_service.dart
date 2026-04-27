@@ -76,12 +76,12 @@ class AuthService {
   }
 
   // 🌐 Google Sign-In
-  Future<String?> signInWithGoogle() async {
+  Future<User?> signInWithGoogle() async {
     try {
       await _googleSignIn.signOut(); // Force account picker
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
       if (googleUser == null) {
-        return "Google sign in aborted";
+        return null;
       }
 
       final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
@@ -104,13 +104,10 @@ class AuthService {
         }, SetOptions(merge: true));
       }
 
-      return null;
-    } on FirebaseAuthException catch (e) {
-      print("GOOGLE AUTH ERROR: ${e.code}");
-      return e.message ?? "Google Sign-In failed";
+      return user;
     } catch (e) {
       print("GENERAL GOOGLE ERROR: $e");
-      return "An error occurred during Google Sign-In";
+      return null;
     }
   }
 
