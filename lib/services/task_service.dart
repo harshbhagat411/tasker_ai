@@ -13,6 +13,7 @@ class TaskService {
     final Map<String, dynamic> data = {
       'title': title,
       'isDone': false,
+      'isPinned': false,
       'priority': priority,
       'createdAt': FieldValue.serverTimestamp(),
     };
@@ -62,6 +63,19 @@ class TaskService {
         .doc(id)
         .update({
       'isDone': isDone,
+    });
+  }
+
+  Future<void> togglePinTask(String id, bool isPinned) async {
+    if (userId == null) return;
+
+    await _firestore
+        .collection('users')
+        .doc(userId)
+        .collection('tasks')
+        .doc(id)
+        .update({
+      'isPinned': isPinned,
     });
   }
 

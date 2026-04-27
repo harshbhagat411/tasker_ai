@@ -447,6 +447,20 @@ class _HomeScreenState extends State<HomeScreen> {
                       verticalTasks = baseTasks.where((task) => !((task.data() as Map<String, dynamic>?)?['isDone'] ?? false)).toList();
                     }
 
+                    // Sort so pinned tasks appear first
+                    int sortTasks(DocumentSnapshot a, DocumentSnapshot b) {
+                      final dataA = a.data() as Map<String, dynamic>?;
+                      final dataB = b.data() as Map<String, dynamic>?;
+                      final bool isPinnedA = (dataA?['isPinned'] as bool?) ?? false;
+                      final bool isPinnedB = (dataB?['isPinned'] as bool?) ?? false;
+                      if (isPinnedA && !isPinnedB) return -1;
+                      if (!isPinnedA && isPinnedB) return 1;
+                      return 0; // maintain default date sorting if both are same
+                    }
+
+                    horizontalTasks.sort(sortTasks);
+                    verticalTasks.sort(sortTasks);
+
                     if (horizontalTasks.isEmpty && verticalTasks.isEmpty) {
                       return _buildEmptyState("No matching tasks", "Try changing filters");
                     }
@@ -506,9 +520,20 @@ class _HomeScreenState extends State<HomeScreen> {
                                                   style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.black87)
                                                 ),
                                               ),
-                                              SizedBox(
-                                                width: 24,
-                                                height: 24,
+                                              Row(
+                                                children: [
+                                                  GestureDetector(
+                                                    onTap: () => _taskService.togglePinTask(task.id, !((data?['isPinned'] as bool?) ?? false)),
+                                                    child: Icon(
+                                                      ((data?['isPinned'] as bool?) ?? false) ? Icons.push_pin : Icons.push_pin_outlined,
+                                                      size: 18,
+                                                      color: Colors.black87,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 12),
+                                                  SizedBox(
+                                                    width: 24,
+                                                    height: 24,
                                                 child: Stack(
                                                   fit: StackFit.expand,
                                                   children: [
@@ -526,7 +551,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                               ),
                                             ],
                                           ),
-                                          const SizedBox(height: 12),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 12),
                                           Expanded(
                                             child: Text(
                                               title,
@@ -582,9 +609,13 @@ class _HomeScreenState extends State<HomeScreen> {
                                 dueDate = (data['dueDate'] as Timestamp).toDate();
                               }
 
+                              final bool isPinned = (data?['isPinned'] as bool?) ?? false;
+
                               return Card(
                                 elevation: 0,
-                                color: Theme.of(context).cardColor,
+                                color: isPinned 
+                                    ? (Theme.of(context).brightness == Brightness.dark ? Colors.amber.withOpacity(0.1) : Colors.orange.shade50) 
+                                    : Theme.of(context).cardColor,
                                 clipBehavior: Clip.antiAlias,
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(16),
@@ -690,6 +721,14 @@ class _HomeScreenState extends State<HomeScreen> {
                                               ),
                                             ],
                                           ),
+                                        ),
+                                        IconButton(
+                                          icon: Icon(
+                                            isPinned ? Icons.push_pin : Icons.push_pin_outlined,
+                                            color: isPinned ? Colors.orange : Colors.grey,
+                                          ),
+                                          onPressed: () => _taskService.togglePinTask(task.id, !isPinned),
+                                          tooltip: isPinned ? 'Unpin task' : 'Pin task',
                                         ),
                                         IconButton(
                                           icon: const Icon(Icons.edit_outlined, color: Color(0xFF0D47A1)),
