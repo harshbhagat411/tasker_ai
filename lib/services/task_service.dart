@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'notification_service.dart';
 
 class TaskService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -16,6 +17,7 @@ class TaskService {
       'isPinned': false,
       'priority': priority,
       'createdAt': FieldValue.serverTimestamp(),
+      'notifiedLocally': false,
     };
 
     if (dueDate != null) {
@@ -89,6 +91,7 @@ class TaskService {
 
     if (dueDate != null) {
       data['dueDate'] = Timestamp.fromDate(dueDate);
+      data['notifiedLocally'] = false; // Reset notification flag when due date changes
     }
     if (dueDate == null) {
       data['dueDate'] = FieldValue.delete();
@@ -101,5 +104,41 @@ class TaskService {
         .collection('tasks')
         .doc(id)
         .update(data).catchError((e) => print("Error updating task: \$e"));
+  }
+
+  Future<void> checkDueTasksAndNotify() async {
+    if (userId == null) return;
+
+    try {
+      final querySnapshot = await _firestore
+          .collection('users')
+          .doc(userId)
+          .collection('tasks')
+          .where('isDone', isEqualTo: false)
+          .where('notifiedLocally', isEqualTo: false)
+          .get();
+
+      final now = DateTime.now();
+
+      for (var doc in querySnapshot.docs) {
+        final data = doc.data();
+        if (data.containsKey('dueDate') && data['dueDate'] != null) {
+          final dueDate = (data['dueDate'] as Timestamp).toDate();
+          if (dueDate.isBefore(now) || dueDate.isAtSameMomentAs(now)) {
+            // Task is due, send instant notification
+            await NotificationService.showInstantNotification(
+              doc.id.hashCode,
+              "Task Reminder",
+              "Your task '\${data['title'] ?? 'Task'}' is due!",
+            );
+
+            // Mark as notified locally
+            await doc.reference.update({'notifiedLocally': true});
+          }
+        }
+      }
+    } catch (e) {
+      print("Error checking due tasks: \$e");
+    }
   }
 }

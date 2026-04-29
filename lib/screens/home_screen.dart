@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/task_service.dart';
 import '../services/auth_service.dart';
+import '../services/notification_service.dart';
 
 enum SortType {
   priority,
@@ -22,6 +23,12 @@ class _HomeScreenState extends State<HomeScreen> {
   final AuthService _authService = AuthService();
 
   final TextEditingController _taskController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _taskService.checkDueTasksAndNotify();
+  }
 
   String _searchQuery = '';
   String _filter = 'All'; // 'All', 'Completed', 'Pending'
@@ -44,6 +51,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
     
     DateTime? tempDate = currentDueDate;
+    TimeOfDay? tempTime = currentDueDate != null ? TimeOfDay.fromDateTime(currentDueDate) : null;
 
     showDialog(
       context: context,
@@ -107,25 +115,48 @@ class _HomeScreenState extends State<HomeScreen> {
                           Icon(Icons.calendar_today, size: 20, color: Colors.grey[600]),
                           const SizedBox(width: 8),
                           Expanded(
-                            child: Text(
-                              tempDate == null ? "No due date" : _formatDate(tempDate!),
-                              style: TextStyle(color: tempDate == null ? Colors.grey : Colors.black87),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  tempDate == null ? "No due date" : _formatDate(tempDate!),
+                                  style: TextStyle(color: tempDate == null ? Colors.grey : Colors.black87),
+                                ),
+                                if (tempTime != null)
+                                  Text(
+                                    tempTime!.format(context),
+                                    style: const TextStyle(color: Colors.black54, fontSize: 12),
+                                  ),
+                              ],
                             ),
                           ),
                           TextButton(
                             onPressed: () async {
-                              final picked = await showDatePicker(
+                              final pickedDate = await showDatePicker(
                                 context: context,
                                 initialDate: tempDate ?? DateTime.now(),
                                 firstDate: DateTime.now(),
                                 lastDate: DateTime(2100),
                               );
-                              if (picked != null) {
-                                setDialogState(() => tempDate = picked);
+                              if (pickedDate != null) {
+                                setDialogState(() => tempDate = pickedDate);
                               }
                             },
-                            child: const Text("Select"),
-                          )
+                            child: const Text("Date"),
+                          ),
+                          if (tempDate != null)
+                            TextButton(
+                              onPressed: () async {
+                                final pickedTime = await showTimePicker(
+                                  context: context,
+                                  initialTime: tempTime ?? TimeOfDay.now(),
+                                );
+                                if (pickedTime != null) {
+                                  setDialogState(() => tempTime = pickedTime);
+                                }
+                              },
+                              child: const Text("Time"),
+                            ),
                         ],
                       ),
                   ],
@@ -148,13 +179,38 @@ class _HomeScreenState extends State<HomeScreen> {
                     final title = _taskController.text.trim();
                     if (title.isEmpty) return;
 
+                    DateTime? finalDate;
+                    if (tempDate != null) {
+                      if (tempTime != null) {
+                        finalDate = DateTime(
+                          tempDate!.year,
+                          tempDate!.month,
+                          tempDate!.day,
+                          tempTime!.hour,
+                          tempTime!.minute,
+                        );
+                      } else {
+                        // User picked a date but no time, default to 9 AM
+                        finalDate = DateTime(
+                          tempDate!.year,
+                          tempDate!.month,
+                          tempDate!.day,
+                        ).add(const Duration(hours: 9));
+                      }
+                    }
+
                     if (taskId == null) {
-                      await _taskService.addTask(title, priority: _selectedPriority, dueDate: tempDate);
+                      await _taskService.addTask(title, priority: _selectedPriority, dueDate: finalDate);
                     } else {
-                      await _taskService.updateTask(taskId, title, priority: _selectedPriority, dueDate: tempDate);
+                      await _taskService.updateTask(taskId, title, priority: _selectedPriority, dueDate: finalDate);
                     }
                     
-                    if (mounted) Navigator.pop(context);
+                    // Check notifications immediately after saving
+                    _taskService.checkDueTasksAndNotify();
+                    
+                    if (mounted) {
+                      Navigator.pop(context);
+                    }
                   },
                   child: Text(taskId == null ? "Add" : "Save"),
                 ),
@@ -200,8 +256,13 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
-        child: SingleChildScrollView(
-          child: Padding(
+        child: RefreshIndicator(
+          onRefresh: () async {
+            await _taskService.checkDueTasksAndNotify();
+          },
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: Padding(
             padding: const EdgeInsets.all(20.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -260,11 +321,15 @@ class _HomeScreenState extends State<HomeScreen> {
                     );
                   }
                 ),
-                const SizedBox(height: 30),
-
+                const SizedBox(height: 30),                
                 // SECTION 2: Title
-                Text("Tasker", style: TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyLarge?.color)),
-                Text("Manage your tasks", style: TextStyle(fontSize: 16, color: Theme.of(context).textTheme.bodyMedium?.color)),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text("Tasker", style: TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyLarge?.color)),
+                    Text("Manage your tasks", style: TextStyle(fontSize: 16, color: Theme.of(context).textTheme.bodyMedium?.color)),
+                  ],
+                ),
                 const SizedBox(height: 24),
 
                 // SECTION 3: Search Bar
@@ -326,6 +391,74 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
                 const SizedBox(height: 24),
+
+                // SECTION 4.5: Upcoming Tasks (Next 1 Hour)
+                StreamBuilder<QuerySnapshot>(
+                  stream: _taskService.getTasks(),
+                  builder: (context, snapshot) {
+                    if (!snapshot.hasData) return const SizedBox.shrink();
+                    
+                    final now = DateTime.now();
+                    final inOneHour = now.add(const Duration(hours: 1));
+                    
+                    final upcomingTasks = snapshot.data!.docs.where((doc) {
+                      final data = doc.data() as Map<String, dynamic>?;
+                      if (data == null || data['isDone'] == true || data['dueDate'] == null) return false;
+                      
+                      final dueDate = (data['dueDate'] as Timestamp).toDate();
+                      return dueDate.isAfter(now) && dueDate.isBefore(inOneHour);
+                    }).toList();
+
+                    if (upcomingTasks.isEmpty) {
+                      return const SizedBox.shrink();
+                    }
+
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text("Upcoming (Next 1 Hour)", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyLarge?.color)),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          height: 100,
+                          child: ListView.builder(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: upcomingTasks.length,
+                            itemBuilder: (context, index) {
+                          final data = upcomingTasks[index].data() as Map<String, dynamic>;
+                          final title = data['title'] ?? 'Task';
+                          final time = TimeOfDay.fromDateTime((data['dueDate'] as Timestamp).toDate()).format(context);
+                          
+                          return Container(
+                            width: 200,
+                            margin: const EdgeInsets.only(right: 12, bottom: 24),
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF0D47A1).withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: const Color(0xFF0D47A1).withOpacity(0.3)),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF0D47A1))),
+                                const SizedBox(height: 4),
+                                Row(
+                                  children: [
+                                    const Icon(Icons.access_time, size: 14, color: Color(0xFF0D47A1)),
+                                    const SizedBox(width: 4),
+                                    Text("Due at $time", style: const TextStyle(fontSize: 12, color: Color(0xFF0D47A1))),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    )],
+                    );
+                  },
+                ),
 
                 // Task Stream
                 StreamBuilder<QuerySnapshot>(
@@ -760,6 +893,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ],
             ),
+          ),
           ),
         ),
       ),

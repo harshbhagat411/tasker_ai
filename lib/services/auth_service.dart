@@ -1,8 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:google_sign_in/google_sign_in.dart';
-import 'package:google_sign_in/google_sign_in.dart';
+import 'fcm_service.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -24,6 +23,7 @@ class AuthService {
           'joinedAt': FieldValue.serverTimestamp(),
           'name': name, // Keep existing logic as a fallback
         }, SetOptions(merge: true));
+        await FCMService.saveToken();
       }
 
       return null; // success = no error
@@ -55,6 +55,7 @@ class AuthService {
         email: email,
         password: password,
       );
+      await FCMService.saveToken();
       return null; // success
     } on FirebaseAuthException catch (e) {
       print("LOGIN ERROR: ${e.code}");
@@ -102,6 +103,7 @@ class AuthService {
           'joinedAt': FieldValue.serverTimestamp(),
           'name': user.displayName ?? '',
         }, SetOptions(merge: true));
+        await FCMService.saveToken();
       }
 
       return user;
