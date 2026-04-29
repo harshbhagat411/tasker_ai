@@ -41,7 +41,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return "${months[date.month - 1]} ${date.day}, ${date.year}";
   }
 
-  void _showTaskDialog({String? taskId, String? currentTitle, String? currentPriority, DateTime? currentDueDate}) {
+  void _showTaskDialog({String? taskId, String? currentTitle, String? currentPriority, DateTime? currentDueDate, List<dynamic>? currentSubtasks}) {
     if (currentTitle != null) {
       _taskController.text = currentTitle;
       _selectedPriority = currentPriority ?? 'low';
@@ -52,6 +52,18 @@ class _HomeScreenState extends State<HomeScreen> {
     
     DateTime? tempDate = currentDueDate;
     TimeOfDay? tempTime = currentDueDate != null ? TimeOfDay.fromDateTime(currentDueDate) : null;
+
+    List<Map<String, dynamic>> localSubtasks = [];
+    if (currentSubtasks != null) {
+      for (var sub in currentSubtasks) {
+        if (sub is Map) {
+          localSubtasks.add({
+            'controller': TextEditingController(text: sub['title'] ?? ''),
+            'isCompleted': sub['isCompleted'] ?? false,
+          });
+        }
+      }
+    }
 
     showDialog(
       context: context,
@@ -157,8 +169,68 @@ class _HomeScreenState extends State<HomeScreen> {
                               },
                               child: const Text("Time"),
                             ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Padding(
+                      padding: const EdgeInsets.only(left: 4.0, bottom: 8.0),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text("Subtasks", style: TextStyle(fontSize: 14, color: Theme.of(context).textTheme.bodyMedium?.color)),
+                          TextButton.icon(
+                            onPressed: () {
+                              setDialogState(() {
+                                localSubtasks.add({
+                                  'controller': TextEditingController(),
+                                  'isCompleted': false,
+                                });
+                              });
+                            },
+                            icon: const Icon(Icons.add, size: 16),
+                            label: const Text("Add Step"),
+                          ),
                         ],
                       ),
+                    ),
+                    ...localSubtasks.asMap().entries.map((entry) {
+                      int index = entry.key;
+                      var subtask = entry.value;
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 8.0),
+                        child: Row(
+                          children: [
+                            Icon(
+                              subtask['isCompleted'] ? Icons.check_circle : Icons.radio_button_unchecked,
+                              color: subtask['isCompleted'] ? Colors.green : Colors.grey,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: TextField(
+                                controller: subtask['controller'] as TextEditingController,
+                                decoration: InputDecoration(
+                                  hintText: "Subtask title...",
+                                  isDense: true,
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
+                              onPressed: () {
+                                setDialogState(() {
+                                  localSubtasks.removeAt(index);
+                                });
+                              },
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
                   ],
                 ),
               ),
@@ -199,10 +271,21 @@ class _HomeScreenState extends State<HomeScreen> {
                       }
                     }
 
+                    List<Map<String, dynamic>> finalSubtasks = [];
+                    for (var sub in localSubtasks) {
+                      String subTitle = (sub['controller'] as TextEditingController).text.trim();
+                      if (subTitle.isNotEmpty) {
+                        finalSubtasks.add({
+                          'title': subTitle,
+                          'isCompleted': sub['isCompleted'],
+                        });
+                      }
+                    }
+
                     if (taskId == null) {
-                      await _taskService.addTask(title, priority: _selectedPriority, dueDate: finalDate);
+                      await _taskService.addTask(title, priority: _selectedPriority, dueDate: finalDate, subtasks: finalSubtasks);
                     } else {
-                      await _taskService.updateTask(taskId, title, priority: _selectedPriority, dueDate: finalDate);
+                      await _taskService.updateTask(taskId, title, priority: _selectedPriority, dueDate: finalDate, subtasks: finalSubtasks);
                     }
                     
                     // Check notifications immediately after saving
@@ -621,6 +704,13 @@ class _HomeScreenState extends State<HomeScreen> {
                                   dueDate = (data['dueDate'] as Timestamp).toDate();
                                 }
                                 
+                                final List<dynamic>? subtasks = data?['subtasks'] as List<dynamic>?;
+                                double progress = 0.0;
+                                if (subtasks != null && subtasks.isNotEmpty) {
+                                  int completed = subtasks.where((s) => s is Map && s['isCompleted'] == true).length;
+                                  progress = completed / subtasks.length;
+                                }
+                                
                                 return Container(
                                   width: 240,
                                   margin: const EdgeInsets.only(right: 16, bottom: 8),
@@ -671,7 +761,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                                   fit: StackFit.expand,
                                                   children: [
                                                     CircularProgressIndicator(
-                                                      value: 0.4, // placeholder for visual flair
+                                                      value: progress,
                                                       strokeWidth: 3,
                                                       backgroundColor: Colors.white.withOpacity(0.5),
                                                       color: Colors.black87,
@@ -743,6 +833,13 @@ class _HomeScreenState extends State<HomeScreen> {
                               }
 
                               final bool isPinned = (data?['isPinned'] as bool?) ?? false;
+
+                              final List<dynamic>? subtasks = data?['subtasks'] as List<dynamic>?;
+                              double progress = 0.0;
+                              if (subtasks != null && subtasks.isNotEmpty) {
+                                int completed = subtasks.where((s) => s is Map && s['isCompleted'] == true).length;
+                                progress = completed / subtasks.length;
+                              }
 
                               return Card(
                                 elevation: 0,
@@ -852,6 +949,52 @@ class _HomeScreenState extends State<HomeScreen> {
                                                   ),
                                                 ],
                                               ),
+                                              if (subtasks != null && subtasks.isNotEmpty) ...[
+                                                const SizedBox(height: 8),
+                                                LinearProgressIndicator(
+                                                  value: progress,
+                                                  backgroundColor: Colors.grey.shade200,
+                                                  color: const Color(0xFF0D47A1),
+                                                  minHeight: 4,
+                                                  borderRadius: BorderRadius.circular(2),
+                                                ),
+                                                const SizedBox(height: 8),
+                                                ...subtasks.asMap().entries.map((entry) {
+                                                  int subIndex = entry.key;
+                                                  var sub = entry.value as Map<String, dynamic>;
+                                                  bool isSubDone = sub['isCompleted'] == true;
+                                                  return InkWell(
+                                                    onTap: () {
+                                                      List<Map<String, dynamic>> updatedSubtasks = subtasks.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+                                                      updatedSubtasks[subIndex]['isCompleted'] = !isSubDone;
+                                                      _taskService.updateSubtasks(task.id, updatedSubtasks);
+                                                    },
+                                                    child: Padding(
+                                                      padding: const EdgeInsets.symmetric(vertical: 4.0),
+                                                      child: Row(
+                                                        children: [
+                                                          Icon(
+                                                            isSubDone ? Icons.check_box : Icons.check_box_outline_blank,
+                                                            size: 16,
+                                                            color: isSubDone ? Colors.grey : const Color(0xFF0D47A1),
+                                                          ),
+                                                          const SizedBox(width: 6),
+                                                          Expanded(
+                                                            child: Text(
+                                                              sub['title'] ?? '',
+                                                              style: TextStyle(
+                                                                fontSize: 13,
+                                                                color: isSubDone ? Colors.grey : Colors.black87,
+                                                                decoration: isSubDone ? TextDecoration.lineThrough : null,
+                                                              ),
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                  );
+                                                }).toList(),
+                                              ],
                                             ],
                                           ),
                                         ),
@@ -870,6 +1013,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                             currentTitle: title, 
                                             currentPriority: priority,
                                             currentDueDate: dueDate,
+                                            currentSubtasks: subtasks,
                                           ),
                                           tooltip: 'Edit task',
                                         ),

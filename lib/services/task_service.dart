@@ -8,7 +8,7 @@ class TaskService {
 
   String? get userId => _auth.currentUser?.uid;
 
-  Future<void> addTask(String title, {String priority = 'low', DateTime? dueDate}) async {
+  Future<void> addTask(String title, {String priority = 'low', DateTime? dueDate, List<Map<String, dynamic>>? subtasks}) async {
     if (userId == null) return;
 
     final Map<String, dynamic> data = {
@@ -19,6 +19,10 @@ class TaskService {
       'createdAt': FieldValue.serverTimestamp(),
       'notifiedLocally': false,
     };
+
+    if (subtasks != null && subtasks.isNotEmpty) {
+      data['subtasks'] = subtasks;
+    }
 
     if (dueDate != null) {
       data['dueDate'] = Timestamp.fromDate(dueDate);
@@ -81,13 +85,19 @@ class TaskService {
     });
   }
 
-  Future<void> updateTask(String id, String newTitle, {String priority = 'low', DateTime? dueDate}) async {
+  Future<void> updateTask(String id, String newTitle, {String priority = 'low', DateTime? dueDate, List<Map<String, dynamic>>? subtasks}) async {
     if (userId == null) return;
 
     final Map<String, dynamic> data = {
       'title': newTitle,
       'priority': priority,
     };
+
+    if (subtasks != null) {
+      data['subtasks'] = subtasks;
+    } else {
+      data['subtasks'] = FieldValue.delete();
+    }
 
     if (dueDate != null) {
       data['dueDate'] = Timestamp.fromDate(dueDate);
@@ -104,6 +114,19 @@ class TaskService {
         .collection('tasks')
         .doc(id)
         .update(data).catchError((e) => print("Error updating task: \$e"));
+  }
+
+  Future<void> updateSubtasks(String id, List<Map<String, dynamic>> subtasks) async {
+    if (userId == null) return;
+
+    await _firestore
+        .collection('users')
+        .doc(userId)
+        .collection('tasks')
+        .doc(id)
+        .update({
+      'subtasks': subtasks,
+    });
   }
 
   Future<void> checkDueTasksAndNotify() async {
