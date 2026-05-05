@@ -368,6 +368,69 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
+  void _showShareDialog(String taskId) {
+    final TextEditingController emailController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text("Share Task"),
+          content: TextField(
+            controller: emailController,
+            decoration: InputDecoration(
+              hintText: "Enter email",
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              filled: true,
+              fillColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF2A2A2A) : Colors.grey[100],
+            ),
+            keyboardType: TextInputType.emailAddress,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Cancel", style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                backgroundColor: const Color(0xFF0D47A1),
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () async {
+                final email = emailController.text.trim();
+                if (email.isEmpty) return;
+
+                Navigator.pop(context); // Close dialog
+
+                try {
+                  await _taskService.shareTask(taskId, email);
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text("Task shared successfully"), backgroundColor: Colors.green),
+                    );
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text("User not found"), backgroundColor: Colors.red),
+                    );
+                  }
+                }
+              },
+              child: const Text("Share"),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Color _getPriorityColor(String priority) {
     switch (priority.toLowerCase()) {
       case 'high':
@@ -608,8 +671,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 ),
 
                 // Task Stream
-                StreamBuilder<QuerySnapshot>(
-                  stream: _taskService.getTasks(),
+                StreamBuilder<List<QueryDocumentSnapshot>>(
+                  stream: _taskService.getAllTasks(),
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
                       return const Center(child: CircularProgressIndicator());
@@ -617,12 +680,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     if (snapshot.hasError) {
                       return const Center(child: Text("Error loading tasks"));
                     }
-                    if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                    if (!snapshot.hasData || snapshot.data!.isEmpty) {
                       return _buildEmptyState("No tasks yet", "Tap + to add a new task");
                     }
 
                     // Base tasks applied with global Search filter
-                    var baseTasks = snapshot.data!.docs.where((task) {
+                    var baseTasks = snapshot.data!.where((task) {
                       final data = task.data() as Map<String, dynamic>?;
                       final String title = data?['title']?.toString() ?? '';
                       if (_searchQuery.isNotEmpty && !title.toLowerCase().contains(_searchQuery.toLowerCase())) {
@@ -1069,6 +1132,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                           ),
                                           onPressed: () => _taskService.togglePinTask(task.id, !isPinned),
                                           tooltip: isPinned ? 'Unpin task' : 'Pin task',
+                                        ),
+                                        IconButton(
+                                          icon: const Icon(Icons.share_outlined, color: Colors.green),
+                                          onPressed: () => _showShareDialog(task.id),
+                                          tooltip: 'Share task',
                                         ),
                                         IconButton(
                                           icon: const Icon(Icons.edit_outlined, color: Color(0xFF0D47A1)),

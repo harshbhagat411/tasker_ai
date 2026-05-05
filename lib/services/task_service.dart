@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'notification_service.dart';
-
+import 'package:rxdart/rxdart.dart';
 class TaskService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -153,5 +153,96 @@ class TaskService {
         .update({
       'subtasks': subtasks,
     });
+  }
+
+  // --- SHARED TASKS ---
+  
+  Future<void> createSharedTask(String title, {DateTime? dueDate}) async {
+    if (userId == null) return;
+    
+    final Map<String, dynamic> data = {
+      'title': title,
+      'ownerId': userId,
+      'members': [userId],
+      'permissions': {
+        userId!: 'owner',
+      },
+      'isDone': false,
+      'createdAt': FieldValue.serverTimestamp(),
+    };
+    
+    if (dueDate != null) {
+      data['dueDate'] = Timestamp.fromDate(dueDate);
+    }
+    
+    await _firestore.collection('tasks').add(data);
+  }
+
+  Stream<QuerySnapshot> getSharedTasks() {
+    if (userId == null) return const Stream.empty();
+    print("Fetching shared tasks for user: $userId");
+    
+    return _firestore
+        .collection('tasks')
+        .where('members', arrayContains: userId)
+        .snapshots();
+  }
+
+  Future<void> shareTask(String taskId, String email) async {
+    if (userId == null) return;
+    
+    // Find user by email
+    final snapshot = await _firestore
+        .collection('users')
+        .where('email', isEqualTo: email.toLowerCase())
+        .limit(1)
+        .get();
+        
+    if (snapshot.docs.isEmpty) {
+      print("User with email $email not found");
+      throw Exception("User not found");
+    }
+    
+    final targetUserId = snapshot.docs.first.id;
+    
+    await _firestore.collection('tasks').doc(taskId).update({
+      'members': FieldValue.arrayUnion([targetUserId]),
+      'permissions.$targetUserId': 'editor',
+    });
+  }
+
+  Stream<List<QueryDocumentSnapshot>> getAllTasks() {
+    if (userId == null) return Stream.value([]);
+    print("Combining personal and shared tasks for user: $userId");
+
+    final personalStream = getTasks();
+    final sharedStream = getSharedTasks();
+
+    return Rx.combineLatest2(
+      personalStream,
+      sharedStream,
+      (QuerySnapshot personal, QuerySnapshot shared) {
+        final List<QueryDocumentSnapshot> allDocs = [];
+        allDocs.addAll(personal.docs);
+        allDocs.addAll(shared.docs);
+        
+        // Sort combined list by createdAt descending
+        allDocs.sort((a, b) {
+          final dataA = a.data() as Map<String, dynamic>?;
+          final dataB = b.data() as Map<String, dynamic>?;
+          
+          final tA = dataA?['createdAt'] as Timestamp?;
+          final tB = dataB?['createdAt'] as Timestamp?;
+          
+          if (tA == null && tB == null) return 0;
+          if (tA == null) return 1;
+          if (tB == null) return -1;
+          
+          return tB.compareTo(tA);
+        });
+        
+        return allDocs;
+      },
+    );
   }
 }
