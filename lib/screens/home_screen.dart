@@ -18,15 +18,82 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   final TaskService _taskService = TaskService();
   final AuthService _authService = AuthService();
+  final NotificationService _notificationService = NotificationService();
 
   final TextEditingController _taskController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    checkDueTasks();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      checkDueTasks();
+    }
+  }
+
+  Future<void> checkDueTasks() async {
+    print("Checking tasks...");
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    if (userId == null) return;
+
+    final now = DateTime.now();
+    final snapshot = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(userId)
+        .collection('tasks')
+        .get();
+
+    bool foundAny = false;
+
+    for (var doc in snapshot.docs) {
+      final data = doc.data();
+      if (data['isDone'] == true || data['dueDate'] == null) continue;
+
+      final bool notificationSent = data['notifiedLocally'] ?? false;
+      if (notificationSent) continue;
+
+      final dueDate = (data['dueDate'] as Timestamp).toDate();
+      
+      if (dueDate.isBefore(now) || dueDate.isAtSameMomentAs(now)) {
+        final title = data['title'] ?? 'Task';
+        print("Task due → notification sent");
+        await _notificationService.triggerImmediateNotificationWithDetails(
+          id: doc.id.hashCode,
+          title: "Task Reminder",
+          body: "Your task is due now: '$title'",
+        );
+        await doc.reference.update({'notifiedLocally': true});
+        foundAny = true;
+      } else if (dueDate.isBefore(now.add(const Duration(minutes: 10)))) {
+        final title = data['title'] ?? 'Task';
+        print("Task due → notification sent");
+        await _notificationService.triggerImmediateNotificationWithDetails(
+          id: doc.id.hashCode,
+          title: "Task due soon",
+          body: "Task '$title' is due in less than 10 minutes",
+        );
+        await doc.reference.update({'notifiedLocally': true});
+        foundAny = true;
+      }
+    }
+
+    if (!foundAny) {
+      print("No tasks due");
+    }
   }
 
   String _searchQuery = '';

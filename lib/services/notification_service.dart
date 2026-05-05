@@ -185,6 +185,36 @@ class NotificationService {
     }
   }
 
+  Future<void> triggerImmediateNotificationWithDetails({
+    required int id,
+    required String title,
+    required String body,
+  }) async {
+    try {
+      await _notificationsPlugin.show(
+        id: id,
+        title: title,
+        body: body,
+        notificationDetails: const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'task_reminder_channel',
+            'Task Reminders',
+            channelDescription: 'Notifications for scheduled task deadlines',
+            importance: Importance.max,
+            priority: Priority.high,
+            playSound: true,
+            enableVibration: true,
+            icon: '@mipmap/ic_launcher',
+          ),
+          iOS: DarwinNotificationDetails(),
+        ),
+      );
+      print("Immediate notification triggered for task");
+    } catch (e) {
+      print("Failed to trigger immediate notification: $e");
+    }
+  }
+
   Future<void> cancelNotification(int id) async {
     await _notificationsPlugin.cancel(id: id);
   }
