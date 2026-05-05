@@ -36,6 +36,16 @@ class TaskService {
 
     // We don't await this so the UI doesn't hang if the user is offline
     docRef.set(data).catchError((e) => print("Error saving task: \$e"));
+    print("Task created with ID: \${docRef.id}");
+
+    if (dueDate != null && dueDate.isAfter(DateTime.now())) {
+      await NotificationService().scheduleNotification(
+        id: docRef.id.hashCode,
+        title: 'Task Reminder',
+        body: 'Your task "\$title" is due!',
+        scheduledDate: dueDate,
+      );
+    }
   }
 
   Stream<QuerySnapshot> getTasks() {
@@ -58,6 +68,8 @@ class TaskService {
         .collection('tasks')
         .doc(id)
         .delete();
+        
+    await NotificationService().cancelNotification(id.hashCode);
   }
   Future<void> toggleTask(String id, bool isDone) async {
     if (userId == null) return;
@@ -70,6 +82,10 @@ class TaskService {
         .update({
       'isDone': isDone,
     });
+    
+    if (isDone) {
+      await NotificationService().cancelNotification(id.hashCode);
+    }
   }
 
   Future<void> togglePinTask(String id, bool isPinned) async {
@@ -114,6 +130,16 @@ class TaskService {
         .collection('tasks')
         .doc(id)
         .update(data).catchError((e) => print("Error updating task: \$e"));
+
+    await NotificationService().cancelNotification(id.hashCode);
+    if (dueDate != null && dueDate.isAfter(DateTime.now())) {
+      await NotificationService().scheduleNotification(
+        id: id.hashCode,
+        title: 'Task Reminder',
+        body: 'Your task "\$newTitle" is due!',
+        scheduledDate: dueDate,
+      );
+    }
   }
 
   Future<void> updateSubtasks(String id, List<Map<String, dynamic>> subtasks) async {
@@ -127,41 +153,5 @@ class TaskService {
         .update({
       'subtasks': subtasks,
     });
-  }
-
-  Future<void> checkDueTasksAndNotify() async {
-    if (userId == null) return;
-
-    try {
-      final querySnapshot = await _firestore
-          .collection('users')
-          .doc(userId)
-          .collection('tasks')
-          .where('isDone', isEqualTo: false)
-          .where('notifiedLocally', isEqualTo: false)
-          .get();
-
-      final now = DateTime.now();
-
-      for (var doc in querySnapshot.docs) {
-        final data = doc.data();
-        if (data.containsKey('dueDate') && data['dueDate'] != null) {
-          final dueDate = (data['dueDate'] as Timestamp).toDate();
-          if (dueDate.isBefore(now) || dueDate.isAtSameMomentAs(now)) {
-            // Task is due, send instant notification
-            await NotificationService.showInstantNotification(
-              doc.id.hashCode,
-              "Task Reminder",
-              "Your task '\${data['title'] ?? 'Task'}' is due!",
-            );
-
-            // Mark as notified locally
-            await doc.reference.update({'notifiedLocally': true});
-          }
-        }
-      }
-    } catch (e) {
-      print("Error checking due tasks: \$e");
-    }
   }
 }

@@ -27,7 +27,6 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _taskService.checkDueTasksAndNotify();
   }
 
   String _searchQuery = '';
@@ -288,9 +287,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       await _taskService.updateTask(taskId, title, priority: _selectedPriority, dueDate: finalDate, subtasks: finalSubtasks);
                     }
                     
-                    // Check notifications immediately after saving
-                    _taskService.checkDueTasksAndNotify();
-                    
                     if (mounted) {
                       Navigator.pop(context);
                     }
@@ -341,7 +337,8 @@ class _HomeScreenState extends State<HomeScreen> {
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () async {
-            await _taskService.checkDueTasksAndNotify();
+            // Can add some delay to simulate refresh if needed
+            await Future.delayed(const Duration(milliseconds: 500));
           },
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),

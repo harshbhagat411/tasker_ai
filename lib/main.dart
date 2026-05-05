@@ -14,6 +14,8 @@ import 'providers/theme_provider.dart';
 
 import 'services/fcm_service.dart';
 import 'services/notification_service.dart';
+import 'package:timezone/data/latest_all.dart' as tz_init;
+import 'package:timezone/timezone.dart' as tz;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -22,8 +24,14 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
+  tz_init.initializeTimeZones();
+  tz.setLocalLocation(tz.getLocation('Asia/Kolkata'));
+
   await FCMService.init();
-  await NotificationService.init();
+  
+  final notificationService = NotificationService();
+  await notificationService.init();
+  await notificationService.requestPermission();
 
   final prefs = await SharedPreferences.getInstance();
   final seenOnboarding = prefs.getBool('seenOnboarding') ?? false;
