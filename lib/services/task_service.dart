@@ -189,26 +189,45 @@ class TaskService {
   }
 
   Future<void> shareTask(String taskId, String email) async {
-    if (userId == null) return;
-    
-    // Find user by email
-    final snapshot = await _firestore
-        .collection('users')
-        .where('email', isEqualTo: email.toLowerCase())
-        .limit(1)
-        .get();
-        
-    if (snapshot.docs.isEmpty) {
-      print("User with email $email not found");
-      throw Exception("User not found");
+    try {
+      if (userId == null) return;
+      
+      print("Sharing taskId: $taskId");
+      print("Email entered: $email");
+
+      final query = await FirebaseFirestore.instance
+          .collection('users')
+          .where('email', isEqualTo: email.trim().toLowerCase())
+          .get();
+
+      print("Users found: ${query.docs.length}");
+
+      if (query.docs.isEmpty) {
+        throw Exception("User not found");
+      }
+
+      final newUserId = query.docs.first.id;
+      print("User ID found: $newUserId");
+
+      // Verify task exists in global tasks collection before updating
+      final taskDoc = await FirebaseFirestore.instance.collection('tasks').doc(taskId).get();
+      if (!taskDoc.exists) {
+        throw Exception("Task is not a global shared task. You can only share tasks created as shared tasks.");
+      }
+
+      await FirebaseFirestore.instance
+          .collection('tasks')
+          .doc(taskId)
+          .update({
+        'members': FieldValue.arrayUnion([newUserId]),
+        'permissions.$newUserId': 'editor',
+      });
+
+      print("Task shared successfully");
+    } catch (e) {
+      print("SHARE ERROR: $e");
+      rethrow;
     }
-    
-    final targetUserId = snapshot.docs.first.id;
-    
-    await _firestore.collection('tasks').doc(taskId).update({
-      'members': FieldValue.arrayUnion([targetUserId]),
-      'permissions.$targetUserId': 'editor',
-    });
   }
 
   Stream<List<QueryDocumentSnapshot>> getAllTasks() {
