@@ -191,8 +191,10 @@ class TaskService {
   Future<void> shareTask(String taskId, String email) async {
     try {
       if (userId == null) return;
+      final currentUserId = userId!;
       
-      print("Sharing taskId: $taskId");
+      print("Task ID: $taskId");
+      print("Current User ID: $currentUserId");
       print("Email entered: $email");
 
       final query = await FirebaseFirestore.instance
@@ -207,23 +209,62 @@ class TaskService {
       }
 
       final newUserId = query.docs.first.id;
-      print("User ID found: $newUserId");
+      print("New User ID: $newUserId");
 
-      // Verify task exists in global tasks collection before updating
-      final taskDoc = await FirebaseFirestore.instance.collection('tasks').doc(taskId).get();
+      final taskRef = FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUserId)
+          .collection('tasks')
+          .doc(taskId);
+
+      final taskDoc = await taskRef.get();
       if (!taskDoc.exists) {
-        throw Exception("Task is not a global shared task. You can only share tasks created as shared tasks.");
+        throw Exception("Task not found.");
       }
 
-      await FirebaseFirestore.instance
-          .collection('tasks')
-          .doc(taskId)
-          .update({
+      // Initialize members and permissions if they don't exist
+      final data = taskDoc.data() ?? {};
+      if (!data.containsKey('members') || !data.containsKey('permissions')) {
+        await taskRef.set({
+          'members': [currentUserId],
+          'permissions': {
+            currentUserId: 'owner',
+          }
+        }, SetOptions(merge: true));
+      }
+
+      // Update the owner's task document
+      await taskRef.update({
         'members': FieldValue.arrayUnion([newUserId]),
         'permissions.$newUserId': 'editor',
       });
 
-      print("Task shared successfully");
+      // Fetch the updated document to copy it
+      final updatedTaskDoc = await taskRef.get();
+      final Map<String, dynamic> sharedTaskData = updatedTaskDoc.data() ?? {};
+      
+      // Fetch current user details to get ownerName
+      final currentUserDoc = await FirebaseFirestore.instance.collection('users').doc(currentUserId).get();
+      final String ownerName = currentUserDoc.data()?['displayName'] ?? currentUserDoc.data()?['name'] ?? _auth.currentUser?.displayName ?? _auth.currentUser?.email?.split('@').first ?? 'Someone';
+
+      // Add required sharing metadata
+      sharedTaskData['isShared'] = true;
+      sharedTaskData['sharedBy'] = ownerName;
+      sharedTaskData['sharedById'] = currentUserId;
+      if (!sharedTaskData.containsKey('ownerId')) {
+        sharedTaskData['ownerId'] = currentUserId;
+      }
+
+      // Copy the task to the invited user's tasks collection (using same taskId)
+      // SetOptions(merge: true) ensures we update if it already exists
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(newUserId)
+          .collection('tasks')
+          .doc(taskId)
+          .set(sharedTaskData, SetOptions(merge: true));
+
+      print("Task shared successfully and copied to invited user");
     } catch (e) {
       print("SHARE ERROR: $e");
       rethrow;

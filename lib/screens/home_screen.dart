@@ -455,6 +455,237 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
   }
 
+  Widget _buildTaskList(BuildContext context, List<DocumentSnapshot> tasks) {
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: tasks.length,
+      itemBuilder: (context, index) {
+        final task = tasks[index];
+        final data = task.data() as Map<String, dynamic>?;
+        
+        final bool isDone = (data?['isDone'] as bool?) ?? false;
+        final String title = data?['title']?.toString() ?? 'Untitled Task';
+        final String priority = data?['priority']?.toString() ?? 'low';
+        final bool isShared = (data?['isShared'] as bool?) ?? false;
+        final String? sharedBy = data?['sharedBy'] as String?;
+        
+        DateTime? dueDate;
+        if (data != null && data['dueDate'] is Timestamp) {
+          dueDate = (data['dueDate'] as Timestamp).toDate();
+        }
+
+        final bool isPinned = (data?['isPinned'] as bool?) ?? false;
+
+        final List<dynamic>? subtasks = data?['subtasks'] as List<dynamic>?;
+        double progress = 0.0;
+        if (subtasks != null && subtasks.isNotEmpty) {
+          int completed = subtasks.where((s) => s is Map && s['isCompleted'] == true).length;
+          progress = completed / subtasks.length;
+        }
+
+        return Card(
+          elevation: 0,
+          color: isPinned 
+              ? (Theme.of(context).brightness == Brightness.dark ? Colors.amber.withOpacity(0.1) : Colors.orange.shade50) 
+              : Theme.of(context).cardColor,
+          clipBehavior: Clip.antiAlias,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(color: Colors.grey.shade200),
+          ),
+          margin: const EdgeInsets.only(bottom: 12),
+          child: Dismissible(
+            key: Key(task.id),
+            background: Container(
+              color: Colors.green,
+              alignment: Alignment.centerLeft,
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: const Icon(Icons.check, color: Colors.white),
+            ),
+            secondaryBackground: Container(
+              color: Colors.red,
+              alignment: Alignment.centerRight,
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: const Icon(Icons.delete, color: Colors.white),
+            ),
+            confirmDismiss: (direction) async {
+              if (direction == DismissDirection.startToEnd) {
+                _taskService.toggleTask(task.id, true);
+                return false;
+              }
+              return true;
+            },
+            onDismissed: (direction) {
+              if (direction == DismissDirection.endToStart) {
+                _taskService.deleteTask(task.id);
+              }
+            },
+            child: InkWell(
+              borderRadius: BorderRadius.circular(16),
+              child: Padding(
+              padding: const EdgeInsets.all(12.0),
+              child: Row(
+                children: [
+                  Checkbox(
+                    value: isDone,
+                    activeColor: const Color(0xFF0D47A1),
+                    side: BorderSide(color: isDone ? Colors.transparent : (Theme.of(context).brightness == Brightness.dark ? Colors.grey.shade500 : const Color(0xFF0D47A1).withOpacity(0.5)), width: 2),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    onChanged: (value) {
+                      if (value != null) {
+                        _taskService.toggleTask(task.id, value);
+                      }
+                    },
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: isDone ? FontWeight.normal : FontWeight.w600,
+                            decoration: isDone ? TextDecoration.lineThrough : TextDecoration.none,
+                            color: isDone ? Colors.grey : Theme.of(context).textTheme.bodyLarge?.color,
+                          ),
+                        ),
+                        if (dueDate != null) ...[
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              Icon(Icons.calendar_today, size: 12, color: isDone ? Colors.grey : Colors.blueGrey),
+                              const SizedBox(width: 4),
+                              Text(
+                                _formatDate(dueDate),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: isDone ? Colors.grey : Colors.blueGrey,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            Container(
+                              width: 10,
+                              height: 10,
+                              decoration: BoxDecoration(
+                                color: _getPriorityColor(priority),
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              priority.toUpperCase(),
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: _getPriorityColor(priority),
+                              ),
+                            ),
+                            if (isShared) ...[
+                              const SizedBox(width: 12),
+                              const Icon(Icons.group, size: 14, color: Colors.blueGrey),
+                              const SizedBox(width: 4),
+                              Text(sharedBy != null ? "Shared by $sharedBy" : "Shared task", style: const TextStyle(fontSize: 12, color: Colors.blueGrey, fontWeight: FontWeight.bold)),
+                            ],
+                          ],
+                        ),
+                        if (subtasks != null && subtasks.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          LinearProgressIndicator(
+                            value: progress,
+                            backgroundColor: Colors.grey.shade200,
+                            color: const Color(0xFF0D47A1),
+                            minHeight: 4,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                          const SizedBox(height: 8),
+                          ...subtasks.asMap().entries.map((entry) {
+                            int subIndex = entry.key;
+                            var sub = entry.value as Map<String, dynamic>;
+                            bool isSubDone = sub['isCompleted'] == true;
+                            return InkWell(
+                              onTap: () {
+                                List<Map<String, dynamic>> updatedSubtasks = subtasks.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+                                updatedSubtasks[subIndex]['isCompleted'] = !isSubDone;
+                                _taskService.updateSubtasks(task.id, updatedSubtasks);
+                              },
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 4.0),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      isSubDone ? Icons.check_box : Icons.check_box_outline_blank,
+                                      size: 16,
+                                      color: isSubDone ? Colors.grey : const Color(0xFF0D47A1),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Expanded(
+                                      child: Text(
+                                        sub['title'] ?? '',
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          color: isSubDone ? Colors.grey : Colors.black87,
+                                          decoration: isSubDone ? TextDecoration.lineThrough : null,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ],
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: Icon(
+                      isPinned ? Icons.push_pin : Icons.push_pin_outlined,
+                      color: isPinned ? Colors.orange : Colors.grey,
+                    ),
+                    onPressed: () => _taskService.togglePinTask(task.id, !isPinned),
+                    tooltip: isPinned ? 'Unpin task' : 'Pin task',
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.share_outlined, color: Colors.green),
+                    onPressed: () => _showShareDialog(task.id),
+                    tooltip: 'Share task',
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.edit_outlined, color: Color(0xFF0D47A1)),
+                    onPressed: () => _showTaskDialog(
+                      taskId: task.id, 
+                      currentTitle: title, 
+                      currentPriority: priority,
+                      currentDueDate: dueDate,
+                      currentSubtasks: subtasks,
+                    ),
+                    tooltip: 'Edit task',
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                    onPressed: () => _taskService.deleteTask(task.id),
+                    tooltip: 'Delete task',
+                  ),
+                ],
+              ),
+            ),
+          ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
@@ -936,233 +1167,31 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           const SizedBox(height: 30),
                         ],
 
-                        // SECTION 6: "My Tasks" title
-                        if (verticalTasks.isNotEmpty) ...[
-                          Text("My Tasks", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyLarge?.color)),
-                          const SizedBox(height: 16),
-
-                          // SECTION 7: Vertical list
-                          ListView.builder(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            itemCount: verticalTasks.length,
-                            itemBuilder: (context, index) {
-                              final task = verticalTasks[index];
-                              final data = task.data() as Map<String, dynamic>?;
-                              
-                              final bool isDone = (data?['isDone'] as bool?) ?? false;
-                              final String title = data?['title']?.toString() ?? 'Untitled Task';
-                              final String priority = data?['priority']?.toString() ?? 'low';
-                              
-                              DateTime? dueDate;
-                              if (data != null && data['dueDate'] is Timestamp) {
-                                dueDate = (data['dueDate'] as Timestamp).toDate();
-                              }
-
-                              final bool isPinned = (data?['isPinned'] as bool?) ?? false;
-
-                              final List<dynamic>? subtasks = data?['subtasks'] as List<dynamic>?;
-                              double progress = 0.0;
-                              if (subtasks != null && subtasks.isNotEmpty) {
-                                int completed = subtasks.where((s) => s is Map && s['isCompleted'] == true).length;
-                                progress = completed / subtasks.length;
-                              }
-
-                              return Card(
-                                elevation: 0,
-                                color: isPinned 
-                                    ? (Theme.of(context).brightness == Brightness.dark ? Colors.amber.withOpacity(0.1) : Colors.orange.shade50) 
-                                    : Theme.of(context).cardColor,
-                                clipBehavior: Clip.antiAlias,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16),
-                                  side: BorderSide(color: Colors.grey.shade200),
-                                ),
-                                margin: const EdgeInsets.only(bottom: 12),
-                                child: Dismissible(
-                                  key: Key(task.id),
-                                  background: Container(
-                                    color: Colors.green,
-                                    alignment: Alignment.centerLeft,
-                                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                                    child: const Icon(Icons.check, color: Colors.white),
-                                  ),
-                                  secondaryBackground: Container(
-                                    color: Colors.red,
-                                    alignment: Alignment.centerRight,
-                                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                                    child: const Icon(Icons.delete, color: Colors.white),
-                                  ),
-                                  confirmDismiss: (direction) async {
-                                    if (direction == DismissDirection.startToEnd) {
-                                      _taskService.toggleTask(task.id, true);
-                                      return false;
-                                    }
-                                    return true;
-                                  },
-                                  onDismissed: (direction) {
-                                    if (direction == DismissDirection.endToStart) {
-                                      _taskService.deleteTask(task.id);
-                                    }
-                                  },
-                                  child: InkWell(
-                                    borderRadius: BorderRadius.circular(16),
-                                    child: Padding(
-                                    padding: const EdgeInsets.all(12.0),
-                                    child: Row(
-                                      children: [
-                                        Checkbox(
-                                          value: isDone,
-                                          activeColor: const Color(0xFF0D47A1),
-                                          side: BorderSide(color: isDone ? Colors.transparent : (Theme.of(context).brightness == Brightness.dark ? Colors.grey.shade500 : const Color(0xFF0D47A1).withOpacity(0.5)), width: 2),
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(6),
-                                          ),
-                                          onChanged: (value) {
-                                            if (value != null) {
-                                              _taskService.toggleTask(task.id, value);
-                                            }
-                                          },
-                                        ),
-                                        const SizedBox(width: 8),
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                title,
-                                                style: TextStyle(
-                                                  fontSize: 16,
-                                                  fontWeight: isDone ? FontWeight.normal : FontWeight.w600,
-                                                  decoration: isDone ? TextDecoration.lineThrough : TextDecoration.none,
-                                                  color: isDone ? Colors.grey : Theme.of(context).textTheme.bodyLarge?.color,
-                                                ),
-                                              ),
-                                              if (dueDate != null) ...[
-                                                const SizedBox(height: 4),
-                                                Row(
-                                                  children: [
-                                                    Icon(Icons.calendar_today, size: 12, color: isDone ? Colors.grey : Colors.blueGrey),
-                                                    const SizedBox(width: 4),
-                                                    Text(
-                                                      _formatDate(dueDate),
-                                                      style: TextStyle(
-                                                        fontSize: 12,
-                                                        color: isDone ? Colors.grey : Colors.blueGrey,
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                              ],
-                                              const SizedBox(height: 6),
-                                              Row(
-                                                children: [
-                                                  Container(
-                                                    width: 10,
-                                                    height: 10,
-                                                    decoration: BoxDecoration(
-                                                      color: _getPriorityColor(priority),
-                                                      shape: BoxShape.circle,
-                                                    ),
-                                                  ),
-                                                  const SizedBox(width: 6),
-                                                  Text(
-                                                    priority.toUpperCase(),
-                                                    style: TextStyle(
-                                                      fontSize: 12,
-                                                      fontWeight: FontWeight.bold,
-                                                      color: _getPriorityColor(priority),
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                              if (subtasks != null && subtasks.isNotEmpty) ...[
-                                                const SizedBox(height: 8),
-                                                LinearProgressIndicator(
-                                                  value: progress,
-                                                  backgroundColor: Colors.grey.shade200,
-                                                  color: const Color(0xFF0D47A1),
-                                                  minHeight: 4,
-                                                  borderRadius: BorderRadius.circular(2),
-                                                ),
-                                                const SizedBox(height: 8),
-                                                ...subtasks.asMap().entries.map((entry) {
-                                                  int subIndex = entry.key;
-                                                  var sub = entry.value as Map<String, dynamic>;
-                                                  bool isSubDone = sub['isCompleted'] == true;
-                                                  return InkWell(
-                                                    onTap: () {
-                                                      List<Map<String, dynamic>> updatedSubtasks = subtasks.map((e) => Map<String, dynamic>.from(e as Map)).toList();
-                                                      updatedSubtasks[subIndex]['isCompleted'] = !isSubDone;
-                                                      _taskService.updateSubtasks(task.id, updatedSubtasks);
-                                                    },
-                                                    child: Padding(
-                                                      padding: const EdgeInsets.symmetric(vertical: 4.0),
-                                                      child: Row(
-                                                        children: [
-                                                          Icon(
-                                                            isSubDone ? Icons.check_box : Icons.check_box_outline_blank,
-                                                            size: 16,
-                                                            color: isSubDone ? Colors.grey : const Color(0xFF0D47A1),
-                                                          ),
-                                                          const SizedBox(width: 6),
-                                                          Expanded(
-                                                            child: Text(
-                                                              sub['title'] ?? '',
-                                                              style: TextStyle(
-                                                                fontSize: 13,
-                                                                color: isSubDone ? Colors.grey : Colors.black87,
-                                                                decoration: isSubDone ? TextDecoration.lineThrough : null,
-                                                              ),
-                                                            ),
-                                                          ),
-                                                        ],
-                                                      ),
-                                                    ),
-                                                  );
-                                                }).toList(),
-                                              ],
-                                            ],
-                                          ),
-                                        ),
-                                        IconButton(
-                                          icon: Icon(
-                                            isPinned ? Icons.push_pin : Icons.push_pin_outlined,
-                                            color: isPinned ? Colors.orange : Colors.grey,
-                                          ),
-                                          onPressed: () => _taskService.togglePinTask(task.id, !isPinned),
-                                          tooltip: isPinned ? 'Unpin task' : 'Pin task',
-                                        ),
-                                        IconButton(
-                                          icon: const Icon(Icons.share_outlined, color: Colors.green),
-                                          onPressed: () => _showShareDialog(task.id),
-                                          tooltip: 'Share task',
-                                        ),
-                                        IconButton(
-                                          icon: const Icon(Icons.edit_outlined, color: Color(0xFF0D47A1)),
-                                          onPressed: () => _showTaskDialog(
-                                            taskId: task.id, 
-                                            currentTitle: title, 
-                                            currentPriority: priority,
-                                            currentDueDate: dueDate,
-                                            currentSubtasks: subtasks,
-                                          ),
-                                          tooltip: 'Edit task',
-                                        ),
-                                        IconButton(
-                                          icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
-                                          onPressed: () => _taskService.deleteTask(task.id),
-                                          tooltip: 'Delete task',
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                                ),
-                              );
-                            },
-                          )
-                        ]
+                        // SECTION 6 & 7: Vertical lists
+                        ...(() {
+                          final personalTasks = verticalTasks.where((t) => ((t.data() as Map<String, dynamic>?)?['isShared'] as bool?) != true).toList();
+                          final sharedTasks = verticalTasks.where((t) => ((t.data() as Map<String, dynamic>?)?['isShared'] as bool?) == true).toList();
+                          
+                          final sections = <Widget>[];
+                          
+                          if (personalTasks.isNotEmpty) {
+                            sections.add(Text("My Tasks", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyLarge?.color)));
+                            sections.add(const SizedBox(height: 16));
+                            sections.add(_buildTaskList(context, personalTasks));
+                          }
+                          
+                          sections.add(const SizedBox(height: 24));
+                          sections.add(Text("Shared With Me", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyLarge?.color)));
+                          sections.add(const SizedBox(height: 16));
+                          
+                          if (sharedTasks.isEmpty) {
+                            sections.add(const Text("No shared tasks", style: TextStyle(color: Colors.grey)));
+                          } else {
+                            sections.add(_buildTaskList(context, sharedTasks));
+                          }
+                          
+                          return sections;
+                        }())
                       ],
                     );
                   },
