@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'dart:async';
 import '../services/task_service.dart';
 import '../services/auth_service.dart';
 import '../services/notification_service.dart';
+import 'collaboration_requests_screen.dart';
 
 enum SortType {
   priority,
@@ -24,16 +26,55 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   final NotificationService _notificationService = NotificationService();
 
   final TextEditingController _taskController = TextEditingController();
+  StreamSubscription<QuerySnapshot>? _inviteSubscription;
+  bool _isInitialLoad = true;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     checkDueTasks();
+    _listenForInvites();
+  }
+
+  void _listenForInvites() {
+    _inviteSubscription = _taskService.getPendingInvites().listen((snapshot) {
+      if (_isInitialLoad) {
+        _isInitialLoad = false;
+        return; // Don't show snackbars for existing invites on load
+      }
+      for (var change in snapshot.docChanges) {
+        if (change.type == DocumentChangeType.added) {
+          final data = change.doc.data() as Map<String, dynamic>?;
+          if (data != null && mounted) {
+            final String fromUserName = data['fromUserName'] ?? 'Someone';
+            final String taskTitle = data['taskTitle'] ?? 'a task';
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('$fromUserName invited you to collaborate on "$taskTitle"'),
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                duration: const Duration(seconds: 4),
+                action: SnackBarAction(
+                  label: 'View',
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const CollaborationRequestsScreen()),
+                    );
+                  },
+                ),
+              ),
+            );
+          }
+        }
+      }
+    });
   }
 
   @override
   void dispose() {
+    _inviteSubscription?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -819,6 +860,40 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         ),
                         Row(
                           children: [
+                            StreamBuilder<QuerySnapshot>(
+                              stream: _taskService.getPendingInvites(),
+                              builder: (context, snapshot) {
+                                int pendingCount = snapshot.data?.docs.length ?? 0;
+                                return Stack(
+                                  children: [
+                                    IconButton(
+                                      icon: Icon(Icons.notifications_none, color: Theme.of(context).textTheme.bodyLarge?.color),
+                                      onPressed: () {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(builder: (_) => const CollaborationRequestsScreen()),
+                                        );
+                                      },
+                                    ),
+                                    if (pendingCount > 0)
+                                      Positioned(
+                                        right: 8,
+                                        top: 8,
+                                        child: Container(
+                                          padding: const EdgeInsets.all(4),
+                                          decoration: const BoxDecoration(color: Colors.redAccent, shape: BoxShape.circle),
+                                          constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                                          child: Text(
+                                            '$pendingCount',
+                                            style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                                            textAlign: TextAlign.center,
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                );
+                              },
+                            ),
                             IconButton(
                               onPressed: () => setState(() => _isAscending = !_isAscending),
                               icon: Icon(_isAscending ? Icons.arrow_upward : Icons.arrow_downward, color: Theme.of(context).textTheme.bodyLarge?.color),

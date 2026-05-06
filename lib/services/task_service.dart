@@ -239,45 +239,115 @@ class TaskService {
         }, SetOptions(merge: true));
       }
 
+      // Fetch current user details to get ownerName
+      final currentUserDoc = await FirebaseFirestore.instance.collection('users').doc(currentUserId).get();
+      final String ownerName = currentUserDoc.data()?['displayName'] ?? currentUserDoc.data()?['name'] ?? _auth.currentUser?.displayName ?? _auth.currentUser?.email?.split('@').first ?? 'Someone';
+      final String taskTitle = data['title'] ?? 'Task';
+
+      final inviteId = FirebaseFirestore.instance.collection('task_invites').doc().id;
+
+      await FirebaseFirestore.instance.collection('task_invites').doc(inviteId).set({
+        'inviteId': inviteId,
+        'taskId': taskId,
+        'taskTitle': taskTitle,
+        'fromUserId': currentUserId,
+        'fromUserName': ownerName,
+        'toUserId': newUserId,
+        'toUserEmail': email.trim().toLowerCase(),
+        'status': 'pending',
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      print("Task invite created successfully");
+    } catch (e) {
+      print("SHARE ERROR: $e");
+      rethrow;
+    }
+  }
+
+  Stream<QuerySnapshot> getPendingInvites() {
+    if (userId == null) return const Stream.empty();
+    return FirebaseFirestore.instance
+        .collection('task_invites')
+        .where('toUserId', isEqualTo: userId)
+        .where('status', isEqualTo: 'pending')
+        .snapshots();
+  }
+
+  Future<void> acceptInvite(String inviteId) async {
+    try {
+      if (userId == null) return;
+      final currentUserId = userId!;
+
+      final inviteDoc = await FirebaseFirestore.instance.collection('task_invites').doc(inviteId).get();
+      if (!inviteDoc.exists) return;
+
+      final inviteData = inviteDoc.data()!;
+      final String taskId = inviteData['taskId'];
+      final String fromUserId = inviteData['fromUserId'];
+      final String fromUserName = inviteData['fromUserName'];
+
+      final taskRef = FirebaseFirestore.instance
+          .collection('users')
+          .doc(fromUserId)
+          .collection('tasks')
+          .doc(taskId);
+
+      final taskDoc = await taskRef.get();
+      if (!taskDoc.exists) {
+        throw Exception("Task not found. It may have been deleted.");
+      }
+
       // Update the owner's task document
       await taskRef.update({
-        'members': FieldValue.arrayUnion([newUserId]),
-        'permissions.$newUserId': 'editor',
+        'members': FieldValue.arrayUnion([currentUserId]),
+        'permissions.$currentUserId': 'editor',
         'originalTaskId': taskId,
       });
 
       // Fetch the updated document to copy it
       final updatedTaskDoc = await taskRef.get();
       final Map<String, dynamic> sharedTaskData = updatedTaskDoc.data() ?? {};
-      
-      // Fetch current user details to get ownerName
-      final currentUserDoc = await FirebaseFirestore.instance.collection('users').doc(currentUserId).get();
-      final String ownerName = currentUserDoc.data()?['displayName'] ?? currentUserDoc.data()?['name'] ?? _auth.currentUser?.displayName ?? _auth.currentUser?.email?.split('@').first ?? 'Someone';
 
       // Add required sharing metadata
       sharedTaskData['isShared'] = true;
-      sharedTaskData['sharedBy'] = ownerName;
-      sharedTaskData['sharedById'] = currentUserId;
+      sharedTaskData['sharedBy'] = fromUserName;
+      sharedTaskData['sharedById'] = fromUserId;
       sharedTaskData['originalTaskId'] = taskId;
       if (!sharedTaskData.containsKey('ownerId')) {
-        sharedTaskData['ownerId'] = currentUserId;
+        sharedTaskData['ownerId'] = fromUserId;
       }
 
-      // Copy the task to the invited user's tasks collection (using same taskId)
-      // SetOptions(merge: true) ensures we update if it already exists
+      // Copy the task to the current user's tasks collection
       await FirebaseFirestore.instance
           .collection('users')
-          .doc(newUserId)
+          .doc(currentUserId)
           .collection('tasks')
           .doc(taskId)
           .set(sharedTaskData, SetOptions(merge: true));
 
-      print("Task shared successfully and copied to invited user");
+      // Update invite status
+      await FirebaseFirestore.instance.collection('task_invites').doc(inviteId).update({
+        'status': 'accepted'
+      });
+
+      print("Invite accepted and task copied successfully");
     } catch (e) {
-      print("SHARE ERROR: $e");
+      print("ACCEPT INVITE ERROR: $e");
       rethrow;
     }
   }
+
+  Future<void> rejectInvite(String inviteId) async {
+    try {
+      await FirebaseFirestore.instance.collection('task_invites').doc(inviteId).update({
+        'status': 'rejected'
+      });
+    } catch (e) {
+      print("REJECT INVITE ERROR: $e");
+    }
+  }
+
 
   Stream<List<QueryDocumentSnapshot>> getAllTasks() {
     if (userId == null) return Stream.value([]);
