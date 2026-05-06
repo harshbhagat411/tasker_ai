@@ -101,6 +101,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   String _selectedPriority = 'low';
   SortType _selectedSortType = SortType.createdDate;
   bool _isAscending = false;
+  Set<String> _expandedTaskIds = {};
 
   String _formatDate(DateTime date) {
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -476,6 +477,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         }
 
         final bool isPinned = (data?['isPinned'] as bool?) ?? false;
+        final bool isExpanded = _expandedTaskIds.contains(task.id);
 
         final List<dynamic>? subtasks = data?['subtasks'] as List<dynamic>?;
         double progress = 0.0;
@@ -485,16 +487,17 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         }
 
         return Card(
-          elevation: 0,
+          elevation: 2,
+          shadowColor: Colors.black.withOpacity(0.2),
           color: isPinned 
               ? (Theme.of(context).brightness == Brightness.dark ? Colors.amber.withOpacity(0.1) : Colors.orange.shade50) 
               : Theme.of(context).cardColor,
           clipBehavior: Clip.antiAlias,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-            side: BorderSide(color: Colors.grey.shade200),
+            borderRadius: BorderRadius.circular(20),
+            side: BorderSide(color: Theme.of(context).brightness == Brightness.dark ? Colors.transparent : Colors.grey.shade100, width: 1.5),
           ),
-          margin: const EdgeInsets.only(bottom: 12),
+          margin: const EdgeInsets.only(bottom: 14),
           child: Dismissible(
             key: Key(task.id),
             background: Container(
@@ -522,164 +525,239 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               }
             },
             child: InkWell(
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(20),
               child: Padding(
-              padding: const EdgeInsets.all(12.0),
-              child: Row(
-                children: [
-                  Checkbox(
-                    value: isDone,
-                    activeColor: const Color(0xFF0D47A1),
-                    side: BorderSide(color: isDone ? Colors.transparent : (Theme.of(context).brightness == Brightness.dark ? Colors.grey.shade500 : const Color(0xFF0D47A1).withOpacity(0.5)), width: 2),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    onChanged: (value) {
-                      if (value != null) {
-                        _taskService.toggleTask(task.id, value);
-                      }
-                    },
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Column(
+                padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 12.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // ROW 1: Checkbox, Title, and Pin
+                    Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          title,
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: isDone ? FontWeight.normal : FontWeight.w600,
-                            decoration: isDone ? TextDecoration.lineThrough : TextDecoration.none,
-                            color: isDone ? Colors.grey : Theme.of(context).textTheme.bodyLarge?.color,
+                        SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: Checkbox(
+                            value: isDone,
+                            activeColor: const Color(0xFF0D47A1),
+                            side: BorderSide(color: isDone ? Colors.transparent : (Theme.of(context).brightness == Brightness.dark ? Colors.grey.shade500 : const Color(0xFF0D47A1).withOpacity(0.5)), width: 2),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            onChanged: (value) {
+                              if (value != null) {
+                                _taskService.toggleTask(task.id, value);
+                              }
+                            },
                           ),
                         ),
-                        if (dueDate != null) ...[
-                          const SizedBox(height: 4),
-                          Row(
-                            children: [
-                              Icon(Icons.calendar_today, size: 12, color: isDone ? Colors.grey : Colors.blueGrey),
-                              const SizedBox(width: 4),
-                              Text(
-                                _formatDate(dueDate),
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: isDone ? Colors.grey : Colors.blueGrey,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                        const SizedBox(height: 6),
-                        Row(
-                          children: [
-                            Container(
-                              width: 10,
-                              height: 10,
-                              decoration: BoxDecoration(
-                                color: _getPriorityColor(priority),
-                                shape: BoxShape.circle,
-                              ),
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              priority.toUpperCase(),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.only(top: 2.0),
+                            child: Text(
+                              title,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              softWrap: true,
                               style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: _getPriorityColor(priority),
+                                fontSize: 16,
+                                fontWeight: isDone ? FontWeight.normal : FontWeight.w600,
+                                decoration: isDone ? TextDecoration.lineThrough : TextDecoration.none,
+                                color: isDone ? Colors.grey : Theme.of(context).textTheme.bodyLarge?.color,
                               ),
                             ),
-                            if (isShared) ...[
-                              const SizedBox(width: 12),
-                              const Icon(Icons.group, size: 14, color: Colors.blueGrey),
-                              const SizedBox(width: 4),
-                              Text(sharedBy != null ? "Shared by $sharedBy" : "Shared task", style: const TextStyle(fontSize: 12, color: Colors.blueGrey, fontWeight: FontWeight.bold)),
-                            ],
-                          ],
-                        ),
-                        if (subtasks != null && subtasks.isNotEmpty) ...[
-                          const SizedBox(height: 8),
-                          LinearProgressIndicator(
-                            value: progress,
-                            backgroundColor: Colors.grey.shade200,
-                            color: const Color(0xFF0D47A1),
-                            minHeight: 4,
-                            borderRadius: BorderRadius.circular(2),
                           ),
-                          const SizedBox(height: 8),
-                          ...subtasks.asMap().entries.map((entry) {
-                            int subIndex = entry.key;
-                            var sub = entry.value as Map<String, dynamic>;
-                            bool isSubDone = sub['isCompleted'] == true;
-                            return InkWell(
-                              onTap: () {
-                                List<Map<String, dynamic>> updatedSubtasks = subtasks.map((e) => Map<String, dynamic>.from(e as Map)).toList();
-                                updatedSubtasks[subIndex]['isCompleted'] = !isSubDone;
-                                _taskService.updateSubtasks(task.id, updatedSubtasks);
-                              },
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 4.0),
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      isSubDone ? Icons.check_box : Icons.check_box_outline_blank,
-                                      size: 16,
-                                      color: isSubDone ? Colors.grey : const Color(0xFF0D47A1),
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Expanded(
-                                      child: Text(
-                                        sub['title'] ?? '',
-                                        style: TextStyle(
-                                          fontSize: 13,
-                                          color: isSubDone ? Colors.grey : Colors.black87,
-                                          decoration: isSubDone ? TextDecoration.lineThrough : null,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            );
-                          }).toList(),
-                        ],
+                        ),
+                        const SizedBox(width: 8),
+                        IconButton(
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          icon: Icon(
+                            isPinned ? Icons.push_pin : Icons.push_pin_outlined,
+                            color: isPinned ? Colors.orange : Colors.grey.shade400,
+                            size: 20,
+                          ),
+                          onPressed: () => _taskService.togglePinTask(task.id, !isPinned),
+                          tooltip: isPinned ? 'Unpin task' : 'Pin task',
+                        ),
                       ],
                     ),
-                  ),
-                  IconButton(
-                    icon: Icon(
-                      isPinned ? Icons.push_pin : Icons.push_pin_outlined,
-                      color: isPinned ? Colors.orange : Colors.grey,
+                    
+                    // All content below title indented to align with text
+                    Padding(
+                      padding: const EdgeInsets.only(left: 34.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (dueDate != null) ...[
+                            const SizedBox(height: 6),
+                            Row(
+                              children: [
+                                Icon(Icons.calendar_today, size: 12, color: isDone ? Colors.grey : Colors.redAccent.shade200),
+                                const SizedBox(width: 4),
+                                Flexible(
+                                  child: Text(
+                                    _formatDate(dueDate),
+                                    overflow: TextOverflow.ellipsis,
+                                    maxLines: 1,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
+                                      color: isDone ? Colors.grey : Colors.redAccent.shade200,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              Container(
+                                width: 8,
+                                height: 8,
+                                decoration: BoxDecoration(
+                                  color: _getPriorityColor(priority),
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                priority.toUpperCase(),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: _getPriorityColor(priority),
+                                ),
+                              ),
+                              if (isShared) ...[
+                                const Text("  •  ", style: TextStyle(fontSize: 12, color: Colors.grey)),
+                                const Icon(Icons.group, size: 12, color: Colors.blueGrey),
+                                const SizedBox(width: 4),
+                                Flexible(
+                                  child: Text(
+                                    sharedBy != null ? "Shared by $sharedBy" : "Shared task",
+                                    overflow: TextOverflow.ellipsis,
+                                    maxLines: 1,
+                                    style: const TextStyle(fontSize: 12, color: Colors.blueGrey, fontWeight: FontWeight.w500),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                          if (subtasks != null && subtasks.isNotEmpty) ...[
+                            const SizedBox(height: 10),
+                            LinearProgressIndicator(
+                              value: progress,
+                              backgroundColor: Colors.grey.shade200,
+                              color: const Color(0xFF0D47A1),
+                              minHeight: 2,
+                              borderRadius: BorderRadius.circular(1),
+                            ),
+                            const SizedBox(height: 6),
+                            ...subtasks.take(isExpanded ? subtasks.length : 2).toList().asMap().entries.map((entry) {
+                              int subIndex = entry.key;
+                              var sub = entry.value as Map<String, dynamic>;
+                              bool isSubDone = sub['isCompleted'] == true;
+                              return InkWell(
+                                onTap: () {
+                                  List<Map<String, dynamic>> updatedSubtasks = subtasks.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+                                  updatedSubtasks[subIndex]['isCompleted'] = !isSubDone;
+                                  _taskService.updateSubtasks(task.id, updatedSubtasks);
+                                },
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 2.0),
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        isSubDone ? Icons.check_box : Icons.check_box_outline_blank,
+                                        size: 14,
+                                        color: isSubDone ? Colors.grey : const Color(0xFF0D47A1),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Expanded(
+                                        child: Text(
+                                          sub['title'] ?? '',
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: isSubDone ? Colors.grey : Colors.black87,
+                                            decoration: isSubDone ? TextDecoration.lineThrough : null,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                            if (subtasks.length > 2)
+                              InkWell(
+                                onTap: () {
+                                  setState(() {
+                                    if (isExpanded) {
+                                      _expandedTaskIds.remove(task.id);
+                                    } else {
+                                      _expandedTaskIds.add(task.id);
+                                    }
+                                  });
+                                },
+                                child: Padding(
+                                  padding: const EdgeInsets.only(top: 4.0, bottom: 2.0),
+                                  child: Text(
+                                    isExpanded ? "Show less" : "+${subtasks.length - 2} more",
+                                    style: const TextStyle(fontSize: 11, color: Color(0xFF0D47A1), fontWeight: FontWeight.w600),
+                                  ),
+                                ),
+                              ),
+                          ],
+                          const SizedBox(height: 12),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              IconButton(
+                                padding: const EdgeInsets.all(4),
+                                constraints: const BoxConstraints(),
+                                icon: const Icon(Icons.share_outlined, color: Colors.blueGrey, size: 18),
+                                onPressed: () => _showShareDialog(task.id),
+                                tooltip: 'Share task',
+                              ),
+                              const SizedBox(width: 16),
+                              IconButton(
+                                padding: const EdgeInsets.all(4),
+                                constraints: const BoxConstraints(),
+                                icon: const Icon(Icons.edit_outlined, color: Colors.blueGrey, size: 18),
+                                onPressed: () => _showTaskDialog(
+                                  taskId: task.id, 
+                                  currentTitle: title, 
+                                  currentPriority: priority,
+                                  currentDueDate: dueDate,
+                                  currentSubtasks: subtasks,
+                                ),
+                                tooltip: 'Edit task',
+                              ),
+                              const SizedBox(width: 16),
+                              IconButton(
+                                padding: const EdgeInsets.all(4),
+                                constraints: const BoxConstraints(),
+                                icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 18),
+                                onPressed: () => _taskService.deleteTask(task.id),
+                                tooltip: 'Delete task',
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
-                    onPressed: () => _taskService.togglePinTask(task.id, !isPinned),
-                    tooltip: isPinned ? 'Unpin task' : 'Pin task',
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.share_outlined, color: Colors.green),
-                    onPressed: () => _showShareDialog(task.id),
-                    tooltip: 'Share task',
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.edit_outlined, color: Color(0xFF0D47A1)),
-                    onPressed: () => _showTaskDialog(
-                      taskId: task.id, 
-                      currentTitle: title, 
-                      currentPriority: priority,
-                      currentDueDate: dueDate,
-                      currentSubtasks: subtasks,
-                    ),
-                    tooltip: 'Edit task',
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
-                    onPressed: () => _taskService.deleteTask(task.id),
-                    tooltip: 'Delete task',
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
-          ),
           ),
         );
       },
