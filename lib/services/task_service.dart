@@ -83,6 +83,8 @@ class TaskService {
       'isDone': isDone,
     });
     
+    syncSharedTask(originalTaskId: id, updatedData: {'isDone': isDone});
+    
     if (isDone) {
       await NotificationService().cancelNotification(id.hashCode);
     }
@@ -129,7 +131,9 @@ class TaskService {
         .doc(userId)
         .collection('tasks')
         .doc(id)
-        .update(data).catchError((e) => print("Error updating task: \$e"));
+        .update(data).catchError((e) => print("Error updating task: $e"));
+
+    syncSharedTask(originalTaskId: id, updatedData: data);
 
     await NotificationService().cancelNotification(id.hashCode);
     if (dueDate != null && dueDate.isAfter(DateTime.now())) {
@@ -153,6 +157,8 @@ class TaskService {
         .update({
       'subtasks': subtasks,
     });
+
+    syncSharedTask(originalTaskId: id, updatedData: {'subtasks': subtasks});
   }
 
   // --- SHARED TASKS ---
@@ -237,6 +243,7 @@ class TaskService {
       await taskRef.update({
         'members': FieldValue.arrayUnion([newUserId]),
         'permissions.$newUserId': 'editor',
+        'originalTaskId': taskId,
       });
 
       // Fetch the updated document to copy it
@@ -251,6 +258,7 @@ class TaskService {
       sharedTaskData['isShared'] = true;
       sharedTaskData['sharedBy'] = ownerName;
       sharedTaskData['sharedById'] = currentUserId;
+      sharedTaskData['originalTaskId'] = taskId;
       if (!sharedTaskData.containsKey('ownerId')) {
         sharedTaskData['ownerId'] = currentUserId;
       }
@@ -304,5 +312,34 @@ class TaskService {
         return allDocs;
       },
     );
+  }
+
+  Future<void> syncSharedTask({
+    required String originalTaskId,
+    required Map<String, dynamic> updatedData,
+  }) async {
+    if (userId == null) return;
+    print("Syncing shared task: $originalTaskId");
+    
+    // Fetch local task to get members
+    final localTask = await _firestore.collection('users').doc(userId).collection('tasks').doc(originalTaskId).get();
+    if (!localTask.exists) return;
+    
+    final data = localTask.data()!;
+    final List<dynamic> members = data['members'] ?? [];
+    if (members.length <= 1) return; // Not shared
+
+    print("Found ${members.length - 1} shared copies to sync");
+
+    final batch = _firestore.batch();
+    for (var memberId in members) {
+      if (memberId == userId) continue; // Skip self as it's already updated locally
+      
+      final docRef = _firestore.collection('users').doc(memberId.toString()).collection('tasks').doc(originalTaskId);
+      batch.update(docRef, updatedData);
+    }
+    
+    await batch.commit();
+    print("Updated shared copy instances");
   }
 }
