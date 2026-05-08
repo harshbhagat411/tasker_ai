@@ -35,14 +35,14 @@ class TaskService {
         .doc();
 
     // We don't await this so the UI doesn't hang if the user is offline
-    docRef.set(data).catchError((e) => print("Error saving task: \$e"));
-    print("Task created with ID: \${docRef.id}");
+    docRef.set(data).catchError((e) => print("Error saving task: $e"));
+    print("Task created with ID: ${docRef.id}");
 
     if (dueDate != null && dueDate.isAfter(DateTime.now())) {
       await NotificationService().scheduleNotification(
         id: docRef.id.hashCode,
         title: 'Task Reminder',
-        body: 'Your task "\$title" is due!',
+        body: 'Your task "$title" is due!',
         scheduledDate: dueDate,
       );
     }
@@ -140,7 +140,7 @@ class TaskService {
       await NotificationService().scheduleNotification(
         id: id.hashCode,
         title: 'Task Reminder',
-        body: 'Your task "\$newTitle" is due!',
+        body: 'Your task "$newTitle" is due!',
         scheduledDate: dueDate,
       );
     }

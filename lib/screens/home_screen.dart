@@ -5,7 +5,10 @@ import 'dart:async';
 import '../services/task_service.dart';
 import '../services/auth_service.dart';
 import '../services/notification_service.dart';
+import '../services/presence_service.dart';
+import '../services/activity_service.dart';
 import 'collaboration_requests_screen.dart';
+import 'task_details_screen.dart';
 
 enum SortType {
   priority,
@@ -149,7 +152,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     return "${months[date.month - 1]} ${date.day}, ${date.year}";
   }
 
-  void _showTaskDialog({String? taskId, String? currentTitle, String? currentPriority, DateTime? currentDueDate, List<dynamic>? currentSubtasks}) {
+  void _showTaskDialog({DocumentSnapshot? task, String? taskId, String? currentTitle, String? currentPriority, DateTime? currentDueDate, List<dynamic>? currentSubtasks}) {
+    if (taskId != null) {
+      PresenceService().setTaskPresence(taskId, 'editing');
+    }
+
     if (currentTitle != null) {
       _taskController.text = currentTitle;
       _selectedPriority = currentPriority ?? 'low';
@@ -344,7 +351,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               ),
               actions: [
                 TextButton(
-                  onPressed: () => Navigator.pop(context),
+                  onPressed: () {
+                    if (taskId != null) PresenceService().clearTaskPresence(taskId);
+                    Navigator.pop(context);
+                  },
                   child: const Text("Cancel", style: TextStyle(color: Colors.grey)),
                 ),
                 ElevatedButton(
@@ -394,6 +404,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       await _taskService.addTask(title, priority: _selectedPriority, dueDate: finalDate, subtasks: finalSubtasks);
                     } else {
                       await _taskService.updateTask(taskId, title, priority: _selectedPriority, dueDate: finalDate, subtasks: finalSubtasks);
+                      PresenceService().clearTaskPresence(taskId);
                     }
                     
                     if (mounted) {
@@ -567,6 +578,17 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             },
             child: InkWell(
               borderRadius: BorderRadius.circular(20),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => TaskDetailsScreen(
+                      taskId: task.id,
+                      currentUserId: FirebaseAuth.instance.currentUser!.uid,
+                    ),
+                  ),
+                );
+              },
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 12.0),
                 child: Column(
@@ -1054,6 +1076,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   },
                 ),
 
+                // SECTION 4.6: Recent Activity
+                _buildRecentActivity(),
+
                 // Task Stream
                 StreamBuilder<List<QueryDocumentSnapshot>>(
                   stream: _taskService.getAllTasks(),
@@ -1234,6 +1259,17 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                   ),
                                   child: InkWell(
                                     borderRadius: BorderRadius.circular(20),
+                                    onTap: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) => TaskDetailsScreen(
+                                            taskId: task.id,
+                                            currentUserId: FirebaseAuth.instance.currentUser!.uid,
+                                          ),
+                                        ),
+                                      );
+                                    },
                                     child: Padding(
                                       padding: const EdgeInsets.all(20.0),
                                       child: Column(
@@ -1383,6 +1419,61 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildRecentActivity() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: ActivityService().getRecentActivities(limit: 5),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) return const SizedBox.shrink();
+        
+        final docs = snapshot.data!.docs;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text("Recent Activity", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyLarge?.color)),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF1E1E1E) : Colors.grey[50],
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Theme.of(context).brightness == Brightness.dark ? Colors.transparent : Colors.grey.shade200),
+              ),
+              child: Column(
+                children: docs.map((doc) {
+                  final data = doc.data() as Map<String, dynamic>;
+                  final userName = data['userName'] ?? 'Someone';
+                  final message = data['message'] ?? 'did something';
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8.0),
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 12,
+                          backgroundColor: Colors.blue.withOpacity(0.2),
+                          child: Text(userName[0].toUpperCase(), style: const TextStyle(fontSize: 10, color: Colors.blue, fontWeight: FontWeight.bold)),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            "$userName $message",
+                            style: TextStyle(fontSize: 13, color: Theme.of(context).textTheme.bodyMedium?.color),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+            const SizedBox(height: 24),
+          ],
+        );
+      },
     );
   }
 }
