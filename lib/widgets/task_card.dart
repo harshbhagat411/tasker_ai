@@ -46,6 +46,7 @@ class _TaskCardState extends State<TaskCard> {
     final String priority = data['priority']?.toString() ?? 'low';
     final bool isShared = (data['isShared'] as bool?) ?? false;
     final String? sharedBy = data['sharedBy'] as String?;
+    final String? sharedById = data['sharedById'] as String?;
     final bool isPinned = (data['isPinned'] as bool?) ?? false;
     
     DateTime? dueDate;
@@ -60,27 +61,100 @@ class _TaskCardState extends State<TaskCard> {
       progress = completed / subtasks.length;
     }
 
-    // Avatar for shared tasks (just using initials or a generic avatar if no info)
-    List<Widget> avatarWidgets = [];
-    if (isShared) {
-      final String displayName = sharedBy ?? "S";
-      final String initial = displayName.isNotEmpty ? displayName[0].toUpperCase() : "?";
-      avatarWidgets.add(
-        CircleAvatar(
-          radius: 12,
-          backgroundColor: Colors.blue.shade100,
-          child: Text(initial, style: const TextStyle(fontSize: 10, color: Colors.blue, fontWeight: FontWeight.bold)),
-        )
-      );
-    }
-    
     final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final List<dynamic>? memberIdsRaw = data['members'] as List<dynamic>?;
+    List<String> memberIds = [];
+    if (memberIdsRaw != null) {
+      memberIds = memberIdsRaw.map((e) => e.toString()).toList();
+    } else if (isShared && sharedById != null) {
+      memberIds = [sharedById, FirebaseAuth.instance.currentUser!.uid];
+    }
+
+    List<Widget> avatarWidgets = [];
+    if (memberIds.isNotEmpty) {
+      for (int i = 0; i < memberIds.length; i++) {
+        if (i >= 4) break;
+        String mId = memberIds[i];
+        
+        Widget avatar = StreamBuilder<DocumentSnapshot>(
+          stream: FirebaseFirestore.instance.collection('users').doc(mId).snapshots(),
+          builder: (context, snapshot) {
+            String initial = "?";
+            bool isOnline = false;
+            
+            if (snapshot.hasData && snapshot.data!.exists) {
+              final userData = snapshot.data!.data() as Map<String, dynamic>?;
+              final name = userData?['displayName'] ?? userData?['name'] ?? userData?['email'] ?? "User";
+              if (name.isNotEmpty) initial = name[0].toUpperCase();
+              isOnline = userData?['isOnline'] ?? false;
+            } else if (mId == sharedById && sharedBy != null && sharedBy.isNotEmpty) {
+              initial = sharedBy[0].toUpperCase();
+            }
+
+            return Padding(
+              padding: const EdgeInsets.only(right: 6),
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  CircleAvatar(
+                    radius: 14,
+                    backgroundColor: Colors.blue.shade100,
+                    child: Text(initial, style: const TextStyle(fontSize: 12, color: Colors.blue, fontWeight: FontWeight.bold)),
+                  ),
+                  Positioned(
+                    bottom: -2,
+                    right: -2,
+                    child: Container(
+                      width: 10,
+                      height: 10,
+                      decoration: BoxDecoration(
+                        color: isOnline ? Colors.green : Colors.grey,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Theme.of(context).cardColor, width: 2),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+        avatarWidgets.add(avatar);
+      }
+      
+      if (memberIds.length > 4) {
+        avatarWidgets.add(
+          Padding(
+            padding: const EdgeInsets.only(right: 6),
+            child: CircleAvatar(
+              radius: 14,
+              backgroundColor: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+              child: Text('+${memberIds.length - 4}', style: TextStyle(fontSize: 10, color: isDark ? Colors.white70 : Colors.black54, fontWeight: FontWeight.bold)),
+            ),
+          )
+        );
+      }
+    } else if (isShared) {
+       final String displayName = sharedBy ?? "S";
+       final String initial = displayName.isNotEmpty ? displayName[0].toUpperCase() : "?";
+       avatarWidgets.add(
+          Padding(
+            padding: const EdgeInsets.only(right: 6),
+            child: CircleAvatar(
+              radius: 14,
+              backgroundColor: Colors.blue.shade100,
+              child: Text(initial, style: const TextStyle(fontSize: 12, color: Colors.blue, fontWeight: FontWeight.bold)),
+            ),
+          )
+       );
+    }
 
     return Card(
       elevation: 2,
       shadowColor: Colors.black.withOpacity(0.15),
       color: isPinned 
-          ? (isDark ? Colors.amber.withOpacity(0.1) : Colors.orange.shade50) 
+          ? (isDark ? Colors.amber.withValues(alpha: 0.1) : Colors.orange.shade50) 
           : Theme.of(context).cardColor,
       clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(
@@ -190,12 +264,15 @@ class _TaskCardState extends State<TaskCard> {
                           const SizedBox(height: 8),
                         ],
                         
-                        Row(
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                               decoration: BoxDecoration(
-                                color: _getPriorityColor(priority).withOpacity(0.1),
+                                color: _getPriorityColor(priority).withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text(
@@ -207,15 +284,15 @@ class _TaskCardState extends State<TaskCard> {
                                 ),
                               ),
                             ),
-                            if (isShared) ...[
-                              const SizedBox(width: 8),
+                            if (isShared)
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                 decoration: BoxDecoration(
-                                  color: Colors.blue.withOpacity(0.1),
+                                  color: Colors.blue.withValues(alpha: 0.1),
                                   borderRadius: BorderRadius.circular(6),
                                 ),
                                 child: Row(
+                                  mainAxisSize: MainAxisSize.min,
                                   children: [
                                     const Icon(Icons.group, size: 12, color: Colors.blue),
                                     const SizedBox(width: 4),
@@ -223,9 +300,7 @@ class _TaskCardState extends State<TaskCard> {
                                   ],
                                 ),
                               ),
-                              const SizedBox(width: 8),
-                              if (avatarWidgets.isNotEmpty) ...avatarWidgets,
-                            ],
+                            if (avatarWidgets.isNotEmpty) ...avatarWidgets,
                           ],
                         ),
 
