@@ -241,16 +241,52 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       selectedBuilder: (context, day, focusedDay) => _buildCell(context, day, isSelected: true),
                       markerBuilder: (context, day, events) {
                         if (events.isNotEmpty) {
+                          bool hasActive = false;
+                          bool hasCompleted = false;
+                          bool hasOverdue = false;
+
+                          for (var event in events) {
+                            final data = (event as DocumentSnapshot).data() as Map<String, dynamic>?;
+                            if (data == null) continue;
+
+                            final isDone = data['isDone'] == true;
+                            if (isDone) {
+                              hasCompleted = true;
+                              continue;
+                            }
+
+                            DateTime? dueDate;
+                            if (data['dueDate'] is Timestamp) {
+                              dueDate = (data['dueDate'] as Timestamp).toDate();
+                            }
+
+                            final now = DateTime.now();
+                            final today = DateTime(now.year, now.month, now.day);
+                            final dueDateOnly = dueDate != null ? DateTime(dueDate.year, dueDate.month, dueDate.day) : null;
+
+                            if (dueDateOnly != null && dueDateOnly.isBefore(today)) {
+                              hasOverdue = true;
+                            } else {
+                              hasActive = true;
+                            }
+                          }
+
+                          List<Widget> dots = [];
+                          if (hasActive) {
+                            dots.add(Container(margin: const EdgeInsets.symmetric(horizontal: 1), width: 5, height: 5, decoration: const BoxDecoration(color: Color(0xFF0D47A1), shape: BoxShape.circle)));
+                          }
+                          if (hasCompleted) {
+                            dots.add(Container(margin: const EdgeInsets.symmetric(horizontal: 1), width: 5, height: 5, decoration: const BoxDecoration(color: Colors.green, shape: BoxShape.circle)));
+                          }
+                          if (hasOverdue) {
+                            dots.add(Container(margin: const EdgeInsets.symmetric(horizontal: 1), width: 5, height: 5, decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle)));
+                          }
+
                           return Positioned(
-                            top: 8,
-                            right: 8,
-                            child: Container(
-                              width: 6,
-                              height: 6,
-                              decoration: const BoxDecoration(
-                                color: Color(0xFF0D47A1),
-                                shape: BoxShape.circle,
-                              ),
+                            bottom: 6,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: dots,
                             ),
                           );
                         }

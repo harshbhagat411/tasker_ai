@@ -243,33 +243,86 @@ class ProfileScreen extends StatelessWidget {
                           int pending = 0;
                           int weeklyTotal = 0;
                           int weeklyCompleted = 0;
+                          int streakCount = 0;
+                          String productivityLabel = "Getting Started";
 
-                          if (taskSnapshot.hasData && taskSnapshot.data != null) {
-                            final docs = taskSnapshot.data!.docs;
-                            total = docs.length;
-                            final now = DateTime.now();
-                            final oneWeekAgo = now.subtract(const Duration(days: 7));
+                            if (taskSnapshot.hasData && taskSnapshot.data != null) {
+                              final docs = taskSnapshot.data!.docs;
+                              total = docs.length;
+                              final now = DateTime.now();
+                              final today = DateTime(now.year, now.month, now.day);
+                              final oneWeekAgo = now.subtract(const Duration(days: 7));
 
-                            for (var doc in docs) {
-                              final data = doc.data() as Map<String, dynamic>?;
-                              final isDone = (data?['isDone'] as bool?) ?? false;
-                              if (isDone) {
-                                completed++;
-                              } else {
-                                pending++;
-                              }
+                              for (var doc in docs) {
+                                final data = doc.data() as Map<String, dynamic>?;
+                                final isDone = (data?['isDone'] as bool?) ?? false;
+                                if (isDone) {
+                                  completed++;
+                                } else {
+                                  pending++;
+                                }
 
-                              if (data != null && data['createdAt'] is Timestamp) {
-                                final createdAt = (data['createdAt'] as Timestamp).toDate();
-                                if (createdAt.isAfter(oneWeekAgo)) {
-                                  weeklyTotal++;
-                                  if (isDone) weeklyCompleted++;
+                                if (data != null && data['createdAt'] is Timestamp) {
+                                  final createdAt = (data['createdAt'] as Timestamp).toDate();
+                                  if (createdAt.isAfter(oneWeekAgo)) {
+                                    weeklyTotal++;
+                                    if (isDone) weeklyCompleted++;
+                                  }
                                 }
                               }
-                            }
-                          }
 
-                          final double progress = total > 0 ? completed / total : 0.0;
+                              List<DateTime> completedDates = [];
+                              for (var doc in docs) {
+                                final data = doc.data() as Map<String, dynamic>?;
+                                if (data != null && data['isDone'] == true) {
+                                  if (data['dueDate'] is Timestamp) {
+                                    completedDates.add((data['dueDate'] as Timestamp).toDate());
+                                  } else if (data['createdAt'] is Timestamp) {
+                                    completedDates.add((data['createdAt'] as Timestamp).toDate());
+                                  }
+                                }
+                              }
+
+                              Set<String> uniqueCompletedDays = completedDates.map((d) => "${d.year}-${d.month}-${d.day}").toSet();
+                              int currentStreak = 0;
+                              DateTime tempDate = today;
+                              String todayStr = "${today.year}-${today.month}-${today.day}";
+                              String yesterdayStr = "${today.subtract(const Duration(days: 1)).year}-${today.subtract(const Duration(days: 1)).month}-${today.subtract(const Duration(days: 1)).day}";
+                              
+                              if (uniqueCompletedDays.contains(todayStr) || uniqueCompletedDays.contains(yesterdayStr)) {
+                                if (uniqueCompletedDays.contains(todayStr)) {
+                                  tempDate = today;
+                                } else {
+                                  tempDate = today.subtract(const Duration(days: 1));
+                                }
+
+                                while (true) {
+                                  String dStr = "${tempDate.year}-${tempDate.month}-${tempDate.day}";
+                                  if (uniqueCompletedDays.contains(dStr)) {
+                                    currentStreak++;
+                                    tempDate = tempDate.subtract(const Duration(days: 1));
+                                  } else {
+                                    break;
+                                  }
+                                }
+                              }
+
+                              streakCount = currentStreak;
+                              
+                              if (streakCount >= 7) {
+                                productivityLabel = "Excellent Consistency";
+                              } else if (streakCount >= 3) {
+                                productivityLabel = "Building Momentum";
+                              } else if (streakCount > 0) {
+                                productivityLabel = "On Track";
+                              } else if (total > 0 && (completed / total) > 0.5) {
+                                productivityLabel = "Good Progress";
+                              } else {
+                                productivityLabel = "Getting Started";
+                              }
+                            }
+
+                            final double progress = total > 0 ? completed / total : 0.0;
 
                           return Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -294,6 +347,48 @@ class ProfileScreen extends StatelessWidget {
                                       _buildStatItem(context, "Pending", pending, Colors.orange, Icons.hourglass_bottom),
                                     ],
                                   ),
+                                ),
+                              ),
+                              const SizedBox(height: 24),
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [Theme.of(context).primaryColor, Theme.of(context).primaryColor.withOpacity(0.7)],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ),
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(12),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withOpacity(0.2),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(Icons.local_fire_department, color: Colors.orangeAccent, size: 28),
+                                    ),
+                                    const SizedBox(width: 16),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            "$streakCount Day Streak",
+                                            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            productivityLabel,
+                                            style: TextStyle(fontSize: 14, color: Colors.white.withOpacity(0.9)),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                               const SizedBox(height: 24),

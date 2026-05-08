@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'notification_service.dart';
+import 'activity_service.dart';
 import 'package:rxdart/rxdart.dart';
 class TaskService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -8,7 +9,26 @@ class TaskService {
 
   String? get userId => _auth.currentUser?.uid;
 
-  Future<void> addTask(String title, {String priority = 'low', DateTime? dueDate, List<Map<String, dynamic>>? subtasks}) async {
+  Future<void> _logTaskActivity(String taskId, String type, String message) async {
+    if (userId == null) return;
+    try {
+      final localTask = await _firestore.collection('users').doc(userId).collection('tasks').doc(taskId).get();
+      if (!localTask.exists) return;
+      final data = localTask.data()!;
+      final List<dynamic> members = data['members'] ?? [userId];
+      
+      await ActivityService().logActivity(
+        taskId: taskId,
+        type: type,
+        message: message,
+        members: members,
+      );
+    } catch (e) {
+      print("Error logging activity: \$e");
+    }
+  }
+
+  Future<void> addTask(String title, {String priority = 'low', DateTime? dueDate, List<Map<String, dynamic>>? subtasks, String? description}) async {
     if (userId == null) return;
 
     final Map<String, dynamic> data = {
@@ -19,6 +39,10 @@ class TaskService {
       'createdAt': FieldValue.serverTimestamp(),
       'notifiedLocally': false,
     };
+    
+    if (description != null && description.isNotEmpty) {
+      data['description'] = description;
+    }
 
     if (subtasks != null && subtasks.isNotEmpty) {
       data['subtasks'] = subtasks;
@@ -83,6 +107,9 @@ class TaskService {
       'isDone': isDone,
     });
     
+    _logTaskActivity(id, isDone ? 'completed' : 'uncompleted', isDone ? 'completed the task' : 'marked the task as incomplete');
+
+    
     syncSharedTask(originalTaskId: id, updatedData: {'isDone': isDone});
     
     if (isDone) {
@@ -103,13 +130,19 @@ class TaskService {
     });
   }
 
-  Future<void> updateTask(String id, String newTitle, {String priority = 'low', DateTime? dueDate, List<Map<String, dynamic>>? subtasks}) async {
+  Future<void> updateTask(String id, String newTitle, {String priority = 'low', DateTime? dueDate, List<Map<String, dynamic>>? subtasks, String? description}) async {
     if (userId == null) return;
 
     final Map<String, dynamic> data = {
       'title': newTitle,
       'priority': priority,
     };
+
+    if (description != null) {
+      data['description'] = description;
+    } else {
+      data['description'] = FieldValue.delete();
+    }
 
     if (subtasks != null) {
       data['subtasks'] = subtasks;
@@ -132,6 +165,8 @@ class TaskService {
         .collection('tasks')
         .doc(id)
         .update(data).catchError((e) => print("Error updating task: $e"));
+
+    _logTaskActivity(id, 'edit', 'updated the task details');
 
     syncSharedTask(originalTaskId: id, updatedData: data);
 
@@ -157,6 +192,8 @@ class TaskService {
         .update({
       'subtasks': subtasks,
     });
+
+    _logTaskActivity(id, 'edit', 'updated subtasks');
 
     syncSharedTask(originalTaskId: id, updatedData: {'subtasks': subtasks});
   }
@@ -243,20 +280,31 @@ class TaskService {
       final currentUserDoc = await FirebaseFirestore.instance.collection('users').doc(currentUserId).get();
       final String ownerName = currentUserDoc.data()?['displayName'] ?? currentUserDoc.data()?['name'] ?? _auth.currentUser?.displayName ?? _auth.currentUser?.email?.split('@').first ?? 'Someone';
       final String taskTitle = data['title'] ?? 'Task';
+      final String taskPriority = data['priority'] ?? 'low';
+      final Timestamp? taskDueDate = data['dueDate'] is Timestamp ? data['dueDate'] : null;
 
       final inviteId = FirebaseFirestore.instance.collection('task_invites').doc().id;
 
-      await FirebaseFirestore.instance.collection('task_invites').doc(inviteId).set({
+      final Map<String, dynamic> inviteData = {
         'inviteId': inviteId,
         'taskId': taskId,
         'taskTitle': taskTitle,
+        'taskPriority': taskPriority,
         'fromUserId': currentUserId,
         'fromUserName': ownerName,
         'toUserId': newUserId,
         'toUserEmail': email.trim().toLowerCase(),
         'status': 'pending',
         'createdAt': FieldValue.serverTimestamp(),
-      });
+      };
+      
+      if (taskDueDate != null) {
+        inviteData['taskDueDate'] = taskDueDate;
+      }
+
+      await FirebaseFirestore.instance.collection('task_invites').doc(inviteId).set(inviteData);
+
+      _logTaskActivity(taskId, 'share', 'invited \$email to the task');
 
       print("Task invite created successfully");
     } catch (e) {
@@ -330,6 +378,8 @@ class TaskService {
       await FirebaseFirestore.instance.collection('task_invites').doc(inviteId).update({
         'status': 'accepted'
       });
+      
+      _logTaskActivity(taskId, 'accept_invite', 'joined the task');
 
       print("Invite accepted and task copied successfully");
     } catch (e) {
