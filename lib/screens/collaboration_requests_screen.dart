@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:intl/intl.dart';
 import '../services/task_service.dart';
 
 import 'package:firebase_auth/firebase_auth.dart';
@@ -70,12 +69,6 @@ class CollaborationRequestsScreen extends StatelessWidget {
               
               final String fromUserName = data['fromUserName'] ?? 'Someone';
               final String taskTitle = data['taskTitle'] ?? 'A Task';
-              final String priority = data['taskPriority'] ?? 'low';
-              DateTime? dueDate;
-              if (data['taskDueDate'] is Timestamp) {
-                dueDate = (data['taskDueDate'] as Timestamp).toDate();
-              }
-              final isDark = Theme.of(context).brightness == Brightness.dark;
 
               return Card(
                 elevation: 2,
@@ -93,12 +86,9 @@ class CollaborationRequestsScreen extends StatelessWidget {
                       Row(
                         children: [
                           CircleAvatar(
-                            radius: 18,
-                            backgroundColor: Colors.blue.withOpacity(0.15),
-                            child: Text(
-                              fromUserName.isNotEmpty ? fromUserName[0].toUpperCase() : '?',
-                              style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.bold, fontSize: 16),
-                            ),
+                            radius: 16,
+                            backgroundColor: Colors.blue.shade50,
+                            child: const Icon(Icons.person, size: 18, color: Colors.blue),
                           ),
                           const SizedBox(width: 10),
                           Expanded(
@@ -118,56 +108,20 @@ class CollaborationRequestsScreen extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: isDark ? const Color(0xFF2A2A2A) : Colors.grey.shade50,
+                          color: Colors.grey.shade50,
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: isDark ? Colors.transparent : Colors.grey.shade200),
+                          border: Border.all(color: Colors.grey.shade200),
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        child: Row(
                           children: [
-                            Row(
-                              children: [
-                                const Icon(Icons.task_alt, size: 18, color: Colors.blueGrey),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    taskTitle,
-                                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: Theme.of(context).textTheme.bodyLarge?.color),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            if (dueDate != null || priority != 'low') ...[
-                              const SizedBox(height: 8),
-                              Row(
-                                children: [
-                                  if (dueDate != null) ...[
-                                    Icon(Icons.calendar_today, size: 12, color: Colors.redAccent.shade200),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      DateFormat('MMM d, yyyy').format(dueDate),
-                                      style: TextStyle(fontSize: 12, color: Colors.redAccent.shade200, fontWeight: FontWeight.w500),
-                                    ),
-                                    const SizedBox(width: 12),
-                                  ],
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: priority == 'high' ? Colors.red.withOpacity(0.1) : (priority == 'medium' ? Colors.orange.withOpacity(0.1) : Colors.green.withOpacity(0.1)),
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: Text(
-                                      priority.toUpperCase(),
-                                      style: TextStyle(
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.bold,
-                                        color: priority == 'high' ? Colors.red : (priority == 'medium' ? Colors.orange : Colors.green),
-                                      ),
-                                    ),
-                                  ),
-                                ],
+                            const Icon(Icons.task_alt, size: 18, color: Colors.blueGrey),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                taskTitle,
+                                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
                               ),
-                            ]
+                            ),
                           ],
                         ),
                       ),
@@ -178,7 +132,7 @@ class CollaborationRequestsScreen extends StatelessWidget {
                             child: OutlinedButton(
                               style: OutlinedButton.styleFrom(
                                 foregroundColor: Colors.redAccent,
-                                side: BorderSide(color: isDark ? Colors.redAccent.withOpacity(0.5) : Colors.redAccent.shade100),
+                                side: BorderSide(color: Colors.redAccent.shade100),
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                               ),
                               onPressed: () async {
