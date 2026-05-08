@@ -14,15 +14,18 @@ class PresenceService with WidgetsBindingObserver {
 
   PresenceService._internal() {
     WidgetsBinding.instance.addObserver(this);
+    setOnlineStatus(true);
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.paused || state == AppLifecycleState.detached || state == AppLifecycleState.inactive) {
+      setOnlineStatus(false);
       if (_currentTaskId != null) {
         clearTaskPresence(_currentTaskId!);
       }
     } else if (state == AppLifecycleState.resumed) {
+      setOnlineStatus(true);
       // Re-apply presence if needed, but it's handled by TaskDetailsScreen for now
     }
   }

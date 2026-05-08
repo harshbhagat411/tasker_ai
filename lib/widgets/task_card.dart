@@ -65,49 +65,13 @@ class _TaskCardState extends State<TaskCard> {
     if (isShared) {
       final String displayName = sharedBy ?? "S";
       final String initial = displayName.isNotEmpty ? displayName[0].toUpperCase() : "?";
-      final String? sharedById = data['sharedById'] as String?;
-      
-      Widget avatar = CircleAvatar(
-        radius: 12,
-        backgroundColor: Colors.blue.shade100,
-        child: Text(initial, style: const TextStyle(fontSize: 10, color: Colors.blue, fontWeight: FontWeight.bold)),
+      avatarWidgets.add(
+        CircleAvatar(
+          radius: 12,
+          backgroundColor: Colors.blue.shade100,
+          child: Text(initial, style: const TextStyle(fontSize: 10, color: Colors.blue, fontWeight: FontWeight.bold)),
+        )
       );
-
-      if (sharedById != null) {
-        avatarWidgets.add(
-          StreamBuilder<DocumentSnapshot>(
-            stream: FirebaseFirestore.instance.collection('users').doc(sharedById).snapshots(),
-            builder: (context, snapshot) {
-              bool isOnline = false;
-              if (snapshot.hasData && snapshot.data!.exists) {
-                final userData = snapshot.data!.data() as Map<String, dynamic>?;
-                isOnline = userData?['isOnline'] ?? false;
-              }
-              return Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  avatar,
-                  Positioned(
-                    bottom: -2,
-                    right: -2,
-                    child: Container(
-                      width: 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: isOnline ? Colors.green : Colors.grey,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Theme.of(context).cardColor, width: 1.5),
-                      ),
-                    ),
-                  ),
-                ],
-              );
-            },
-          )
-        );
-      } else {
-        avatarWidgets.add(avatar);
-      }
     }
     
     final isDark = Theme.of(context).brightness == Brightness.dark;
