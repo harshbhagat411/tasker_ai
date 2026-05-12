@@ -57,6 +57,104 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> with WidgetsBindi
     }
   }
 
+  Widget _buildTaskAvatars(List<String> memberIds) {
+    if (memberIds.isEmpty) return const SizedBox.shrink();
+    
+    int maxAvatars = 4;
+    int displayCount = memberIds.length > maxAvatars ? maxAvatars : memberIds.length;
+    int extraCount = memberIds.length > maxAvatars ? memberIds.length - maxAvatars : 0;
+    
+    double width = 36.0 + ((displayCount - 1) * 24.0);
+    if (extraCount > 0) width += 36.0; 
+
+    return SizedBox(
+      width: width,
+      height: 36,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          for (int i = 0; i < displayCount; i++)
+            Positioned(
+              left: i * 24.0,
+              child: StreamBuilder<DocumentSnapshot>(
+                stream: FirebaseFirestore.instance.collection('users').doc(memberIds[i]).snapshots(),
+                builder: (context, snapshot) {
+                  String initial = "?";
+                  bool isOnline = false;
+                  Color bgColor = i == 0 ? Colors.blue : Colors.grey.shade400;
+
+                  if (snapshot.hasData && snapshot.data!.exists) {
+                    final userData = snapshot.data!.data() as Map<String, dynamic>?;
+                    final name = userData?['displayName'] ?? userData?['name'] ?? userData?['email'] ?? "User";
+                    if (name.isNotEmpty) initial = name[0].toUpperCase();
+                    isOnline = userData?['isOnline'] ?? false;
+                  }
+
+                  return SizedBox(
+                    width: 38,
+                    height: 38,
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: bgColor,
+                            border: Border.all(color: Theme.of(context).scaffoldBackgroundColor, width: 2),
+                          ),
+                          child: Center(
+                            child: Text(
+                              initial,
+                              style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ),
+                        if (isOnline)
+                          Positioned(
+                            right: 0,
+                            bottom: 0,
+                            child: Container(
+                              width: 12,
+                              height: 12,
+                              decoration: BoxDecoration(
+                                color: Colors.green,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: Theme.of(context).scaffoldBackgroundColor, width: 2),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+          if (extraCount > 0)
+            Positioned(
+              left: displayCount * 24.0,
+              child: Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.grey.shade200,
+                  border: Border.all(color: Theme.of(context).scaffoldBackgroundColor, width: 2),
+                ),
+                child: Center(
+                  child: Text(
+                    "+$extraCount",
+                    style: TextStyle(color: Colors.grey.shade700, fontSize: 13, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -91,6 +189,14 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> with WidgetsBindi
           final String description = data['description'] ?? '';
           final bool isShared = data['isShared'] ?? false;
           final String? sharedBy = data['sharedBy'];
+          
+          final List<dynamic>? memberIdsRaw = data['members'] as List<dynamic>?;
+          List<String> memberIds = [];
+          if (memberIdsRaw != null && memberIdsRaw.isNotEmpty) {
+            memberIds = memberIdsRaw.map((e) => e.toString()).toList();
+          } else if (isShared && data['sharedById'] != null) {
+            memberIds = [data['sharedById'].toString(), widget.currentUserId];
+          }
           
           DateTime? dueDate;
           TimeOfDay? dueTime;
@@ -294,6 +400,13 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> with WidgetsBindi
                       ),
                     ],
                   ),
+                  const SizedBox(height: 24),
+                ],
+
+                if (memberIds.isNotEmpty) ...[
+                  const Text("Members", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 12),
+                  _buildTaskAvatars(memberIds),
                   const SizedBox(height: 24),
                 ],
 

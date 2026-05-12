@@ -508,6 +508,105 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
   }
 
+  Widget _buildTaskAvatars(List<String> memberIds) {
+    if (memberIds.isEmpty) return const SizedBox.shrink();
+    
+    int maxAvatars = 4;
+    int displayCount = memberIds.length > maxAvatars ? maxAvatars : memberIds.length;
+    int extraCount = memberIds.length > maxAvatars ? memberIds.length - maxAvatars : 0;
+    
+    double width = 28.0 + ((displayCount - 1) * 20.0);
+    if (extraCount > 0) width += 28.0; 
+
+    return SizedBox(
+      width: width,
+      height: 28,
+      child: Stack(
+        
+        clipBehavior: Clip.none,
+        children: [
+          for (int i = 0; i < displayCount; i++)
+            Positioned(
+              left: i * 20.0,
+              child: StreamBuilder<DocumentSnapshot>(
+                stream: FirebaseFirestore.instance.collection('users').doc(memberIds[i]).snapshots(),
+                builder: (context, snapshot) {
+                  String initial = "?";
+                  bool isOnline = false;
+                  Color bgColor = i == 0 ? Colors.blue : Colors.grey.shade400;
+
+                  if (snapshot.hasData && snapshot.data!.exists) {
+                    final userData = snapshot.data!.data() as Map<String, dynamic>?;
+                    final name = userData?['displayName'] ?? userData?['name'] ?? userData?['email'] ?? "User";
+                    if (name.isNotEmpty) initial = name[0].toUpperCase();
+                    isOnline = userData?['isOnline'] ?? false;
+                  }
+
+                  return SizedBox(
+                    width: 30,
+                    height: 30,
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        Container(
+                          width: 28,
+                          height: 28,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: bgColor,
+                            border: Border.all(color: Theme.of(context).cardColor, width: 2),
+                          ),
+                          child: Center(
+                            child: Text(
+                              initial,
+                              style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ),
+                        if (isOnline)
+                          Positioned(
+                            right: 0,
+                            bottom: 0,
+                            child: Container(
+                              width: 10,
+                              height: 10,
+                              decoration: BoxDecoration(
+                                color: Colors.green,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: Theme.of(context).cardColor, width: 1.5),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+          if (extraCount > 0)
+            Positioned(
+              left: displayCount * 20.0,
+              child: Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.grey.shade200,
+                  border: Border.all(color: Theme.of(context).cardColor, width: 2),
+                ),
+                child: Center(
+                  child: Text(
+                    "+$extraCount",
+                    style: TextStyle(color: Colors.grey.shade700, fontSize: 11, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildTaskList(BuildContext context, List<DocumentSnapshot> tasks) {
     return ListView.builder(
       shrinkWrap: true,
@@ -522,6 +621,17 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         final String priority = data?['priority']?.toString() ?? 'low';
         final bool isShared = (data?['isShared'] as bool?) ?? false;
         final String? sharedBy = data?['sharedBy'] as String?;
+        
+        final List<dynamic>? memberIdsRaw = data?['members'] as List<dynamic>?;
+        List<String> memberIds = [];
+        if (memberIdsRaw != null && memberIdsRaw.isNotEmpty) {
+          memberIds = memberIdsRaw.map((e) => e.toString()).toList();
+        } else if (isShared && data?['sharedById'] != null) {
+          memberIds = [data!['sharedById'].toString(), FirebaseAuth.instance.currentUser!.uid];
+        }
+        
+        bool isOwner = (data?['userId'] == FirebaseAuth.instance.currentUser?.uid) || !isShared;
+        bool showSharedPill = isShared || (isOwner && memberIds.length > 1);
         
         DateTime? dueDate;
         if (data != null && data['dueDate'] is Timestamp) {
@@ -695,7 +805,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                   ),
                                 ),
                               ),
-                              if (isShared) ...[
+                              if (showSharedPill) ...[
                                 const SizedBox(width: 8),
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -715,65 +825,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                     ],
                                   ),
                                 ),
+                              ],
+                              if (memberIds.isNotEmpty) ...[
                                 const Spacer(),
-                                SizedBox(
-                                  width: 52,
-                                  height: 28,
-                                  child: Stack(
-                                    clipBehavior: Clip.none,
-                                    children: [
-                                      Positioned(
-                                        left: 0,
-                                        child: Container(
-                                          width: 28,
-                                          height: 28,
-                                          decoration: BoxDecoration(
-                                            shape: BoxShape.circle,
-                                            color: Colors.blue,
-                                            border: Border.all(color: Theme.of(context).cardColor, width: 2),
-                                          ),
-                                          child: Center(
-                                            child: Text(
-                                              sharedBy != null && sharedBy.isNotEmpty ? sharedBy[0].toUpperCase() : "U",
-                                              style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                      Positioned(
-                                        left: 20,
-                                        child: Container(
-                                          width: 28,
-                                          height: 28,
-                                          decoration: BoxDecoration(
-                                            shape: BoxShape.circle,
-                                            color: Colors.grey.shade400,
-                                            border: Border.all(color: Theme.of(context).cardColor, width: 2),
-                                          ),
-                                          child: const Center(
-                                            child: Text(
-                                              "M",
-                                              style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                      Positioned(
-                                        left: 38,
-                                        bottom: 0,
-                                        child: Container(
-                                          width: 10,
-                                          height: 10,
-                                          decoration: BoxDecoration(
-                                            color: Colors.green,
-                                            shape: BoxShape.circle,
-                                            border: Border.all(color: Theme.of(context).cardColor, width: 1.5),
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
+                                _buildTaskAvatars(memberIds),
                               ],
                             ],
                           ),
@@ -848,18 +903,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.end,
                             children: [
-                              IconButton(
-                                padding: const EdgeInsets.all(4),
-                                constraints: const BoxConstraints(),
-                                icon: const Icon(Icons.share_outlined, color: Colors.blueGrey, size: 18),
+                              TextButton.icon(
+                                style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: const Size(0, 0), tapTargetSize: MaterialTapTargetSize.shrinkWrap),
                                 onPressed: () => _showShareDialog(task.id),
-                                tooltip: 'Share task',
+                                icon: const Icon(Icons.share_outlined, size: 16, color: Colors.blueGrey),
+                                label: const Text("Share", style: TextStyle(color: Colors.blueGrey, fontSize: 13, fontWeight: FontWeight.w600)),
                               ),
                               const SizedBox(width: 16),
-                              IconButton(
-                                padding: const EdgeInsets.all(4),
-                                constraints: const BoxConstraints(),
-                                icon: const Icon(Icons.edit_outlined, color: Colors.blueGrey, size: 18),
+                              TextButton.icon(
+                                style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: const Size(0, 0), tapTargetSize: MaterialTapTargetSize.shrinkWrap),
                                 onPressed: () => _showTaskDialog(
                                   taskId: task.id, 
                                   currentTitle: title, 
@@ -867,15 +919,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                   currentDueDate: dueDate,
                                   currentSubtasks: subtasks,
                                 ),
-                                tooltip: 'Edit task',
+                                icon: const Icon(Icons.edit_outlined, size: 16, color: Colors.blueGrey),
+                                label: const Text("Edit", style: TextStyle(color: Colors.blueGrey, fontSize: 13, fontWeight: FontWeight.w600)),
                               ),
                               const SizedBox(width: 16),
-                              IconButton(
-                                padding: const EdgeInsets.all(4),
-                                constraints: const BoxConstraints(),
-                                icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 18),
+                              TextButton.icon(
+                                style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: const Size(0, 0), tapTargetSize: MaterialTapTargetSize.shrinkWrap),
                                 onPressed: () => _taskService.deleteTask(task.id),
-                                tooltip: 'Delete task',
+                                icon: const Icon(Icons.delete_outline, size: 16, color: Colors.redAccent),
+                                label: const Text("Delete", style: TextStyle(color: Colors.redAccent, fontSize: 13, fontWeight: FontWeight.w600)),
                               ),
                             ],
                           ),
