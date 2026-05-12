@@ -657,56 +657,121 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           if (dueDate != null) ...[
-                            const SizedBox(height: 6),
+                            const SizedBox(height: 10),
                             Row(
                               children: [
-                                Icon(Icons.calendar_today, size: 12, color: isDone ? Colors.grey : Colors.redAccent.shade200),
-                                const SizedBox(width: 4),
+                                Icon(Icons.calendar_today_rounded, size: 16, color: isDone ? Colors.grey : Colors.redAccent),
+                                const SizedBox(width: 6),
                                 Flexible(
                                   child: Text(
                                     _formatDate(dueDate),
                                     overflow: TextOverflow.ellipsis,
                                     maxLines: 1,
                                     style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w500,
-                                      color: isDone ? Colors.grey : Colors.redAccent.shade200,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: isDone ? Colors.grey : Colors.redAccent,
                                     ),
                                   ),
                                 ),
                               ],
                             ),
                           ],
-                          const SizedBox(height: 6),
+                          const SizedBox(height: 12),
                           Row(
                             children: [
                               Container(
-                                width: 8,
-                                height: 8,
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                 decoration: BoxDecoration(
-                                  color: _getPriorityColor(priority),
-                                  shape: BoxShape.circle,
+                                  color: _getPriorityBackgroundColor(priority),
+                                  borderRadius: BorderRadius.circular(12),
                                 ),
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                priority.toUpperCase(),
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                  color: _getPriorityColor(priority),
+                                child: Text(
+                                  priority.toUpperCase(),
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: _getPriorityColor(priority),
+                                  ),
                                 ),
                               ),
                               if (isShared) ...[
-                                const Text("  •  ", style: TextStyle(fontSize: 12, color: Colors.grey)),
-                                const Icon(Icons.group, size: 12, color: Colors.blueGrey),
-                                const SizedBox(width: 4),
-                                Flexible(
-                                  child: Text(
-                                    sharedBy != null ? "Shared by $sharedBy" : "Shared task",
-                                    overflow: TextOverflow.ellipsis,
-                                    maxLines: 1,
-                                    style: const TextStyle(fontSize: 12, color: Colors.blueGrey, fontWeight: FontWeight.w500),
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: Colors.blue.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.group, size: 14, color: Colors.blue),
+                                      const SizedBox(width: 4),
+                                      const Text(
+                                        "Shared",
+                                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.blue),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const Spacer(),
+                                SizedBox(
+                                  width: 52,
+                                  height: 28,
+                                  child: Stack(
+                                    clipBehavior: Clip.none,
+                                    children: [
+                                      Positioned(
+                                        left: 0,
+                                        child: Container(
+                                          width: 28,
+                                          height: 28,
+                                          decoration: BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            color: Colors.blue,
+                                            border: Border.all(color: Theme.of(context).cardColor, width: 2),
+                                          ),
+                                          child: Center(
+                                            child: Text(
+                                              sharedBy != null && sharedBy.isNotEmpty ? sharedBy[0].toUpperCase() : "U",
+                                              style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      Positioned(
+                                        left: 20,
+                                        child: Container(
+                                          width: 28,
+                                          height: 28,
+                                          decoration: BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            color: Colors.grey.shade400,
+                                            border: Border.all(color: Theme.of(context).cardColor, width: 2),
+                                          ),
+                                          child: const Center(
+                                            child: Text(
+                                              "M",
+                                              style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      Positioned(
+                                        left: 38,
+                                        bottom: 0,
+                                        child: Container(
+                                          width: 10,
+                                          height: 10,
+                                          decoration: BoxDecoration(
+                                            color: Colors.green,
+                                            shape: BoxShape.circle,
+                                            border: Border.all(color: Theme.of(context).cardColor, width: 1.5),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ],
