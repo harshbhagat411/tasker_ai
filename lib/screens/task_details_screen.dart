@@ -57,101 +57,104 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> with WidgetsBindi
     }
   }
 
-  Widget _buildTaskAvatars(List<String> memberIds) {
+  Widget _buildMembersList(List<String> memberIds, String ownerId) {
     if (memberIds.isEmpty) return const SizedBox.shrink();
     
-    int maxAvatars = 4;
-    int displayCount = memberIds.length > maxAvatars ? maxAvatars : memberIds.length;
-    int extraCount = memberIds.length > maxAvatars ? memberIds.length - maxAvatars : 0;
+    List<String> queryIds = memberIds.length > 10 ? memberIds.sublist(0, 10) : memberIds;
     
-    double width = 36.0 + ((displayCount - 1) * 24.0);
-    if (extraCount > 0) width += 36.0; 
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance.collection('users').where(FieldPath.documentId, whereIn: queryIds).snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) return const SizedBox.shrink();
+        
+        var docs = snapshot.data!.docs;
+        
+        // Sort: owner first, then online, then offline
+        docs.sort((a, b) {
+          bool aOwner = a.id == ownerId;
+          bool bOwner = b.id == ownerId;
+          if (aOwner && !bOwner) return -1;
+          if (!aOwner && bOwner) return 1;
 
-    return SizedBox(
-      width: width,
-      height: 36,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          for (int i = 0; i < displayCount; i++)
-            Positioned(
-              left: i * 24.0,
-              child: StreamBuilder<DocumentSnapshot>(
-                stream: FirebaseFirestore.instance.collection('users').doc(memberIds[i]).snapshots(),
-                builder: (context, snapshot) {
-                  String initial = "?";
-                  bool isOnline = false;
-                  Color bgColor = i == 0 ? Colors.blue : Colors.grey.shade400;
+          bool aOnline = (a.data() as Map<String, dynamic>)['isOnline'] ?? false;
+          bool bOnline = (b.data() as Map<String, dynamic>)['isOnline'] ?? false;
+          if (aOnline && !bOnline) return -1;
+          if (!aOnline && bOnline) return 1;
+          
+          return 0;
+        });
 
-                  if (snapshot.hasData && snapshot.data!.exists) {
-                    final userData = snapshot.data!.data() as Map<String, dynamic>?;
-                    final name = userData?['displayName'] ?? userData?['name'] ?? userData?['email'] ?? "User";
-                    if (name.isNotEmpty) initial = name[0].toUpperCase();
-                    isOnline = userData?['isOnline'] ?? false;
-                  }
-
-                  return SizedBox(
-                    width: 38,
-                    height: 38,
-                    child: Stack(
-                      clipBehavior: Clip.none,
+        return Column(
+          children: docs.map((doc) {
+            final userData = doc.data() as Map<String, dynamic>;
+            final name = userData['displayName'] ?? userData['name'] ?? userData['email'] ?? "User";
+            final initial = name.isNotEmpty ? name[0].toUpperCase() : "?";
+            final isOnline = userData['isOnline'] ?? false;
+            final isOwner = doc.id == ownerId;
+            final role = isOwner ? "Owner" : "Member";
+            
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 16.0),
+              child: Row(
+                children: [
+                  Opacity(
+                    opacity: isOnline ? 1.0 : 0.6,
+                    child: CircleAvatar(
+                      radius: 18,
+                      backgroundColor: isOnline ? Colors.blue : Colors.grey.shade300,
+                      child: Text(initial, style: TextStyle(color: isOnline ? Colors.white : Colors.grey.shade600, fontSize: 14, fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Row(
                       children: [
-                        Container(
-                          width: 36,
-                          height: 36,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: bgColor,
-                            border: Border.all(color: Theme.of(context).scaffoldBackgroundColor, width: 2),
-                          ),
-                          child: Center(
-                            child: Text(
-                              initial,
-                              style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
-                            ),
+                        Text(
+                          name,
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: isOnline ? Theme.of(context).textTheme.bodyLarge?.color : Colors.grey.shade600,
                           ),
                         ),
-                        if (isOnline)
-                          Positioned(
-                            right: 0,
-                            bottom: 0,
-                            child: Container(
-                              width: 12,
-                              height: 12,
-                              decoration: BoxDecoration(
-                                color: Colors.green,
-                                shape: BoxShape.circle,
-                                border: Border.all(color: Theme.of(context).scaffoldBackgroundColor, width: 2),
-                              ),
-                            ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: isOwner ? Colors.blue.withOpacity(0.1) : Colors.grey.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(4),
                           ),
+                          child: Text(
+                            role,
+                            style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: isOwner ? Colors.blue : Colors.grey),
+                          ),
+                        ),
                       ],
                     ),
-                  );
-                },
-              ),
-            ),
-          if (extraCount > 0)
-            Positioned(
-              left: displayCount * 24.0,
-              child: Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.grey.shade200,
-                  border: Border.all(color: Theme.of(context).scaffoldBackgroundColor, width: 2),
-                ),
-                child: Center(
-                  child: Text(
-                    "+$extraCount",
-                    style: TextStyle(color: Colors.grey.shade700, fontSize: 13, fontWeight: FontWeight.bold),
                   ),
-                ),
+                  if (isOnline)
+                    Row(
+                      children: [
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: const BoxDecoration(
+                            color: Colors.green,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        const Text("Online", style: TextStyle(fontSize: 12, color: Colors.green, fontWeight: FontWeight.w600)),
+                      ],
+                    )
+                  else
+                    const Text("Offline", style: TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.w500)),
+                ],
               ),
-            ),
-        ],
-      ),
+            );
+          }).toList(),
+        );
+      }
     );
   }
 
@@ -404,10 +407,10 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> with WidgetsBindi
                 ],
 
                 if (memberIds.isNotEmpty) ...[
-                  const Text("Members", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  const Text("Collaborators", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 12),
-                  _buildTaskAvatars(memberIds),
-                  const SizedBox(height: 24),
+                  _buildMembersList(memberIds, data['userId']?.toString() ?? widget.currentUserId),
+                  const SizedBox(height: 12),
                 ],
 
                 // Description

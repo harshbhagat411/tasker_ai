@@ -511,99 +511,121 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Widget _buildTaskAvatars(List<String> memberIds) {
     if (memberIds.isEmpty) return const SizedBox.shrink();
     
-    int maxAvatars = 4;
-    int displayCount = memberIds.length > maxAvatars ? maxAvatars : memberIds.length;
-    int extraCount = memberIds.length > maxAvatars ? memberIds.length - maxAvatars : 0;
-    
-    double width = 28.0 + ((displayCount - 1) * 20.0);
-    if (extraCount > 0) width += 28.0; 
+    // limit to 10 for whereIn clause
+    List<String> queryIds = memberIds.length > 10 ? memberIds.sublist(0, 10) : memberIds;
 
-    return SizedBox(
-      width: width,
-      height: 28,
-      child: Stack(
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance.collection('users').where(FieldPath.documentId, whereIn: queryIds).snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) return const SizedBox.shrink();
         
-        clipBehavior: Clip.none,
-        children: [
-          for (int i = 0; i < displayCount; i++)
-            Positioned(
-              left: i * 20.0,
-              child: StreamBuilder<DocumentSnapshot>(
-                stream: FirebaseFirestore.instance.collection('users').doc(memberIds[i]).snapshots(),
-                builder: (context, snapshot) {
-                  String initial = "?";
-                  bool isOnline = false;
-                  Color bgColor = i == 0 ? Colors.blue : Colors.grey.shade400;
+        var docs = snapshot.data!.docs;
+        
+        // Sort: online first, then offline
+        docs.sort((a, b) {
+          bool aOnline = (a.data() as Map<String, dynamic>)['isOnline'] ?? false;
+          bool bOnline = (b.data() as Map<String, dynamic>)['isOnline'] ?? false;
+          if (aOnline && !bOnline) return -1;
+          if (!aOnline && bOnline) return 1;
+          return 0;
+        });
 
-                  if (snapshot.hasData && snapshot.data!.exists) {
-                    final userData = snapshot.data!.data() as Map<String, dynamic>?;
-                    final name = userData?['displayName'] ?? userData?['name'] ?? userData?['email'] ?? "User";
+        int maxAvatars = 4;
+        int displayCount = docs.length > maxAvatars ? maxAvatars : docs.length;
+        int extraCount = memberIds.length > maxAvatars ? memberIds.length - maxAvatars : 0;
+        
+        double width = 28.0 + ((displayCount - 1) * 20.0);
+        if (extraCount > 0) width += 28.0; 
+
+        return SizedBox(
+          width: width,
+          height: 28,
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              for (int i = 0; i < displayCount; i++)
+                Builder(
+                  builder: (context) {
+                    final userData = docs[i].data() as Map<String, dynamic>;
+                    String initial = "?";
+                    final name = userData['displayName'] ?? userData['name'] ?? userData['email'] ?? "User";
                     if (name.isNotEmpty) initial = name[0].toUpperCase();
-                    isOnline = userData?['isOnline'] ?? false;
-                  }
+                    bool isOnline = userData['isOnline'] ?? false;
+                    
+                    Color bgColor = i == 0 ? Colors.blue : Colors.grey.shade400;
 
-                  return SizedBox(
-                    width: 30,
-                    height: 30,
-                    child: Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        Container(
-                          width: 28,
-                          height: 28,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: bgColor,
-                            border: Border.all(color: Theme.of(context).cardColor, width: 2),
-                          ),
-                          child: Center(
-                            child: Text(
-                              initial,
-                              style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
-                            ),
+                    return Positioned(
+                      left: i * 20.0,
+                      child: Opacity(
+                        opacity: isOnline ? 1.0 : 0.65,
+                        child: SizedBox(
+                          width: 30,
+                          height: 30,
+                          child: Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              Container(
+                                width: 28,
+                                height: 28,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: bgColor,
+                                  border: Border.all(
+                                    color: isOnline ? Colors.green.shade400 : Theme.of(context).cardColor, 
+                                    width: isOnline ? 1.5 : 2
+                                  ),
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    initial,
+                                    style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                                  ),
+                                ),
+                              ),
+                              if (isOnline)
+                                Positioned(
+                                  right: 0,
+                                  bottom: 0,
+                                  child: Container(
+                                    width: 10,
+                                    height: 10,
+                                    decoration: BoxDecoration(
+                                      color: Colors.green,
+                                      shape: BoxShape.circle,
+                                      border: Border.all(color: Theme.of(context).cardColor, width: 1.5),
+                                    ),
+                                  ),
+                                ),
+                            ],
                           ),
                         ),
-                        if (isOnline)
-                          Positioned(
-                            right: 0,
-                            bottom: 0,
-                            child: Container(
-                              width: 10,
-                              height: 10,
-                              decoration: BoxDecoration(
-                                color: Colors.green,
-                                shape: BoxShape.circle,
-                                border: Border.all(color: Theme.of(context).cardColor, width: 1.5),
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  );
-                },
-              ),
-            ),
-          if (extraCount > 0)
-            Positioned(
-              left: displayCount * 20.0,
-              child: Container(
-                width: 28,
-                height: 28,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.grey.shade200,
-                  border: Border.all(color: Theme.of(context).cardColor, width: 2),
+                      ),
+                    );
+                  }
                 ),
-                child: Center(
-                  child: Text(
-                    "+$extraCount",
-                    style: TextStyle(color: Colors.grey.shade700, fontSize: 11, fontWeight: FontWeight.bold),
+              if (extraCount > 0)
+                Positioned(
+                  left: displayCount * 20.0,
+                  child: Container(
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.grey.shade200,
+                      border: Border.all(color: Theme.of(context).cardColor, width: 2),
+                    ),
+                    child: Center(
+                      child: Text(
+                        "+$extraCount",
+                        style: TextStyle(color: Colors.grey.shade700, fontSize: 11, fontWeight: FontWeight.bold),
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            ),
-        ],
-      ),
+            ],
+          ),
+        );
+      }
     );
   }
 
@@ -903,31 +925,58 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.end,
                             children: [
-                              TextButton.icon(
-                                style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: const Size(0, 0), tapTargetSize: MaterialTapTargetSize.shrinkWrap),
-                                onPressed: () => _showShareDialog(task.id),
-                                icon: const Icon(Icons.share_outlined, size: 16, color: Colors.blueGrey),
-                                label: const Text("Share", style: TextStyle(color: Colors.blueGrey, fontSize: 13, fontWeight: FontWeight.w600)),
+                              InkWell(
+                                onTap: () => _showShareDialog(task.id),
+                                borderRadius: BorderRadius.circular(4),
+                                child: const Padding(
+                                  padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.share_outlined, size: 16, color: Colors.blueGrey),
+                                      SizedBox(width: 4),
+                                      Text("Share", style: TextStyle(color: Colors.blueGrey, fontSize: 13, fontWeight: FontWeight.w500)),
+                                    ],
+                                  ),
+                                ),
                               ),
                               const SizedBox(width: 16),
-                              TextButton.icon(
-                                style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: const Size(0, 0), tapTargetSize: MaterialTapTargetSize.shrinkWrap),
-                                onPressed: () => _showTaskDialog(
+                              InkWell(
+                                onTap: () => _showTaskDialog(
                                   taskId: task.id, 
                                   currentTitle: title, 
                                   currentPriority: priority,
                                   currentDueDate: dueDate,
                                   currentSubtasks: subtasks,
                                 ),
-                                icon: const Icon(Icons.edit_outlined, size: 16, color: Colors.blueGrey),
-                                label: const Text("Edit", style: TextStyle(color: Colors.blueGrey, fontSize: 13, fontWeight: FontWeight.w600)),
+                                borderRadius: BorderRadius.circular(4),
+                                child: const Padding(
+                                  padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.edit_outlined, size: 16, color: Colors.blueGrey),
+                                      SizedBox(width: 4),
+                                      Text("Edit", style: TextStyle(color: Colors.blueGrey, fontSize: 13, fontWeight: FontWeight.w500)),
+                                    ],
+                                  ),
+                                ),
                               ),
                               const SizedBox(width: 16),
-                              TextButton.icon(
-                                style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: const Size(0, 0), tapTargetSize: MaterialTapTargetSize.shrinkWrap),
-                                onPressed: () => _taskService.deleteTask(task.id),
-                                icon: const Icon(Icons.delete_outline, size: 16, color: Colors.redAccent),
-                                label: const Text("Delete", style: TextStyle(color: Colors.redAccent, fontSize: 13, fontWeight: FontWeight.w600)),
+                              InkWell(
+                                onTap: () => _taskService.deleteTask(task.id),
+                                borderRadius: BorderRadius.circular(4),
+                                child: const Padding(
+                                  padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.delete_outline, size: 16, color: Colors.redAccent),
+                                      SizedBox(width: 4),
+                                      Text("Delete", style: TextStyle(color: Colors.redAccent, fontSize: 13, fontWeight: FontWeight.w500)),
+                                    ],
+                                  ),
+                                ),
                               ),
                             ],
                           ),
