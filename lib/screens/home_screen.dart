@@ -556,47 +556,23 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
                     return Positioned(
                       left: i * 20.0,
-                      child: Opacity(
-                        opacity: isOnline ? 1.0 : 0.65,
-                        child: SizedBox(
-                          width: 30,
-                          height: 30,
-                          child: Stack(
-                            clipBehavior: Clip.none,
-                            children: [
-                              Container(
-                                width: 28,
-                                height: 28,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: bgColor,
-                                  border: Border.all(
-                                    color: isOnline ? Colors.green.shade400 : Theme.of(context).cardColor, 
-                                    width: isOnline ? 1.5 : 2
-                                  ),
-                                ),
-                                child: Center(
-                                  child: Text(
-                                    initial,
-                                    style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
-                                  ),
-                                ),
-                              ),
-                              if (isOnline)
-                                Positioned(
-                                  right: 0,
-                                  bottom: 0,
-                                  child: Container(
-                                    width: 10,
-                                    height: 10,
-                                    decoration: BoxDecoration(
-                                      color: Colors.green,
-                                      shape: BoxShape.circle,
-                                      border: Border.all(color: Theme.of(context).cardColor, width: 1.5),
-                                    ),
-                                  ),
-                                ),
-                            ],
+                      child: SizedBox(
+                        width: 28,
+                        height: 28,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: bgColor,
+                            border: Border.all(
+                              color: isOnline ? Colors.green.shade400 : Theme.of(context).cardColor, 
+                              width: isOnline ? 1.5 : 2
+                            ),
+                          ),
+                          child: Center(
+                            child: Text(
+                              initial,
+                              style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                            ),
                           ),
                         ),
                       ),
@@ -1522,27 +1498,63 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           const SizedBox(height: 30),
                         ],
 
-                        // SECTION 6 & 7: Vertical lists
+                        // SECTION 6 & 7 & 8: Vertical lists
                         ...(() {
-                          final personalTasks = verticalTasks.where((t) => ((t.data() as Map<String, dynamic>?)?['isShared'] as bool?) != true).toList();
-                          final sharedTasks = verticalTasks.where((t) => ((t.data() as Map<String, dynamic>?)?['isShared'] as bool?) == true).toList();
+                          final myTasks = <DocumentSnapshot>[];
+                          final sharedByMeTasks = <DocumentSnapshot>[];
+                          final sharedWithMeTasks = <DocumentSnapshot>[];
+                          
+                          final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+
+                          for (var t in verticalTasks) {
+                            final data = t.data() as Map<String, dynamic>? ?? {};
+                            
+                            bool isReceivedShare = (data['isShared'] == true && data['sharedById'] != currentUserId);
+                            
+                            bool isOwner = false;
+                            if (data['ownerId'] == currentUserId) {
+                              isOwner = true;
+                            } else if (data['permissions'] != null && data['permissions'][currentUserId] == 'owner') {
+                              isOwner = true;
+                            } else if (!isReceivedShare) {
+                              isOwner = true;
+                            }
+                            
+                            final members = data['members'] as List<dynamic>? ?? [];
+                            bool hasMultipleMembers = members.length > 1;
+                            
+                            if (isReceivedShare) {
+                              sharedWithMeTasks.add(t);
+                            } else if (isOwner && hasMultipleMembers) {
+                              sharedByMeTasks.add(t);
+                            } else {
+                              myTasks.add(t);
+                            }
+                          }
                           
                           final sections = <Widget>[];
                           
-                          if (personalTasks.isNotEmpty) {
+                          if (myTasks.isNotEmpty) {
                             sections.add(Text("My Tasks", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyLarge?.color)));
                             sections.add(const SizedBox(height: 16));
-                            sections.add(_buildTaskList(context, personalTasks));
+                            sections.add(_buildTaskList(context, myTasks));
+                          }
+                          
+                          if (sharedByMeTasks.isNotEmpty) {
+                            sections.add(const SizedBox(height: 24));
+                            sections.add(Text("Shared By Me", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyLarge?.color)));
+                            sections.add(const SizedBox(height: 16));
+                            sections.add(_buildTaskList(context, sharedByMeTasks));
                           }
                           
                           sections.add(const SizedBox(height: 24));
                           sections.add(Text("Shared With Me", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyLarge?.color)));
                           sections.add(const SizedBox(height: 16));
                           
-                          if (sharedTasks.isEmpty) {
+                          if (sharedWithMeTasks.isEmpty) {
                             sections.add(const Text("No shared tasks", style: TextStyle(color: Colors.grey)));
                           } else {
-                            sections.add(_buildTaskList(context, sharedTasks));
+                            sections.add(_buildTaskList(context, sharedWithMeTasks));
                           }
                           
                           return sections;
