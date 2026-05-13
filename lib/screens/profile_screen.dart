@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import '../services/task_service.dart';
 import '../providers/theme_provider.dart';
+import '../main.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -132,6 +133,7 @@ class ProfileScreen extends StatelessWidget {
                 }
 
                 String joinedDateString = "Joined recently";
+                String currentModeString = 'personal';
 
                 if (snapshot.hasData) {
                   final doc = snapshot.data!;
@@ -161,6 +163,10 @@ class ProfileScreen extends StatelessWidget {
                     FirebaseFirestore.instance.collection('users').doc(user.uid).set({
                       'joinedAt': FieldValue.serverTimestamp(),
                     }, SetOptions(merge: true));
+                  }
+
+                  if (data != null && data.containsKey('mode') && data['mode'] != null) {
+                    currentModeString = data['mode'].toString();
                   }
 
                   if (data != null) {
@@ -382,6 +388,49 @@ class ProfileScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 40),
 
+                      // 🔹 Mode Selection
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).cardColor,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.grey[300]!),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.tune, color: Theme.of(context).iconTheme.color ?? Colors.grey),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Text(
+                                "Current Mode",
+                                style: TextStyle(
+                                  fontSize: 16, 
+                                  fontWeight: FontWeight.w500,
+                                  color: Theme.of(context).textTheme.bodyLarge?.color,
+                                ),
+                              ),
+                            ),
+                            DropdownButton<String>(
+                              value: currentModeString,
+                              underline: const SizedBox(),
+                              icon: const Icon(Icons.arrow_drop_down),
+                              items: const [
+                                DropdownMenuItem(value: 'personal', child: Text("Personal")),
+                                DropdownMenuItem(value: 'developer', child: Text("Developer")),
+                              ],
+                              onChanged: (value) {
+                                if (value != null) {
+                                  FirebaseFirestore.instance.collection('users').doc(user.uid).update({
+                                    'mode': value,
+                                  });
+                                }
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
                       // 🔹 Dark Mode Toggle
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -433,7 +482,13 @@ class ProfileScreen extends StatelessWidget {
                           label: const Text("Logout", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                           onPressed: () async {
                             await FirebaseAuth.instance.signOut();
-                            // AuthWrapper handles navigation automatically
+                            if (context.mounted) {
+                              Navigator.pushAndRemoveUntil(
+                                context,
+                                MaterialPageRoute(builder: (_) => const AuthGateScreen()),
+                                (route) => false,
+                              );
+                            }
                           },
                         ),
                       ),

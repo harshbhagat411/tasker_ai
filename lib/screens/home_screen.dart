@@ -979,30 +979,34 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: () async {
-            // Can add some delay to simulate refresh if needed
-            await Future.delayed(const Duration(milliseconds: 500));
-          },
-          child: SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            child: Padding(
-            padding: const EdgeInsets.all(20.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // SECTION 1: Header
-                StreamBuilder<DocumentSnapshot>(
-                  stream: user != null ? FirebaseFirestore.instance.collection('users').doc(user.uid).snapshots() : null,
-                  builder: (context, snapshot) {
-                    String displayStr = email.split('@').first;
-                    if (snapshot.hasData && snapshot.data!.exists) {
-                      final data = snapshot.data!.data() as Map<String, dynamic>?;
-                      displayStr = data?['displayName']?.toString() ?? data?['name']?.toString() ?? displayStr;
-                    }
-                    final currentInitial = displayStr.isNotEmpty ? displayStr[0].toUpperCase() : "?";
+        child: StreamBuilder<DocumentSnapshot>(
+          stream: user != null ? FirebaseFirestore.instance.collection('users').doc(user.uid).snapshots() : null,
+          builder: (context, userSnapshot) {
+            String displayStr = email.split('@').first;
+            String userMode = 'personal';
+            if (userSnapshot.hasData && userSnapshot.data!.exists) {
+              final data = userSnapshot.data!.data() as Map<String, dynamic>?;
+              displayStr = data?['displayName']?.toString() ?? data?['name']?.toString() ?? displayStr;
+              userMode = data?['mode']?.toString() ?? 'personal';
+            }
+            final currentInitial = displayStr.isNotEmpty ? displayStr[0].toUpperCase() : "?";
+            final bool isDeveloper = userMode == 'developer';
 
-                    return Row(
+            return RefreshIndicator(
+              onRefresh: () async {
+                // Can add some delay to simulate refresh if needed
+                await Future.delayed(const Duration(milliseconds: 500));
+              },
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // SECTION 1: Header
+
+                    Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Row(
@@ -1076,9 +1080,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           ],
                         )
                       ],
-                    );
-                  }
-                ),
+                    ),
                 const SizedBox(height: 30),                
                 // SECTION 2: Title
                 Column(
@@ -1218,8 +1220,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   },
                 ),
 
-                // SECTION 4.6: Recent Activity
-                _buildRecentActivity(),
+                // SECTION 4.6: Recent Activity or Personal Widgets
+                if (isDeveloper) _buildRecentActivity(),
+                if (!isDeveloper) _buildPersonalWidgets(context),
 
                 // Task Stream
                 StreamBuilder<List<QueryDocumentSnapshot>>(
@@ -1534,27 +1537,39 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           
                           final sections = <Widget>[];
                           
-                          if (myTasks.isNotEmpty) {
-                            sections.add(Text("My Tasks", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyLarge?.color)));
-                            sections.add(const SizedBox(height: 16));
-                            sections.add(_buildTaskList(context, myTasks));
-                          }
-                          
-                          if (sharedByMeTasks.isNotEmpty) {
-                            sections.add(const SizedBox(height: 24));
-                            sections.add(Text("Shared By Me", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyLarge?.color)));
-                            sections.add(const SizedBox(height: 16));
-                            sections.add(_buildTaskList(context, sharedByMeTasks));
-                          }
-                          
-                          sections.add(const SizedBox(height: 24));
-                          sections.add(Text("Shared With Me", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyLarge?.color)));
-                          sections.add(const SizedBox(height: 16));
-                          
-                          if (sharedWithMeTasks.isEmpty) {
-                            sections.add(const Text("No shared tasks", style: TextStyle(color: Colors.grey)));
+                          if (!isDeveloper) {
+                            if (myTasks.isNotEmpty) {
+                              sections.add(Text("My Tasks", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyLarge?.color)));
+                              sections.add(const SizedBox(height: 16));
+                              sections.add(_buildTaskList(context, myTasks));
+                            } else {
+                              sections.add(const Text("No tasks found.", style: TextStyle(color: Colors.grey)));
+                            }
                           } else {
-                            sections.add(_buildTaskList(context, sharedWithMeTasks));
+                            // Developer Mode: Shared Tasks First
+                            if (sharedWithMeTasks.isNotEmpty) {
+                              sections.add(Text("Shared With Me", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyLarge?.color)));
+                              sections.add(const SizedBox(height: 16));
+                              sections.add(_buildTaskList(context, sharedWithMeTasks));
+                              sections.add(const SizedBox(height: 24));
+                            }
+                            
+                            if (sharedByMeTasks.isNotEmpty) {
+                              sections.add(Text("Shared By Me", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyLarge?.color)));
+                              sections.add(const SizedBox(height: 16));
+                              sections.add(_buildTaskList(context, sharedByMeTasks));
+                              sections.add(const SizedBox(height: 24));
+                            }
+                            
+                            if (myTasks.isNotEmpty) {
+                              sections.add(Text("My Tasks", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyLarge?.color)));
+                              sections.add(const SizedBox(height: 16));
+                              sections.add(_buildTaskList(context, myTasks));
+                            }
+                            
+                            if (sharedWithMeTasks.isEmpty && sharedByMeTasks.isEmpty && myTasks.isEmpty) {
+                              sections.add(const Text("No tasks found.", style: TextStyle(color: Colors.grey)));
+                            }
                           }
                           
                           return sections;
@@ -1566,9 +1581,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               ],
             ),
           ),
-          ),
         ),
-      ),
+      );
+    },
+  ),
+),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showTaskDialog(),
@@ -1652,6 +1669,59 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ],
         );
       },
+    );
+  }
+
+  Widget _buildPersonalWidgets(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text("Daily Focus", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyLarge?.color)),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [const Color(0xFF6A1B9A).withOpacity(0.8), const Color(0xFF8E24AA).withOpacity(0.8)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF6A1B9A).withOpacity(0.3),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.self_improvement, color: Colors.white, size: 28),
+              ),
+              const SizedBox(width: 16),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text("Deep Work Session", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                    SizedBox(height: 4),
+                    Text("Stay focused for 25 minutes", style: TextStyle(color: Colors.white70, fontSize: 14)),
+                  ],
+                ),
+              ),
+              const Icon(Icons.play_circle_fill, color: Colors.white, size: 36),
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
+      ],
     );
   }
 }

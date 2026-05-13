@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
-import 'home_screen.dart';
-
+import '../main.dart';
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
 
@@ -44,14 +43,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     if (error == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text("Registration Successful ✅"),
+        const SnackBar(
+          content: Text("Registration Successful ✅"),
           backgroundColor: Colors.green,
           behavior: SnackBarBehavior.floating,
         ),
       );
 
-      Navigator.pop(context);
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const AuthGateScreen()),
+        (route) => false,
+      );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -81,7 +84,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       );
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
+        MaterialPageRoute(builder: (_) => const AuthGateScreen()),
         (route) => false,
       );
     }

@@ -8,12 +8,14 @@ import 'screens/onboarding_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/calendar_screen.dart';
 import 'screens/profile_screen.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
 import 'providers/theme_provider.dart';
 
 import 'services/fcm_service.dart';
 import 'services/notification_service.dart';
+import 'screens/mode_selection_screen.dart';
 import 'services/presence_service.dart';
 import 'package:timezone/data/latest_all.dart' as tz_init;
 import 'package:timezone/timezone.dart' as tz;
@@ -105,50 +107,152 @@ class MyApp extends StatelessWidget {
               headerForegroundColor: Colors.white,
             ),
           ),
-          home: AuthWrapper(seenOnboarding: seenOnboarding),
+          home: const AuthGateScreen(),
         );
       },
     );
   }
 }
 
-class AuthWrapper extends StatefulWidget {
-  final bool seenOnboarding;
-  const AuthWrapper({super.key, required this.seenOnboarding});
+class AuthGateScreen extends StatefulWidget {
+  const AuthGateScreen({super.key});
 
   @override
-  State<AuthWrapper> createState() => _AuthWrapperState();
+  State<AuthGateScreen> createState() => _AuthGateScreenState();
 }
 
-class _AuthWrapperState extends State<AuthWrapper> {
-  late final Stream<User?> _authStream;
-
+class _AuthGateScreenState extends State<AuthGateScreen> {
   @override
   void initState() {
     super.initState();
-    _authStream = FirebaseAuth.instance.authStateChanges();
+    _checkRouting();
+  }
+
+  Future<void> _checkRouting() async {
+    // Smooth splash delay
+    await Future.delayed(const Duration(milliseconds: 1500));
+    
+    if (!mounted) return;
+
+    final user = FirebaseAuth.instance.currentUser;
+    
+    if (user == null) {
+      final prefs = await SharedPreferences.getInstance();
+      final seenOnboarding = prefs.getBool('seenOnboarding') ?? false;
+      
+      if (!mounted) return;
+      Navigator.of(context).pushReplacement(
+        PageRouteBuilder(
+          pageBuilder: (context, animation, secondaryAnimation) => 
+              seenOnboarding ? const LoginScreen() : const OnboardingScreen(),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            return FadeTransition(opacity: animation, child: child);
+          },
+        ),
+      );
+      return;
+    }
+
+    // User is logged in, check Firestore for mode
+    try {
+      final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      if (!mounted) return;
+
+      if (doc.exists && doc.data() != null) {
+        final data = doc.data()!;
+        if (data.containsKey('mode') && data['mode'] != null) {
+          // Mode is selected
+          Navigator.of(context).pushReplacement(
+            PageRouteBuilder(
+              pageBuilder: (context, animation, secondaryAnimation) => const MainScreen(),
+              transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                return FadeTransition(opacity: animation, child: child);
+              },
+            ),
+          );
+          return;
+        }
+      }
+      
+      // Mode not selected or doc doesn't exist yet
+      Navigator.of(context).pushReplacement(
+        PageRouteBuilder(
+          pageBuilder: (context, animation, secondaryAnimation) => const ModeSelectionScreen(),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            return FadeTransition(opacity: animation, child: child);
+          },
+        ),
+      );
+    } catch (e) {
+      // Fallback
+      if (mounted) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const ModeSelectionScreen()),
+        );
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<User?>(
-      stream: _authStream,
-      builder: (context, snapshot) {
-        // Loading
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          );
-        }
-
-        // Logged in
-        if (snapshot.hasData) {
-          return const MainScreen();
-        }
-
-        // Not logged in
-        return widget.seenOnboarding ? const LoginScreen() : const OnboardingScreen();
-      },
+    return Scaffold(
+      backgroundColor: const Color(0xFF0D47A1), // Brand primary color
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // App Logo or Icon
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.2),
+                    blurRadius: 20,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
+              ),
+              child: const Icon(
+                Icons.task_alt,
+                size: 80,
+                color: Color(0xFF0D47A1),
+              ),
+            ),
+            const SizedBox(height: 40),
+            // App Name
+            const Text(
+              "Tasker",
+              style: TextStyle(
+                fontSize: 32,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+                letterSpacing: 1.5,
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              "Manage your tasks intelligently",
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.white70,
+              ),
+            ),
+            const SizedBox(height: 48),
+            // Loading Indicator
+            const SizedBox(
+              width: 30,
+              height: 30,
+              child: CircularProgressIndicator(
+                color: Colors.white,
+                strokeWidth: 3,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

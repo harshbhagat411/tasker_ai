@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import 'register_screen.dart';
-import 'home_screen.dart';
+import '../main.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -43,11 +43,16 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (error == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text("Login Successful ✅"),
+        const SnackBar(
+          content: Text("Login Successful ✅"),
           backgroundColor: Colors.green,
           behavior: SnackBarBehavior.floating,
         ),
+      );
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const AuthGateScreen()),
+        (route) => false,
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -78,7 +83,7 @@ class _LoginScreenState extends State<LoginScreen> {
       );
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
+        MaterialPageRoute(builder: (_) => const AuthGateScreen()),
         (route) => false,
       );
     }
