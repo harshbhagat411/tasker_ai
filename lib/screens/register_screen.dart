@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../services/auth_service.dart';
 import '../main.dart';
+
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
 
@@ -17,6 +21,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   bool isLoading = false;
   bool isGoogleLoading = false;
+
+  Future<void> _applyPendingMode() async {
+    final prefs = await SharedPreferences.getInstance();
+    final pendingMode = prefs.getString('pending_mode');
+    if (pendingMode != null) {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+          'mode': pendingMode,
+        }, SetOptions(merge: true));
+        await prefs.remove('pending_mode');
+      }
+    }
+  }
 
   Future<void> _register() async {
     setState(() => isLoading = true);
@@ -39,6 +57,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     final error = await _authService.register(email, password, name);
 
+    if (error == null) {
+      await _applyPendingMode();
+    }
+
+    if (!mounted) return;
     setState(() => isLoading = false);
 
     if (error == null) {
@@ -70,6 +93,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
     setState(() => isGoogleLoading = true);
 
     final user = await _authService.signInWithGoogle();
+
+    if (user != null) {
+      await _applyPendingMode();
+    }
 
     if (!mounted) return;
     setState(() => isGoogleLoading = false);

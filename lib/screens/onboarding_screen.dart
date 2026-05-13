@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 import 'login_screen.dart';
+import '../services/mode_service.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -15,12 +16,21 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   int _currentIndex = 0;
   bool _isNextPressed = false;
   bool _isGetStartedPressed = false;
+  UserMode? _selectedMode;
 
-  bool get onLastPage => _currentIndex == 2;
+  bool get onLastPage => _currentIndex == 3;
 
   Future<void> _completeOnboarding() async {
+    if (onLastPage && _selectedMode == null) return; // Prevent completion without selection
+
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('seenOnboarding', true);
+    
+    if (_selectedMode != null) {
+      await prefs.setString('pending_mode', ModeService.getStringFromMode(_selectedMode!));
+    } else {
+      await prefs.setString('pending_mode', 'personal'); // Default fallback
+    }
     
     if (!mounted) return;
     Navigator.pushReplacement(
@@ -61,25 +71,29 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 subtitle: "Stay consistent and accomplish more every day",
                 imagePath: "assets/images/onboarding3.png",
               ),
+              _buildModeSelectionPage(),
             ],
           ),
           
           // Skip button
-          SafeArea(
-            child: Align(
-              alignment: Alignment.topRight,
-              child: TextButton(
-                onPressed: _completeOnboarding,
-                child: const Text(
-                  "Skip",
-                  style: TextStyle(
-                    color: Colors.grey,
-                    fontSize: 16,
+          if (!onLastPage)
+            SafeArea(
+              child: Align(
+                alignment: Alignment.topRight,
+                child: TextButton(
+                  onPressed: () {
+                    _controller.animateToPage(3, duration: const Duration(milliseconds: 500), curve: Curves.easeInOut);
+                  },
+                  child: const Text(
+                    "Skip",
+                    style: TextStyle(
+                      color: Colors.grey,
+                      fontSize: 16,
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
           
           // Bottom controls
           Container(
@@ -91,7 +105,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 children: [
                   SmoothPageIndicator(
                     controller: _controller,
-                    count: 3,
+                    count: 4,
                     effect: const ExpandingDotsEffect(
                       activeDotColor: Color(0xFF0D47A1),
                       dotColor: Colors.black12,
@@ -108,17 +122,19 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                             scale: _isGetStartedPressed ? 0.95 : 1.0,
                             duration: const Duration(milliseconds: 200),
                             child: ElevatedButton(
-                              onPressed: _completeOnboarding,
+                              onPressed: _selectedMode == null ? null : _completeOnboarding,
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFF0D47A1),
+                                disabledBackgroundColor: Colors.grey.shade300,
                                 foregroundColor: Colors.white,
+                                disabledForegroundColor: Colors.grey.shade600,
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                               ),
                               child: const Text(
-                                "Get Started",
+                                "Continue",
                                 style: TextStyle(fontWeight: FontWeight.bold),
                               ),
                             ),
@@ -230,6 +246,164 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildModeSelectionPage() {
+    bool isVisible = (_currentIndex == 3);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 60.0),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          AnimatedOpacity(
+            opacity: isVisible ? 1.0 : 0.0,
+            duration: const Duration(milliseconds: 400),
+            child: const Text(
+              "How do you plan to use Tasker?",
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.w800,
+                color: Colors.black87,
+                letterSpacing: -0.5,
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          AnimatedOpacity(
+            opacity: isVisible ? 1.0 : 0.0,
+            duration: const Duration(milliseconds: 500),
+            child: const Text(
+              "Tasker adapts to the way you work.",
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey,
+              ),
+            ),
+          ),
+          const SizedBox(height: 48),
+          
+          AnimatedOpacity(
+            opacity: isVisible ? 1.0 : 0.0,
+            duration: const Duration(milliseconds: 600),
+            child: _buildModeCard(
+              mode: UserMode.personal,
+              title: "Personal Productivity",
+              description: "Daily tasks • Goals • Focus sessions • Habit tracking",
+              icon: Icons.person_outline,
+              color: const Color(0xFF6A1B9A),
+              lightColor: const Color(0xFFF3E5F5),
+            ),
+          ),
+          
+          const SizedBox(height: 20),
+          
+          AnimatedOpacity(
+            opacity: isVisible ? 1.0 : 0.0,
+            duration: const Duration(milliseconds: 700),
+            child: _buildModeCard(
+              mode: UserMode.developer,
+              title: "Team & Development",
+              description: "Projects • Team collaboration • Activity feed • Sprint workflow",
+              icon: Icons.code,
+              color: const Color(0xFF0D47A1),
+              lightColor: const Color(0xFFE3F2FD),
+            ),
+          ),
+          const SizedBox(height: 60), // Space for bottom controls
+        ],
+      ),
+    );
+  }
+
+  Widget _buildModeCard({
+    required UserMode mode,
+    required String title,
+    required String description,
+    required IconData icon,
+    required Color color,
+    required Color lightColor,
+  }) {
+    final bool isSelected = _selectedMode == mode;
+
+    return GestureDetector(
+      onTap: () => setState(() => _selectedMode = mode),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOutCubic,
+        transform: Matrix4.identity()..scale(isSelected ? 1.02 : 1.0),
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: isSelected ? lightColor : Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(
+            color: isSelected ? color : Colors.grey.shade200,
+            width: isSelected ? 2.5 : 1.5,
+          ),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: color.withOpacity(0.15),
+                    blurRadius: 20,
+                    spreadRadius: 2,
+                    offset: const Offset(0, 8),
+                  )
+                ]
+              : [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.03),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  )
+                ],
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: isSelected ? color : Colors.grey.shade100,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                icon,
+                size: 28,
+                color: isSelected ? Colors.white : Colors.black54,
+              ),
+            ),
+            const SizedBox(width: 20),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: isSelected ? color : Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    description,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      height: 1.4,
+                      color: Colors.black87,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

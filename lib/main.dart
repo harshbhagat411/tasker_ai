@@ -15,7 +15,6 @@ import 'providers/theme_provider.dart';
 
 import 'services/fcm_service.dart';
 import 'services/notification_service.dart';
-import 'screens/mode_selection_screen.dart';
 import 'services/presence_service.dart';
 import 'package:timezone/data/latest_all.dart' as tz_init;
 import 'package:timezone/timezone.dart' as tz;
@@ -173,21 +172,26 @@ class _AuthGateScreenState extends State<AuthGateScreen> {
           return;
         }
       }
-      
-      // Mode not selected or doc doesn't exist yet
+      // Mode not selected or doc doesn't exist yet (Legacy user)
+      // Default them to personal mode silently
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+        'mode': 'personal',
+      }, SetOptions(merge: true));
+
+      if (!mounted) return;
       Navigator.of(context).pushReplacement(
         PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) => const ModeSelectionScreen(),
+          pageBuilder: (context, animation, secondaryAnimation) => const MainScreen(),
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
             return FadeTransition(opacity: animation, child: child);
           },
         ),
       );
     } catch (e) {
-      // Fallback
+      // Fallback on error
       if (mounted) {
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const ModeSelectionScreen()),
+          MaterialPageRoute(builder: (_) => const MainScreen()),
         );
       }
     }
