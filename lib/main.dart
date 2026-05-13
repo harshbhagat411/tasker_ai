@@ -8,6 +8,7 @@ import 'screens/onboarding_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/calendar_screen.dart';
 import 'screens/profile_screen.dart';
+import 'screens/projects_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
@@ -271,43 +272,53 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
 
-  final List<Widget> _screens = const [
-    HomeScreen(),
-    CalendarScreen(),
-    ProfileScreen(),
-  ];
-
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _screens,
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-        },
-        selectedItemColor: Theme.of(context).primaryColor,
-        unselectedItemColor: Colors.grey,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Home',
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return const Scaffold(body: Center(child: CircularProgressIndicator()));
+
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance.collection('users').doc(user.uid).snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) return const Scaffold(body: Center(child: CircularProgressIndicator()));
+
+        final data = snapshot.data!.data() as Map<String, dynamic>?;
+        final isDeveloper = data?['mode'] == 'developer';
+
+        final screens = [
+          const HomeScreen(),
+          if (isDeveloper) const ProjectsScreen(),
+          const CalendarScreen(),
+          const ProfileScreen(),
+        ];
+
+        final items = [
+          const BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+          if (isDeveloper) const BottomNavigationBarItem(icon: Icon(Icons.business_center), label: 'Projects'),
+          const BottomNavigationBarItem(icon: Icon(Icons.calendar_month), label: 'Calendar'),
+          const BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+        ];
+
+        // Guard index out of bounds if switching mode down
+        if (_currentIndex >= screens.length) {
+          _currentIndex = screens.length - 1;
+        }
+
+        return Scaffold(
+          body: IndexedStack(
+            index: _currentIndex,
+            children: screens,
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.calendar_month),
-            label: 'Calendar',
+          bottomNavigationBar: BottomNavigationBar(
+            currentIndex: _currentIndex,
+            type: BottomNavigationBarType.fixed,
+            onTap: (index) => setState(() => _currentIndex = index),
+            selectedItemColor: Theme.of(context).primaryColor,
+            unselectedItemColor: Colors.grey,
+            items: items,
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: 'Profile',
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

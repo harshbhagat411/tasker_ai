@@ -9,6 +9,9 @@ import '../services/presence_service.dart';
 import '../services/activity_service.dart';
 import 'collaboration_requests_screen.dart';
 import 'task_details_screen.dart';
+import '../services/workspace_service.dart';
+import '../models/workspace_model.dart';
+import 'workspace_details_screen.dart';
 
 enum SortType {
   priority,
@@ -1546,7 +1549,23 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                               sections.add(const Text("No tasks found.", style: TextStyle(color: Colors.grey)));
                             }
                           } else {
-                            // Developer Mode: Shared Tasks First
+                            // Developer Mode: Projects, Assigned Tasks, Shared
+                            sections.add(_buildYourProjects(context));
+                            sections.add(const SizedBox(height: 24));
+                            
+                            // Assigned to Me
+                            final assignedToMe = sharedWithMeTasks.where((t) {
+                              final d = t.data() as Map<String, dynamic>? ?? {};
+                              return d['assignedTo'] == currentUserId;
+                            }).toList();
+                            
+                            if (assignedToMe.isNotEmpty) {
+                              sections.add(Text("Assigned To You", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyLarge?.color)));
+                              sections.add(const SizedBox(height: 16));
+                              sections.add(_buildTaskList(context, assignedToMe));
+                              sections.add(const SizedBox(height: 24));
+                            }
+                            
                             if (sharedWithMeTasks.isNotEmpty) {
                               sections.add(Text("Shared With Me", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyLarge?.color)));
                               sections.add(const SizedBox(height: 16));
@@ -1567,7 +1586,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                               sections.add(_buildTaskList(context, myTasks));
                             }
                             
-                            if (sharedWithMeTasks.isEmpty && sharedByMeTasks.isEmpty && myTasks.isEmpty) {
+                            if (assignedToMe.isEmpty && sharedWithMeTasks.isEmpty && sharedByMeTasks.isEmpty && myTasks.isEmpty) {
                               sections.add(const Text("No tasks found.", style: TextStyle(color: Colors.grey)));
                             }
                           }
@@ -1669,6 +1688,111 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ],
         );
       },
+    );
+  }
+
+  Widget _buildYourProjects(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text("Your Projects", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyLarge?.color)),
+            TextButton(
+              onPressed: () {
+                // Could navigate to ProjectsScreen if it wasn't already in the tab bar
+                // But the tab bar is standard.
+              },
+              child: const Text("View All", style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 140,
+          child: StreamBuilder<List<Workspace>>(
+            stream: WorkspaceService().getUserWorkspaces(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              final workspaces = snapshot.data ?? [];
+              if (workspaces.isEmpty) {
+                return Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade50,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.grey.shade200, width: 2, style: BorderStyle.solid),
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: const [
+                      Icon(Icons.business_center_outlined, color: Colors.grey),
+                      SizedBox(height: 8),
+                      Text("No projects yet. Create one from the Projects tab.", style: TextStyle(color: Colors.grey, fontSize: 12)),
+                    ],
+                  ),
+                );
+              }
+              
+              return ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: workspaces.length,
+                itemBuilder: (context, index) {
+                  final ws = workspaces[index];
+                  final color = Color(int.parse(ws.color));
+                  
+                  return GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => WorkspaceDetailsScreen(workspace: ws)),
+                      );
+                    },
+                    child: Container(
+                      width: 160,
+                      margin: const EdgeInsets.only(right: 16),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.04),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          )
+                        ],
+                        border: Border.all(color: Colors.grey.shade100),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: color.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Icon(IconData(ws.icon, fontFamily: 'MaterialIcons'), color: color, size: 20),
+                          ),
+                          const Spacer(),
+                          Text(ws.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16), maxLines: 1, overflow: TextOverflow.ellipsis),
+                          const SizedBox(height: 4),
+                          Text("${ws.members.length} members", style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 

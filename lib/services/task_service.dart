@@ -163,7 +163,7 @@ class TaskService {
 
   // --- SHARED TASKS ---
   
-  Future<void> createSharedTask(String title, {DateTime? dueDate}) async {
+  Future<void> createSharedTask(String title, {DateTime? dueDate, String? workspaceId, String? assignedTo}) async {
     if (userId == null) return;
     
     final Map<String, dynamic> data = {
@@ -181,16 +181,42 @@ class TaskService {
       data['dueDate'] = Timestamp.fromDate(dueDate);
     }
     
+    if (workspaceId != null) {
+      data['workspaceId'] = workspaceId;
+    }
+    
+    if (assignedTo != null) {
+      data['assignedTo'] = assignedTo;
+      if (assignedTo != userId) {
+        data['members'].add(assignedTo);
+      }
+    }
+    
     await _firestore.collection('tasks').add(data);
   }
 
   Stream<QuerySnapshot> getSharedTasks() {
     if (userId == null) return const Stream.empty();
-    print("Fetching shared tasks for user: $userId");
     
     return _firestore
         .collection('tasks')
         .where('members', arrayContains: userId)
+        // Optionally, we could filter out workspace tasks from normal shared tasks if desired
+        .snapshots();
+  }
+
+  Stream<QuerySnapshot> getWorkspaceTasks(String workspaceId) {
+    return _firestore
+        .collection('tasks')
+        .where('workspaceId', isEqualTo: workspaceId)
+        .snapshots();
+  }
+
+  Stream<QuerySnapshot> getAssignedWorkspaceTasks() {
+    if (userId == null) return const Stream.empty();
+    return _firestore
+        .collection('tasks')
+        .where('assignedTo', isEqualTo: userId)
         .snapshots();
   }
 
