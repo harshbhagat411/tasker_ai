@@ -214,52 +214,52 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
 
   @override
   Widget build(BuildContext context) {
-    final color = Color(int.parse(widget.workspace.color));
-    
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: color,
-        elevation: 0,
-        foregroundColor: Colors.white,
-        title: Row(
-          children: [
-            Icon(widget.workspace.iconData, size: 24),
-            const SizedBox(width: 12),
-            Expanded(child: Text(widget.workspace.name, overflow: TextOverflow.ellipsis)),
-          ],
-        ),
-        bottom: TabBar(
-          controller: _tabController,
-          indicatorColor: Colors.white,
-          indicatorWeight: 3,
-          labelColor: Colors.white,
-          unselectedLabelColor: Colors.white70,
-          tabs: const [
-            Tab(text: "Tasks"),
-            Tab(text: "Members"),
-            Tab(text: "Activity"),
-          ],
-        ),
-      ),
-      body: StreamBuilder<Workspace?>(
-        stream: _workspaceService.getWorkspace(widget.workspace.id),
-        builder: (context, snapshot) {
-          final ws = snapshot.data ?? widget.workspace;
-          return TabBarView(
+    return StreamBuilder<Workspace?>(
+      stream: _workspaceService.getWorkspace(widget.workspace.id),
+      builder: (context, snapshot) {
+        final ws = snapshot.data ?? widget.workspace;
+        final color = Color(int.parse(ws.color));
+        
+        return Scaffold(
+          appBar: AppBar(
+            backgroundColor: color,
+            elevation: 0,
+            foregroundColor: Colors.white,
+            title: Row(
+              children: [
+                Icon(ws.iconData, size: 24),
+                const SizedBox(width: 12),
+                Expanded(child: Text(ws.name, overflow: TextOverflow.ellipsis)),
+              ],
+            ),
+            bottom: TabBar(
+              controller: _tabController,
+              indicatorColor: Colors.white,
+              indicatorWeight: 3,
+              labelColor: Colors.white,
+              unselectedLabelColor: Colors.white70,
+              tabs: const [
+                Tab(text: "Tasks"),
+                Tab(text: "Members"),
+                Tab(text: "Activity"),
+              ],
+            ),
+          ),
+          body: TabBarView(
             controller: _tabController,
             children: [
               _buildTasksTab(ws),
               _buildMembersTab(ws),
               _buildActivityTab(ws),
             ],
-          );
-        }
-      ),
-      floatingActionButton: _buildSmartFAB(color),
+          ),
+          floatingActionButton: _buildSmartFAB(ws, color),
+        );
+      }
     );
   }
 
-  Widget? _buildSmartFAB(Color color) {
+  Widget? _buildSmartFAB(Workspace ws, Color color) {
     if (_tabController.index == 0) {
       return FloatingActionButton.extended(
         onPressed: _showCreateTaskModal,
@@ -268,8 +268,8 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
         label: const Text("Task", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
       );
     } else if (_tabController.index == 1) {
-      final currentRole = widget.workspace.memberRoles[currentUserId];
-      if (currentRole == 'admin' || currentRole == 'owner') {
+      // Allow any member of the workspace to invite others
+      if (ws.members.contains(currentUserId)) {
         return FloatingActionButton.extended(
           onPressed: _showInviteMemberModal,
           backgroundColor: color,

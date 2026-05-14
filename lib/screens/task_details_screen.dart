@@ -210,6 +210,32 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> with WidgetsBindi
             memberIds = [data['sharedById'].toString(), widget.currentUserId];
           }
           
+          final String ownerId = data['ownerId']?.toString() ?? data['userId']?.toString() ?? '';
+          String? assignedToId;
+          if (data['assignedTo'] is String) {
+            assignedToId = data['assignedTo'];
+          } else if (data['assignedTo'] is Map) {
+            assignedToId = data['assignedTo']['uid'];
+          }
+          final permissions = data['permissions'] as Map<String, dynamic>?;
+
+          Future<bool> determineCanEdit() async {
+            if (ownerId == widget.currentUserId) return true;
+            if (assignedToId == widget.currentUserId) return true;
+            if (permissions != null && (permissions[widget.currentUserId] == 'owner' || permissions[widget.currentUserId] == 'admin')) return true;
+            
+            if (widget.projectId != null) {
+              final workspaceDoc = await FirebaseFirestore.instance.collection('workspaces').doc(widget.projectId).get();
+              if (workspaceDoc.exists) {
+                final wsData = workspaceDoc.data()!;
+                if (wsData['ownerId'] == widget.currentUserId) return true;
+                final wsRoles = wsData['memberRoles'] as Map<String, dynamic>?;
+                if (wsRoles != null && (wsRoles[widget.currentUserId] == 'owner' || wsRoles[widget.currentUserId] == 'admin')) return true;
+              }
+            }
+            return false;
+          }
+          
           DateTime? dueDate;
           TimeOfDay? dueTime;
           if (data['dueDate'] is Timestamp) {
@@ -226,73 +252,82 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> with WidgetsBindi
             progress = completedSubtasks / subtasks.length;
           }
 
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Header & Status
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: _getPriorityColor(priority).withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        priority.toUpperCase(),
-                        style: TextStyle(color: _getPriorityColor(priority), fontWeight: FontWeight.bold, fontSize: 12),
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: isDone ? Colors.green.withOpacity(0.1) : Colors.orange.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        isDone ? "COMPLETED" : "IN PROGRESS",
-                        style: TextStyle(color: isDone ? Colors.green : Colors.orange, fontWeight: FontWeight.bold, fontSize: 12),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                
-                // Title
-                Row(
+          return FutureBuilder<bool>(
+            future: determineCanEdit(),
+            builder: (context, canEditSnapshot) {
+              final bool canEdit = canEditSnapshot.data ?? false;
+              
+              return SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: Checkbox(
-                        value: isDone,
-                        activeColor: const Color(0xFF0D47A1),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                        onChanged: (val) {
-                          if (val != null) {
-                            _taskService.toggleTask(widget.taskId, val, projectId: widget.projectId);
-                          }
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        title,
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: Theme.of(context).textTheme.bodyLarge?.color,
-                          decoration: isDone ? TextDecoration.lineThrough : null,
+                    // Header & Status
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: _getPriorityColor(priority).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            priority.toUpperCase(),
+                            style: TextStyle(color: _getPriorityColor(priority), fontWeight: FontWeight.bold, fontSize: 12),
+                          ),
                         ),
-                      ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: isDone ? Colors.green.withOpacity(0.1) : Colors.orange.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            isDone ? "COMPLETED" : "IN PROGRESS",
+                            style: TextStyle(color: isDone ? Colors.green : Colors.orange, fontWeight: FontWeight.bold, fontSize: 12),
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                    const SizedBox(height: 20),
+                    
+                    // Title
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: Checkbox(
+                            value: isDone,
+                            activeColor: const Color(0xFF0D47A1),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                            onChanged: (val) {
+                              if (canEdit) {
+                                if (val != null) {
+                                  _taskService.toggleTask(widget.taskId, val, projectId: widget.projectId);
+                                }
+                              } else {
+                                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Only assigned member can modify this task.')));
+                              }
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            title,
+                            style: TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).textTheme.bodyLarge?.color,
+                              decoration: isDone ? TextDecoration.lineThrough : null,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                 
                 // 🔹 Realtime Presence Indicator
                 StreamBuilder<QuerySnapshot>(
@@ -473,10 +508,12 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> with WidgetsBindi
                       padding: const EdgeInsets.only(bottom: 8.0),
                       child: InkWell(
                         borderRadius: BorderRadius.circular(8),
-                        onTap: () {
+                        onTap: canEdit ? () {
                           List<Map<String, dynamic>> updatedSubtasks = subtasks.map((e) => Map<String, dynamic>.from(e as Map)).toList();
                           updatedSubtasks[idx]['isCompleted'] = !isSubDone;
                           _taskService.updateSubtasks(widget.taskId, updatedSubtasks, projectId: widget.projectId);
+                        } : () {
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('You do not have permission to modify this task.')));
                         },
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
@@ -518,6 +555,8 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> with WidgetsBindi
               ],
             ),
           );
+          },
+         );
         },
       ),
     );

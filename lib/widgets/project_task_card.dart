@@ -115,11 +115,15 @@ class _ProjectTaskCardState extends State<ProjectTaskCard> {
                       value: isDone,
                       activeColor: const Color(0xFF0D47A1),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                      onChanged: canEdit ? (value) {
-                        if (value != null) {
-                          _taskService.toggleTask(widget.task.id, value, projectId: widget.projectId);
+                      onChanged: (value) {
+                        if (canEdit) {
+                          if (value != null) {
+                            _taskService.toggleTask(widget.task.id, value, projectId: widget.projectId);
+                          }
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Only assigned member can modify this task.')));
                         }
-                      } : null,
+                      },
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -139,7 +143,6 @@ class _ProjectTaskCardState extends State<ProjectTaskCard> {
                       ),
                     ),
                   ),
-                  const SizedBox(width: 8),
                   IconButton(
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
@@ -148,9 +151,22 @@ class _ProjectTaskCardState extends State<ProjectTaskCard> {
                       color: isPinned ? Colors.amber.shade700 : Colors.grey.shade400,
                       size: 20,
                     ),
-                    onPressed: canEdit ? () => _taskService.togglePinTask(widget.task.id, !isPinned, projectId: widget.projectId) : null,
+                    onPressed: () {
+                      if (canEdit) {
+                        _taskService.togglePinTask(widget.task.id, !isPinned, projectId: widget.projectId);
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Only assigned member can modify this task.')));
+                      }
+                    },
                     tooltip: isPinned ? 'Unpin task' : 'Pin task',
                   ),
+                  if (!canEdit) ...[
+                    const SizedBox(width: 8),
+                    Tooltip(
+                      message: "Only assigned member can modify this task",
+                      child: Icon(Icons.lock_outline, size: 18, color: Colors.grey.shade400),
+                    ),
+                  ],
                 ],
               ),
               const SizedBox(height: 12),

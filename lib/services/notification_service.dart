@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
+import 'package:rxdart/rxdart.dart';
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -9,6 +10,8 @@ class NotificationService {
 
   final FlutterLocalNotificationsPlugin _notificationsPlugin =
       FlutterLocalNotificationsPlugin();
+      
+  final BehaviorSubject<String?> onNotificationClick = BehaviorSubject<String?>();
   
   bool _initialized = false;
 
@@ -30,7 +33,14 @@ class NotificationService {
       iOS: initializationSettingsIOS,
     );
 
-    await _notificationsPlugin.initialize(settings: initializationSettings);
+    await _notificationsPlugin.initialize(
+      settings: initializationSettings,
+      onDidReceiveNotificationResponse: (NotificationResponse response) {
+        if (response.payload != null) {
+          onNotificationClick.add(response.payload);
+        }
+      },
+    );
     
     const AndroidNotificationChannel scheduledChannel = AndroidNotificationChannel(
       'task_reminder_channel',
@@ -39,10 +49,24 @@ class NotificationService {
       importance: Importance.max,
     );
     
+    const AndroidNotificationChannel collaborationChannel = AndroidNotificationChannel(
+      'collaboration_channel',
+      'Collaboration Alerts',
+      description: 'Real-time notifications for task and project sharing',
+      importance: Importance.max,
+      playSound: true,
+      enableVibration: true,
+    );
+    
     await _notificationsPlugin
         .resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin>()
         ?.createNotificationChannel(scheduledChannel);
+
+    await _notificationsPlugin
+        .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>()
+        ?.createNotificationChannel(collaborationChannel);
 
     _initialized = true;
   }
@@ -217,5 +241,41 @@ class NotificationService {
 
   Future<void> cancelNotification(int id) async {
     await _notificationsPlugin.cancel(id: id);
+  }
+
+  Future<void> triggerImmediateCollaborationNotification({
+    required int id,
+    required String title,
+    required String body,
+    required String payload,
+  }) async {
+    try {
+      await _notificationsPlugin.show(
+        id: id,
+        title: title,
+        body: body,
+        notificationDetails: const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'collaboration_channel',
+            'Collaboration Alerts',
+            channelDescription: 'Real-time notifications for task and project sharing',
+            importance: Importance.max,
+            priority: Priority.high,
+            playSound: true,
+            enableVibration: true,
+            icon: '@mipmap/ic_launcher',
+          ),
+          iOS: DarwinNotificationDetails(
+            presentAlert: true,
+            presentBadge: true,
+            presentSound: true,
+          ),
+        ),
+        payload: payload,
+      );
+      print("Collaboration notification triggered successfully.");
+    } catch (e) {
+      print("Failed to trigger collaboration notification: $e");
+    }
   }
 }

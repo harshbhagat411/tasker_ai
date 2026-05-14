@@ -2,11 +2,14 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/workspace_model.dart';
 import 'activity_service.dart';
+import 'in_app_notification_service.dart';
+import '../models/notification_model.dart';
 
 class WorkspaceService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final ActivityService _activityService = ActivityService();
+  final InAppNotificationService _inAppNotificationService = InAppNotificationService();
 
   // Create Workspace
   Future<String?> createWorkspace({
@@ -176,6 +179,15 @@ class WorkspaceService {
         message: 'invited $newUserName to the project.',
       );
 
+      // Send In-App Notification
+      await _inAppNotificationService.createNotification(
+        receiverId: newUserId,
+        type: NotificationType.workspace_invite,
+        title: "Project Invite",
+        message: "You were invited to project '${data['name']}'",
+        projectId: workspaceId,
+      );
+
     } catch (e) {
       print("SEND PROJECT INVITE ERROR: $e");
       rethrow;
@@ -219,6 +231,16 @@ class WorkspaceService {
         message: 'joined the project.',
       );
 
+      // Send In-App Notification to Inviter
+      final String senderId = inviteData['senderId'];
+      await _inAppNotificationService.createNotification(
+        receiverId: senderId,
+        type: NotificationType.workspace_invite_accepted,
+        title: "Invite Accepted",
+        message: "${user.displayName ?? 'Someone'} joined your project.",
+        projectId: projectId,
+      );
+
     } catch (e) {
       print("ACCEPT PROJECT INVITE ERROR: $e");
       rethrow;
@@ -228,9 +250,25 @@ class WorkspaceService {
   // Reject Project Invite
   Future<void> rejectProjectInvite(String inviteId) async {
     try {
+      final inviteDoc = await _firestore.collection('project_invites').doc(inviteId).get();
+      if (!inviteDoc.exists) return;
+      final inviteData = inviteDoc.data()!;
+      final senderId = inviteData['senderId'];
+      final projectName = inviteData['projectName'];
+
       await _firestore.collection('project_invites').doc(inviteId).update({
         'status': 'rejected'
       });
+
+      final user = _auth.currentUser;
+      await _inAppNotificationService.createNotification(
+        receiverId: senderId,
+        type: NotificationType.workspace_invite_rejected,
+        title: "Invite Declined",
+        message: "${user?.displayName ?? 'Someone'} declined your invite to '$projectName'.",
+        projectId: inviteData['projectId'],
+      );
+
     } catch (e) {
       print("REJECT PROJECT INVITE ERROR: $e");
       rethrow;

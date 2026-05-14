@@ -1,12 +1,15 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'notification_service.dart';
+import 'in_app_notification_service.dart';
+import '../models/notification_model.dart';
 import 'package:rxdart/rxdart.dart';
 import 'activity_service.dart';
 
 class TaskService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final InAppNotificationService _inAppNotificationService = InAppNotificationService();
 
   String? get userId => _auth.currentUser?.uid;
 
@@ -65,6 +68,9 @@ class TaskService {
     if (userId == null) return;
 
     if (projectId != null) {
+      if (!await _canModifyProjectTask(projectId, id)) {
+        throw Exception('Unauthorized: Only assigned members or project admins can modify this task.');
+      }
       await _firestore
           .collection('projects')
           .doc(projectId)
@@ -86,6 +92,9 @@ class TaskService {
     if (userId == null) return;
 
     if (projectId != null) {
+      if (!await _canModifyProjectTask(projectId, id)) {
+        throw Exception('Unauthorized: Only assigned members or project admins can modify this task.');
+      }
       await _firestore
           .collection('projects')
           .doc(projectId)
@@ -95,6 +104,27 @@ class TaskService {
         'isDone': isDone,
       });
       // optionally log activity
+      
+      if (isDone) {
+        final taskDoc = await _firestore.collection('projects').doc(projectId).collection('tasks').doc(id).get();
+        if (taskDoc.exists) {
+           final title = taskDoc.data()!['title'] ?? 'Task';
+           final projectDoc = await _firestore.collection('workspaces').doc(projectId).get();
+           if (projectDoc.exists) {
+              final ownerId = projectDoc.data()!['ownerId'];
+              if (ownerId != userId) {
+                 await _inAppNotificationService.createNotification(
+                    receiverId: ownerId,
+                    type: NotificationType.task_completed,
+                    title: "Task Completed",
+                    message: "${_auth.currentUser?.displayName ?? 'Someone'} completed '$title'",
+                    taskId: id,
+                    projectId: projectId,
+                 );
+              }
+           }
+        }
+      }
     } else {
       await _firestore
           .collection('users')
@@ -117,6 +147,9 @@ class TaskService {
     if (userId == null) return;
 
     if (projectId != null) {
+      if (!await _canModifyProjectTask(projectId, id)) {
+        throw Exception('Unauthorized: Only assigned members or project admins can modify this task.');
+      }
       await _firestore
           .collection('projects')
           .doc(projectId)
@@ -166,6 +199,9 @@ class TaskService {
     }
 
     if (projectId != null) {
+      if (!await _canModifyProjectTask(projectId, id)) {
+        throw Exception('Unauthorized: Only assigned members or project admins can modify this task.');
+      }
       await _firestore
           .collection('projects')
           .doc(projectId)
@@ -199,6 +235,9 @@ class TaskService {
     if (userId == null) return;
 
     if (projectId != null) {
+      if (!await _canModifyProjectTask(projectId, id)) {
+        throw Exception('Unauthorized: Only assigned members or project admins can modify this task.');
+      }
       await _firestore
           .collection('projects')
           .doc(projectId)
@@ -383,6 +422,15 @@ class TaskService {
         'createdAt': FieldValue.serverTimestamp(),
       });
 
+      // In-App Notification
+      await _inAppNotificationService.createNotification(
+        receiverId: newUserId,
+        type: NotificationType.task_shared,
+        title: "Task Shared",
+        message: "$ownerName shared a task with you: '$taskTitle'",
+        taskId: taskId,
+      );
+
       print("Task invite created successfully");
     } catch (e) {
       print("SHARE ERROR: $e");
@@ -456,6 +504,15 @@ class TaskService {
         'status': 'accepted'
       });
 
+      // In-App Notification to Inviter
+      await _inAppNotificationService.createNotification(
+        receiverId: fromUserId,
+        type: NotificationType.invite_accepted,
+        title: "Task Invite Accepted",
+        message: "${_auth.currentUser?.displayName ?? 'Someone'} accepted your shared task invite for '${inviteData['taskTitle'] ?? 'Task'}'.",
+        taskId: taskId,
+      );
+
       print("Invite accepted and task copied successfully");
     } catch (e) {
       print("ACCEPT INVITE ERROR: $e");
@@ -465,9 +522,22 @@ class TaskService {
 
   Future<void> rejectInvite(String inviteId) async {
     try {
+      final inviteDoc = await FirebaseFirestore.instance.collection('task_invites').doc(inviteId).get();
+      if (!inviteDoc.exists) return;
+      final inviteData = inviteDoc.data()!;
+
       await FirebaseFirestore.instance.collection('task_invites').doc(inviteId).update({
         'status': 'rejected'
       });
+
+      final fromUserId = inviteData['fromUserId'];
+      await _inAppNotificationService.createNotification(
+        receiverId: fromUserId,
+        type: NotificationType.invite_rejected,
+        title: "Task Invite Declined",
+        message: "${_auth.currentUser?.displayName ?? 'Someone'} declined your shared task invite for '${inviteData['taskTitle'] ?? 'Task'}'.",
+        taskId: inviteData['taskId'],
+      );
     } catch (e) {
       print("REJECT INVITE ERROR: $e");
     }
@@ -536,5 +606,37 @@ class TaskService {
     
     await batch.commit();
     print("Updated shared copy instances");
+  }
+
+  Future<bool> _canModifyProjectTask(String projectId, String taskId) async {
+    final currentUserId = userId;
+    if (currentUserId == null) return false;
+
+    // Check workspace roles
+    final workspaceDoc = await _firestore.collection('workspaces').doc(projectId).get();
+    if (!workspaceDoc.exists) return false;
+
+    final workspaceData = workspaceDoc.data()!;
+    final String ownerId = workspaceData['ownerId']?.toString() ?? '';
+    final memberRoles = workspaceData['memberRoles'] as Map<String, dynamic>?;
+
+    if (ownerId == currentUserId) return true;
+    if (memberRoles != null && (memberRoles[currentUserId] == 'owner' || memberRoles[currentUserId] == 'admin')) return true;
+
+    // Check task assignment
+    final taskDoc = await _firestore.collection('projects').doc(projectId).collection('tasks').doc(taskId).get();
+    if (!taskDoc.exists) return false;
+    
+    final taskData = taskDoc.data()!;
+    String? assignedToId;
+    if (taskData['assignedTo'] is String) {
+      assignedToId = taskData['assignedTo'];
+    } else if (taskData['assignedTo'] is Map) {
+      assignedToId = taskData['assignedTo']['uid'];
+    }
+
+    if (assignedToId == currentUserId) return true;
+
+    return false;
   }
 }

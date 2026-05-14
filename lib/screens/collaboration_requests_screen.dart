@@ -2,7 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/task_service.dart';
 import '../services/workspace_service.dart';
+import '../services/in_app_notification_service.dart';
+import '../models/notification_model.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:timeago/timeago.dart' as timeago;
+import 'task_details_screen.dart';
+import 'workspace_details_screen.dart';
+import '../models/workspace_model.dart';
 
 class CollaborationRequestsScreen extends StatefulWidget {
   const CollaborationRequestsScreen({super.key});
@@ -14,11 +20,12 @@ class CollaborationRequestsScreen extends StatefulWidget {
 class _CollaborationRequestsScreenState extends State<CollaborationRequestsScreen> {
   final TaskService _taskService = TaskService();
   final WorkspaceService _workspaceService = WorkspaceService();
+  final InAppNotificationService _inAppNotificationService = InAppNotificationService();
 
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 2,
+      length: 3,
       child: Scaffold(
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         appBar: AppBar(
@@ -87,6 +94,34 @@ class _CollaborationRequestsScreenState extends State<CollaborationRequestsScree
                   );
                 },
               ),
+              StreamBuilder<QuerySnapshot>(
+                stream: _inAppNotificationService.getUnreadNotifications(),
+                builder: (context, snapshot) {
+                  int count = snapshot.data?.docs.length ?? 0;
+                  return Tab(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text("Updates"),
+                        if (count > 0) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.redAccent,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              '$count',
+                              style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ]
+                      ],
+                    ),
+                  );
+                },
+              ),
             ],
           ),
         ),
@@ -94,6 +129,7 @@ class _CollaborationRequestsScreenState extends State<CollaborationRequestsScree
           children: [
             _buildTaskInvitesTab(),
             _buildProjectInvitesTab(),
+            _buildUpdatesTab(),
           ],
         ),
       ),
@@ -398,5 +434,170 @@ class _CollaborationRequestsScreenState extends State<CollaborationRequestsScree
       ),
     );
   }
-}
 
+  Widget _buildUpdatesTab() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: _inAppNotificationService.getUserNotifications(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return _buildEmptyState("No recent updates");
+        }
+
+        final docs = snapshot.data!.docs;
+        // Sort by newest first client-side
+        docs.sort((a, b) {
+          final tA = (a.data() as Map<String, dynamic>)['createdAt'] as Timestamp?;
+          final tB = (b.data() as Map<String, dynamic>)['createdAt'] as Timestamp?;
+          if (tA == null && tB == null) return 0;
+          if (tA == null) return 1;
+          if (tB == null) return -1;
+          return tB.compareTo(tA);
+        });
+
+        return ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: docs.length,
+          itemBuilder: (context, index) {
+            final notification = NotificationModel.fromFirestore(docs[index]);
+            return _buildNotificationCard(notification);
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildNotificationCard(NotificationModel notification) {
+    IconData icon;
+    Color color;
+
+    switch (notification.type) {
+      case NotificationType.task_shared:
+      case NotificationType.task_assigned:
+        icon = Icons.assignment_ind;
+        color = Colors.blue;
+        break;
+      case NotificationType.task_completed:
+        icon = Icons.check_circle;
+        color = Colors.green;
+        break;
+      case NotificationType.workspace_invite:
+      case NotificationType.workspace_invite_accepted:
+        icon = Icons.business_center;
+        color = Colors.purple;
+        break;
+      case NotificationType.invite_accepted:
+        icon = Icons.handshake;
+        color = Colors.teal;
+        break;
+      case NotificationType.invite_rejected:
+      case NotificationType.workspace_invite_rejected:
+        icon = Icons.cancel;
+        color = Colors.red;
+        break;
+      default:
+        icon = Icons.notifications;
+        color = Colors.grey;
+    }
+
+    return Card(
+      elevation: 0,
+      margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: Colors.grey.shade200),
+      ),
+      color: notification.isRead ? Colors.white : Colors.blue.shade50.withOpacity(0.3),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () async {
+          if (!notification.isRead) {
+            await _inAppNotificationService.markAsRead(notification.id);
+          }
+          if (!mounted) return;
+          
+          if (notification.taskId != null) {
+             final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+             Navigator.push(context, MaterialPageRoute(builder: (_) => TaskDetailsScreen(taskId: notification.taskId!, currentUserId: uid, projectId: notification.projectId)));
+          } else if (notification.projectId != null) {
+             showDialog(context: context, barrierDismissible: false, builder: (_) => const Center(child: CircularProgressIndicator()));
+             try {
+                final doc = await FirebaseFirestore.instance.collection('workspaces').doc(notification.projectId).get();
+                if (!mounted) return;
+                Navigator.pop(context); // hide loading
+                if (doc.exists) {
+                   final workspace = Workspace.fromFirestore(doc);
+                   Navigator.push(context, MaterialPageRoute(builder: (_) => WorkspaceDetailsScreen(workspace: workspace)));
+                } else {
+                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Workspace not found')));
+                }
+             } catch (e) {
+                if (mounted) {
+                   Navigator.pop(context);
+                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to load workspace')));
+                }
+             }
+          }
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: color, size: 24),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            notification.title,
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (!notification.isRead)
+                          Container(
+                            width: 8,
+                            height: 8,
+                            decoration: const BoxDecoration(
+                              color: Colors.blue,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      notification.message,
+                      style: TextStyle(color: Colors.grey.shade700, fontSize: 14),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      timeago.format(notification.createdAt.toDate()),
+                      style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}

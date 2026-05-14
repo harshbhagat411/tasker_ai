@@ -7,11 +7,14 @@ import '../services/auth_service.dart';
 import '../services/notification_service.dart';
 import '../services/presence_service.dart';
 import '../services/activity_service.dart';
-import 'collaboration_requests_screen.dart';
+import 'workspace_details_screen.dart';
+import 'projects_screen.dart';
 import 'task_details_screen.dart';
 import '../services/workspace_service.dart';
 import '../models/workspace_model.dart';
-import 'workspace_details_screen.dart';
+import 'collaboration_requests_screen.dart';
+import '../services/in_app_notification_service.dart';
+import '../services/realtime_notification_listener.dart';
 import 'package:rxdart/rxdart.dart';
 
 enum SortType {
@@ -34,14 +37,51 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   final TextEditingController _taskController = TextEditingController();
   StreamSubscription<List<QuerySnapshot>>? _inviteSubscription;
+  StreamSubscription<String?>? _notificationClickSubscription;
   bool _isInitialLoad = true;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    
+    // Initialize realtime listeners
+    RealtimeNotificationListener().init();
+    _handleNotificationClicks();
+    
     checkDueTasks();
     _listenForInvites();
+  }
+
+  void _handleNotificationClicks() {
+    _notificationClickSubscription = _notificationService.onNotificationClick.listen((payload) {
+      if (payload == null || payload.isEmpty) return;
+      
+      // Payload format: "notificationId|taskId|projectId"
+      final parts = payload.split('|');
+      if (parts.length >= 3) {
+        final notificationId = parts[0];
+        final taskId = parts[1];
+        final projectId = parts[2];
+        
+        // Mark as read immediately
+        InAppNotificationService().markAsRead(notificationId);
+        
+        if (taskId.isNotEmpty) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => TaskDetailsScreen(taskId: taskId, currentUserId: FirebaseAuth.instance.currentUser!.uid)),
+          );
+        } else if (projectId.isNotEmpty) {
+          // Navigate to projects screen or workspace details. To be safe we navigate to collaboration requests or projects.
+          // Let's navigate to collaboration requests to see the update.
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const CollaborationRequestsScreen()),
+          );
+        }
+      }
+    });
   }
 
   void _listenForInvites() {
@@ -118,6 +158,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   @override
   void dispose() {
     _inviteSubscription?.cancel();
+    _notificationClickSubscription?.cancel();
+    RealtimeNotificationListener().dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -671,6 +713,25 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         bool isOwner = (data?['userId'] == FirebaseAuth.instance.currentUser?.uid) || !isShared;
         bool showSharedPill = isShared || (isOwner && memberIds.length > 1);
         
+        final String currentUserId = FirebaseAuth.instance.currentUser!.uid;
+        final String realOwnerId = data?['ownerId']?.toString() ?? data?['userId']?.toString() ?? '';
+        String? assignedToId;
+        if (data?['assignedTo'] is String) {
+          assignedToId = data?['assignedTo'];
+        } else if (data?['assignedTo'] is Map) {
+          assignedToId = data?['assignedTo']['uid'];
+        }
+        final permissions = data?['permissions'] as Map<String, dynamic>?;
+        
+        bool canEdit = false;
+        if (realOwnerId == currentUserId) {
+          canEdit = true;
+        } else if (permissions != null && (permissions[currentUserId] == 'owner' || permissions[currentUserId] == 'admin')) {
+          canEdit = true;
+        } else if (assignedToId == currentUserId) {
+          canEdit = true;
+        }
+        
         DateTime? dueDate;
         if (data != null && data['dueDate'] is Timestamp) {
           dueDate = (data['dueDate'] as Timestamp).toDate();
@@ -713,6 +774,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               child: const Icon(Icons.delete, color: Colors.white),
             ),
             confirmDismiss: (direction) async {
+              if (!canEdit) {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('You do not have permission to modify this task.')));
+                return false;
+              }
               if (direction == DismissDirection.startToEnd) {
                 _taskService.toggleTask(task.id, true);
                 return false;
@@ -720,7 +785,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               return true;
             },
             onDismissed: (direction) {
-              if (direction == DismissDirection.endToStart) {
+              if (direction == DismissDirection.endToStart && canEdit) {
                 _taskService.deleteTask(task.id);
               }
             },
@@ -757,11 +822,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(6),
                             ),
-                            onChanged: (value) {
-                              if (value != null) {
-                                _taskService.toggleTask(task.id, value);
+                            onChanged: canEdit ? (val) {
+                              if (val != null) {
+                                _taskService.toggleTask(task.id, val);
                               }
-                            },
+                            } : null,
                           ),
                         ),
                         const SizedBox(width: 10),
@@ -1069,15 +1134,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         Row(
                           children: [
                             StreamBuilder<List<QuerySnapshot>>(
-                              stream: Rx.combineLatest2(
+                              stream: Rx.combineLatest3(
                                 _taskService.getPendingInvites(),
                                 WorkspaceService().getPendingProjectInvites(),
-                                (QuerySnapshot tasks, QuerySnapshot projects) => [tasks, projects],
+                                InAppNotificationService().getUnreadNotifications(),
+                                (QuerySnapshot tasks, QuerySnapshot projects, QuerySnapshot unreadNotifs) => [tasks, projects, unreadNotifs],
                               ),
                               builder: (context, snapshot) {
                                 int pendingCount = 0;
                                 if (snapshot.hasData) {
-                                  pendingCount = snapshot.data![0].docs.length + snapshot.data![1].docs.length;
+                                  pendingCount = snapshot.data![0].docs.length + snapshot.data![1].docs.length + snapshot.data![2].docs.length;
                                 }
                                 return Stack(
                                   children: [
@@ -1745,8 +1811,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             Text("Your Projects", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyLarge?.color)),
             TextButton(
               onPressed: () {
-                // Could navigate to ProjectsScreen if it wasn't already in the tab bar
-                // But the tab bar is standard.
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const ProjectsScreen()));
               },
               child: const Text("View All", style: TextStyle(fontWeight: FontWeight.bold)),
             ),
