@@ -139,7 +139,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(
-                    IconData(workspace.icon, fontFamily: 'MaterialIcons'),
+                    workspace.iconData,
                     color: color,
                     size: 24,
                   ),

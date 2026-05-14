@@ -2,6 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'notification_service.dart';
 import 'package:rxdart/rxdart.dart';
+import 'activity_service.dart';
+
 class TaskService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -59,51 +61,83 @@ class TaskService {
         .snapshots();
   }
 
-  Future<void> deleteTask(String id) async {
+  Future<void> deleteTask(String id, {String? projectId}) async {
     if (userId == null) return;
 
-    await _firestore
-        .collection('users')
-        .doc(userId)
-        .collection('tasks')
-        .doc(id)
-        .delete();
-        
-    await NotificationService().cancelNotification(id.hashCode);
-  }
-  Future<void> toggleTask(String id, bool isDone) async {
-    if (userId == null) return;
-
-    await _firestore
-        .collection('users')
-        .doc(userId)
-        .collection('tasks')
-        .doc(id)
-        .update({
-      'isDone': isDone,
-    });
-    
-    syncSharedTask(originalTaskId: id, updatedData: {'isDone': isDone});
-    
-    if (isDone) {
+    if (projectId != null) {
+      await _firestore
+          .collection('projects')
+          .doc(projectId)
+          .collection('tasks')
+          .doc(id)
+          .delete();
+    } else {
+      await _firestore
+          .collection('users')
+          .doc(userId)
+          .collection('tasks')
+          .doc(id)
+          .delete();
+          
       await NotificationService().cancelNotification(id.hashCode);
     }
   }
-
-  Future<void> togglePinTask(String id, bool isPinned) async {
+  Future<void> toggleTask(String id, bool isDone, {String? projectId}) async {
     if (userId == null) return;
 
-    await _firestore
-        .collection('users')
-        .doc(userId)
-        .collection('tasks')
-        .doc(id)
-        .update({
-      'isPinned': isPinned,
-    });
+    if (projectId != null) {
+      await _firestore
+          .collection('projects')
+          .doc(projectId)
+          .collection('tasks')
+          .doc(id)
+          .update({
+        'isDone': isDone,
+      });
+      // optionally log activity
+    } else {
+      await _firestore
+          .collection('users')
+          .doc(userId)
+          .collection('tasks')
+          .doc(id)
+          .update({
+        'isDone': isDone,
+      });
+      
+      syncSharedTask(originalTaskId: id, updatedData: {'isDone': isDone});
+      
+      if (isDone) {
+        await NotificationService().cancelNotification(id.hashCode);
+      }
+    }
   }
 
-  Future<void> updateTask(String id, String newTitle, {String priority = 'low', DateTime? dueDate, List<Map<String, dynamic>>? subtasks}) async {
+  Future<void> togglePinTask(String id, bool isPinned, {String? projectId}) async {
+    if (userId == null) return;
+
+    if (projectId != null) {
+      await _firestore
+          .collection('projects')
+          .doc(projectId)
+          .collection('tasks')
+          .doc(id)
+          .update({
+        'isPinned': isPinned,
+      });
+    } else {
+      await _firestore
+          .collection('users')
+          .doc(userId)
+          .collection('tasks')
+          .doc(id)
+          .update({
+        'isPinned': isPinned,
+      });
+    }
+  }
+
+  Future<void> updateTask(String id, String newTitle, {String priority = 'low', DateTime? dueDate, List<Map<String, dynamic>>? subtasks, String? projectId, Map<String, dynamic>? assignedTo}) async {
     if (userId == null) return;
 
     final Map<String, dynamic> data = {
@@ -119,46 +153,72 @@ class TaskService {
 
     if (dueDate != null) {
       data['dueDate'] = Timestamp.fromDate(dueDate);
-      data['notifiedLocally'] = false; // Reset notification flag when due date changes
+      if (projectId == null) {
+        data['notifiedLocally'] = false; // Reset notification flag when due date changes
+      }
     }
     if (dueDate == null) {
       data['dueDate'] = FieldValue.delete();
     }
+    
+    if (assignedTo != null) {
+      data['assignedTo'] = assignedTo;
+    }
 
-    // We don't await this so the UI doesn't hang if the user is offline
-    _firestore
-        .collection('users')
-        .doc(userId)
-        .collection('tasks')
-        .doc(id)
-        .update(data).catchError((e) => print("Error updating task: $e"));
+    if (projectId != null) {
+      await _firestore
+          .collection('projects')
+          .doc(projectId)
+          .collection('tasks')
+          .doc(id)
+          .update(data).catchError((e) => print("Error updating task: $e"));
+    } else {
+      // We don't await this so the UI doesn't hang if the user is offline
+      _firestore
+          .collection('users')
+          .doc(userId)
+          .collection('tasks')
+          .doc(id)
+          .update(data).catchError((e) => print("Error updating task: $e"));
 
-    syncSharedTask(originalTaskId: id, updatedData: data);
+      syncSharedTask(originalTaskId: id, updatedData: data);
 
-    await NotificationService().cancelNotification(id.hashCode);
-    if (dueDate != null && dueDate.isAfter(DateTime.now())) {
-      await NotificationService().scheduleNotification(
-        id: id.hashCode,
-        title: 'Task Reminder',
-        body: 'Your task "$newTitle" is due!',
-        scheduledDate: dueDate,
-      );
+      await NotificationService().cancelNotification(id.hashCode);
+      if (dueDate != null && dueDate.isAfter(DateTime.now())) {
+        await NotificationService().scheduleNotification(
+          id: id.hashCode,
+          title: 'Task Reminder',
+          body: 'Your task "$newTitle" is due!',
+          scheduledDate: dueDate,
+        );
+      }
     }
   }
 
-  Future<void> updateSubtasks(String id, List<Map<String, dynamic>> subtasks) async {
+  Future<void> updateSubtasks(String id, List<Map<String, dynamic>> subtasks, {String? projectId}) async {
     if (userId == null) return;
 
-    await _firestore
-        .collection('users')
-        .doc(userId)
-        .collection('tasks')
-        .doc(id)
-        .update({
-      'subtasks': subtasks,
-    });
+    if (projectId != null) {
+      await _firestore
+          .collection('projects')
+          .doc(projectId)
+          .collection('tasks')
+          .doc(id)
+          .update({
+        'subtasks': subtasks,
+      });
+    } else {
+      await _firestore
+          .collection('users')
+          .doc(userId)
+          .collection('tasks')
+          .doc(id)
+          .update({
+        'subtasks': subtasks,
+      });
 
-    syncSharedTask(originalTaskId: id, updatedData: {'subtasks': subtasks});
+      syncSharedTask(originalTaskId: id, updatedData: {'subtasks': subtasks});
+    }
   }
 
   // --- SHARED TASKS ---
@@ -205,10 +265,49 @@ class TaskService {
         .snapshots();
   }
 
+  // --- PROJECT TASKS ---
+  
+  Future<void> createProjectTask({
+    required String projectId,
+    required String title,
+    String priority = 'low',
+    DateTime? dueDate,
+    List<Map<String, dynamic>>? subtasks,
+    Map<String, dynamic>? assignedTo,
+  }) async {
+    if (userId == null) return;
+
+    final Map<String, dynamic> data = {
+      'title': title,
+      'isDone': false,
+      'isPinned': false,
+      'priority': priority,
+      'createdAt': FieldValue.serverTimestamp(),
+      'ownerId': userId,
+      'projectId': projectId,
+    };
+
+    if (subtasks != null && subtasks.isNotEmpty) {
+      data['subtasks'] = subtasks;
+    }
+
+    if (dueDate != null) {
+      data['dueDate'] = Timestamp.fromDate(dueDate);
+    }
+
+    if (assignedTo != null) {
+      data['assignedTo'] = assignedTo;
+    }
+
+    await _firestore.collection('projects').doc(projectId).collection('tasks').add(data);
+  }
+
   Stream<QuerySnapshot> getWorkspaceTasks(String workspaceId) {
     return _firestore
+        .collection('projects')
+        .doc(workspaceId)
         .collection('tasks')
-        .where('workspaceId', isEqualTo: workspaceId)
+        .orderBy('createdAt', descending: true)
         .snapshots();
   }
 

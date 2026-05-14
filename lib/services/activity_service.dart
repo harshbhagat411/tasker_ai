@@ -1,6 +1,16 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+class ActivityType {
+  static const String taskCreated = 'task_created';
+  static const String taskAssigned = 'task_assigned';
+  static const String taskCompleted = 'task_completed';
+  static const String taskEdited = 'task_edited';
+  static const String memberJoined = 'member_joined';
+  static const String memberInvited = 'member_invited';
+  static const String memberAcceptedInvite = 'member_accepted_invite';
+}
+
 class ActivityService {
   static final ActivityService _instance = ActivityService._internal();
   factory ActivityService() => _instance;
@@ -32,12 +42,44 @@ class ActivityService {
     });
   }
 
+  Future<void> logProjectActivity({
+    required String projectId,
+    required String type,
+    String? taskTitle,
+    String? message,
+  }) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    final userDoc = await _firestore.collection('users').doc(user.uid).get();
+    final userName = userDoc.data()?['displayName'] ?? userDoc.data()?['name'] ?? 'User';
+
+    await _firestore.collection('projects').doc(projectId).collection('activity').add({
+      'type': type,
+      'userId': user.uid,
+      'userName': userName,
+      'taskTitle': taskTitle,
+      'message': message,
+      'timestamp': FieldValue.serverTimestamp(),
+    });
+  }
+
   Stream<QuerySnapshot> getTaskActivities(String taskId) {
     return _firestore
         .collection('tasks')
         .doc(taskId)
         .collection('activities')
         .orderBy('createdAt', descending: true)
+        .snapshots();
+  }
+
+  Stream<QuerySnapshot> getProjectActivities(String projectId) {
+    return _firestore
+        .collection('projects')
+        .doc(projectId)
+        .collection('activity')
+        .orderBy('timestamp', descending: true)
+        .limit(30)
         .snapshots();
   }
 

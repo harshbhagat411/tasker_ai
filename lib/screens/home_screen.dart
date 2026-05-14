@@ -12,6 +12,7 @@ import 'task_details_screen.dart';
 import '../services/workspace_service.dart';
 import '../models/workspace_model.dart';
 import 'workspace_details_screen.dart';
+import 'package:rxdart/rxdart.dart';
 
 enum SortType {
   priority,
@@ -32,7 +33,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   final NotificationService _notificationService = NotificationService();
 
   final TextEditingController _taskController = TextEditingController();
-  StreamSubscription<QuerySnapshot>? _inviteSubscription;
+  StreamSubscription<List<QuerySnapshot>>? _inviteSubscription;
   bool _isInitialLoad = true;
 
   @override
@@ -44,12 +45,20 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   void _listenForInvites() {
-    _inviteSubscription = _taskService.getPendingInvites().listen((snapshot) {
+    final combinedStream = Rx.combineLatest2(
+      _taskService.getPendingInvites(),
+      WorkspaceService().getPendingProjectInvites(),
+      (QuerySnapshot tasks, QuerySnapshot projects) => [tasks, projects],
+    );
+
+    _inviteSubscription = combinedStream.listen((snapshots) {
       if (_isInitialLoad) {
         _isInitialLoad = false;
         return; // Don't show snackbars for existing invites on load
       }
-      for (var change in snapshot.docChanges) {
+
+      // Handle Task Invites
+      for (var change in snapshots[0].docChanges) {
         if (change.type == DocumentChangeType.added) {
           final data = change.doc.data() as Map<String, dynamic>?;
           if (data != null && mounted) {
@@ -58,6 +67,34 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text('$fromUserName invited you to collaborate on "$taskTitle"'),
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                duration: const Duration(seconds: 4),
+                action: SnackBarAction(
+                  label: 'View',
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const CollaborationRequestsScreen()),
+                    );
+                  },
+                ),
+              ),
+            );
+          }
+        }
+      }
+
+      // Handle Project Invites
+      for (var change in snapshots[1].docChanges) {
+        if (change.type == DocumentChangeType.added) {
+          final data = change.doc.data() as Map<String, dynamic>?;
+          if (data != null && mounted) {
+            final String senderName = data['senderName'] ?? 'Someone';
+            final String projectName = data['projectName'] ?? 'a project';
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('$senderName invited you to project "$projectName"'),
                 behavior: SnackBarBehavior.floating,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                 duration: const Duration(seconds: 4),
@@ -1031,10 +1068,17 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         ),
                         Row(
                           children: [
-                            StreamBuilder<QuerySnapshot>(
-                              stream: _taskService.getPendingInvites(),
+                            StreamBuilder<List<QuerySnapshot>>(
+                              stream: Rx.combineLatest2(
+                                _taskService.getPendingInvites(),
+                                WorkspaceService().getPendingProjectInvites(),
+                                (QuerySnapshot tasks, QuerySnapshot projects) => [tasks, projects],
+                              ),
                               builder: (context, snapshot) {
-                                int pendingCount = snapshot.data?.docs.length ?? 0;
+                                int pendingCount = 0;
+                                if (snapshot.hasData) {
+                                  pendingCount = snapshot.data![0].docs.length + snapshot.data![1].docs.length;
+                                }
                                 return Stack(
                                   children: [
                                     IconButton(
@@ -1777,7 +1821,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                               color: color.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(10),
                             ),
-                            child: Icon(IconData(ws.icon, fontFamily: 'MaterialIcons'), color: color, size: 20),
+                            child: Icon(ws.iconData, color: color, size: 20),
                           ),
                           const Spacer(),
                           Text(ws.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16), maxLines: 1, overflow: TextOverflow.ellipsis),

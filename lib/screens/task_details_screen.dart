@@ -7,12 +7,14 @@ import '../services/activity_service.dart';
 class TaskDetailsScreen extends StatefulWidget {
   final String taskId;
   final String currentUserId;
+  final String? projectId;
 
   const TaskDetailsScreen({
-    Key? key,
+    super.key,
     required this.taskId,
     required this.currentUserId,
-  }) : super(key: key);
+    this.projectId,
+  });
 
   @override
   State<TaskDetailsScreen> createState() => _TaskDetailsScreenState();
@@ -171,12 +173,19 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> with WidgetsBindi
         foregroundColor: Theme.of(context).textTheme.bodyLarge?.color,
       ),
       body: StreamBuilder<DocumentSnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('users')
-            .doc(widget.currentUserId)
-            .collection('tasks')
-            .doc(widget.taskId)
-            .snapshots(),
+        stream: widget.projectId != null 
+          ? FirebaseFirestore.instance
+              .collection('projects')
+              .doc(widget.projectId)
+              .collection('tasks')
+              .doc(widget.taskId)
+              .snapshots()
+          : FirebaseFirestore.instance
+              .collection('users')
+              .doc(widget.currentUserId)
+              .collection('tasks')
+              .doc(widget.taskId)
+              .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -265,7 +274,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> with WidgetsBindi
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
                         onChanged: (val) {
                           if (val != null) {
-                            _taskService.toggleTask(widget.taskId, val);
+                            _taskService.toggleTask(widget.taskId, val, projectId: widget.projectId);
                           }
                         },
                       ),
@@ -411,6 +420,11 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> with WidgetsBindi
                   const SizedBox(height: 12),
                   _buildMembersList(memberIds, data['userId']?.toString() ?? widget.currentUserId),
                   const SizedBox(height: 12),
+                ] else if (widget.projectId != null && data['assignedTo'] != null) ...[
+                  const Text("Assigned To", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 12),
+                  _buildMembersList([data['assignedTo']['uid']], data['ownerId'] ?? widget.currentUserId),
+                  const SizedBox(height: 12),
                 ],
 
                 // Description
@@ -462,7 +476,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> with WidgetsBindi
                         onTap: () {
                           List<Map<String, dynamic>> updatedSubtasks = subtasks.map((e) => Map<String, dynamic>.from(e as Map)).toList();
                           updatedSubtasks[idx]['isCompleted'] = !isSubDone;
-                          _taskService.updateSubtasks(widget.taskId, updatedSubtasks);
+                          _taskService.updateSubtasks(widget.taskId, updatedSubtasks, projectId: widget.projectId);
                         },
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),

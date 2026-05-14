@@ -4,7 +4,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../models/workspace_model.dart';
 import '../services/workspace_service.dart';
 import '../services/task_service.dart';
-import '../widgets/task_card.dart';
+import '../services/activity_service.dart';
+import '../widgets/project_task_card.dart';
+import 'package:timeago/timeago.dart' as timeago;
 
 class WorkspaceDetailsScreen extends StatefulWidget {
   final Workspace workspace;
@@ -19,17 +21,46 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
   late TabController _tabController;
   final TaskService _taskService = TaskService();
   final WorkspaceService _workspaceService = WorkspaceService();
+  final ActivityService _activityService = ActivityService();
   final String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
+
+  Map<String, Map<String, dynamic>> _memberDetails = {};
+  bool _isLoadingMembers = true;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _tabController.addListener(() {
+      setState(() {});
+    });
+    _fetchMemberDetails();
+  }
+
+  Future<void> _fetchMemberDetails() async {
+    Map<String, Map<String, dynamic>> details = {};
+    for (String uid in widget.workspace.members) {
+      final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      if (doc.exists) {
+        details[uid] = {
+          'uid': uid,
+          'name': doc.data()?['displayName'] ?? doc.data()?['name'] ?? 'User',
+          'email': doc.data()?['email'] ?? '',
+          'avatar': doc.data()?['avatar'] ?? '',
+        };
+      }
+    }
+    if (mounted) {
+      setState(() {
+        _memberDetails = details;
+        _isLoadingMembers = false;
+      });
+    }
   }
 
   void _showCreateTaskModal() {
     final titleController = TextEditingController();
-    String? selectedAssignee;
+    String? selectedAssigneeUid;
 
     showModalBottomSheet(
       context: context,
@@ -57,7 +88,7 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
                       hintText: "Task title",
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                       filled: true,
-                      fillColor: Colors.grey.shade50,
+                      fillColor: Theme.of(context).brightness == Brightness.dark ? Colors.grey.shade800 : Colors.grey.shade50,
                     ),
                     autofocus: true,
                   ),
@@ -65,19 +96,32 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
                   const Text("Assign To:", style: TextStyle(fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
-                    value: selectedAssignee,
+                    value: selectedAssigneeUid,
                     hint: const Text("Unassigned"),
                     decoration: InputDecoration(
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     ),
                     items: widget.workspace.members.map((memberId) {
+                      final details = _memberDetails[memberId];
+                      final name = details?['name'] ?? 'User';
+                      final initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
                       return DropdownMenuItem(
                         value: memberId,
-                        child: Text(memberId == currentUserId ? "Me" : "Member ($memberId)"), // Ideally fetch names
+                        child: Row(
+                          children: [
+                            CircleAvatar(
+                              radius: 12,
+                              backgroundColor: Colors.blue.shade100,
+                              child: Text(initial, style: const TextStyle(fontSize: 10, color: Colors.blue)),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(memberId == currentUserId ? "Me ($name)" : name),
+                          ],
+                        ),
                       );
                     }).toList(),
-                    onChanged: (val) => setModalState(() => selectedAssignee = val),
+                    onChanged: (val) => setModalState(() => selectedAssigneeUid = val),
                   ),
                   const SizedBox(height: 24),
                   SizedBox(
@@ -85,10 +129,10 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
                     child: ElevatedButton(
                       onPressed: () {
                         if (titleController.text.trim().isNotEmpty) {
-                          _taskService.createSharedTask(
-                            titleController.text.trim(),
-                            workspaceId: widget.workspace.id,
-                            assignedTo: selectedAssignee,
+                          _taskService.createProjectTask(
+                            projectId: widget.workspace.id,
+                            title: titleController.text.trim(),
+                            assignedTo: selectedAssigneeUid != null ? _memberDetails[selectedAssigneeUid] : null,
                           );
                           Navigator.pop(context);
                         }
@@ -114,47 +158,55 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
 
   void _showInviteMemberModal() {
     final emailController = TextEditingController();
+    bool isInviting = false;
     
     showDialog(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: const Text("Invite Member"),
-          content: TextField(
-            controller: emailController,
-            decoration: InputDecoration(
-              hintText: "User Email",
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Cancel", style: TextStyle(color: Colors.grey)),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                // Look up user by email and add to workspace
-                final snapshot = await FirebaseFirestore.instance.collection('users').where('email', isEqualTo: emailController.text.trim()).get();
-                if (snapshot.docs.isNotEmpty) {
-                  final newMemberId = snapshot.docs.first.id;
-                  await _workspaceService.addMember(widget.workspace.id, newMemberId);
-                  if (mounted) Navigator.pop(context);
-                } else {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("User not found.")));
-                  }
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Color(int.parse(widget.workspace.color)),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              title: const Text("Invite Member"),
+              content: TextField(
+                controller: emailController,
+                decoration: InputDecoration(
+                  hintText: "User Email",
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                keyboardType: TextInputType.emailAddress,
               ),
-              child: const Text("Invite"),
-            ),
-          ],
+              actions: [
+                TextButton(
+                  onPressed: isInviting ? null : () => Navigator.pop(context),
+                  child: const Text("Cancel", style: TextStyle(color: Colors.grey)),
+                ),
+                ElevatedButton(
+                  onPressed: isInviting ? null : () async {
+                    setDialogState(() => isInviting = true);
+                    try {
+                      await _workspaceService.sendProjectInvite(widget.workspace.id, emailController.text.trim());
+                      if (mounted) {
+                        Navigator.pop(context);
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Invite sent!")));
+                      }
+                    } catch (e) {
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))));
+                        setDialogState(() => isInviting = false);
+                      }
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Color(int.parse(widget.workspace.color)),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  child: isInviting ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Text("Invite"),
+                ),
+              ],
+            );
+          }
         );
       }
     );
@@ -165,14 +217,13 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
     final color = Color(int.parse(widget.workspace.color));
     
     return Scaffold(
-      backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: color,
         elevation: 0,
         foregroundColor: Colors.white,
         title: Row(
           children: [
-            Icon(IconData(widget.workspace.icon, fontFamily: 'MaterialIcons'), size: 24),
+            Icon(widget.workspace.iconData, size: 24),
             const SizedBox(width: 12),
             Expanded(child: Text(widget.workspace.name, overflow: TextOverflow.ellipsis)),
           ],
@@ -190,25 +241,49 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
           ],
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _buildTasksTab(),
-          _buildMembersTab(),
-          _buildActivityTab(),
-        ],
+      body: StreamBuilder<Workspace?>(
+        stream: _workspaceService.getWorkspace(widget.workspace.id),
+        builder: (context, snapshot) {
+          final ws = snapshot.data ?? widget.workspace;
+          return TabBarView(
+            controller: _tabController,
+            children: [
+              _buildTasksTab(ws),
+              _buildMembersTab(ws),
+              _buildActivityTab(ws),
+            ],
+          );
+        }
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _showCreateTaskModal,
-        backgroundColor: color,
-        child: const Icon(Icons.add, color: Colors.white),
-      ),
+      floatingActionButton: _buildSmartFAB(color),
     );
   }
 
-  Widget _buildTasksTab() {
+  Widget? _buildSmartFAB(Color color) {
+    if (_tabController.index == 0) {
+      return FloatingActionButton.extended(
+        onPressed: _showCreateTaskModal,
+        backgroundColor: color,
+        icon: const Icon(Icons.add, color: Colors.white),
+        label: const Text("Task", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+      );
+    } else if (_tabController.index == 1) {
+      final currentRole = widget.workspace.memberRoles[currentUserId];
+      if (currentRole == 'admin' || currentRole == 'owner') {
+        return FloatingActionButton.extended(
+          onPressed: _showInviteMemberModal,
+          backgroundColor: color,
+          icon: const Icon(Icons.person_add, color: Colors.white),
+          label: const Text("Invite", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        );
+      }
+    }
+    return null; // Hide FAB on Activity tab or if no permission
+  }
+
+  Widget _buildTasksTab(Workspace ws) {
     return StreamBuilder<QuerySnapshot>(
-      stream: _taskService.getWorkspaceTasks(widget.workspace.id),
+      stream: _taskService.getWorkspaceTasks(ws.id),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -223,7 +298,130 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
                 const SizedBox(height: 16),
                 Text("No tasks yet", style: TextStyle(fontSize: 18, color: Colors.grey[600], fontWeight: FontWeight.bold)),
                 const SizedBox(height: 8),
-                Text("Create the first task for this workspace.", style: TextStyle(color: Colors.grey[500])),
+                Text("Create the first task for this project.", style: TextStyle(color: Colors.grey[500])),
+              ],
+            ),
+          );
+        }
+
+        return ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: snapshot.data!.docs.length,
+          itemBuilder: (context, index) {
+            final doc = snapshot.data!.docs[index];
+            return ProjectTaskCard(
+              task: doc,
+              projectId: ws.id,
+              workspace: ws,
+              onEdit: () {
+                // Not fully implemented yet, navigate or show dialog
+              },
+              onShare: () {
+                // We use reassign logic here if we want
+              },
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildMembersTab(Workspace ws) {
+    final currentUserRole = ws.memberRoles[currentUserId] ?? 'viewer';
+    final canRemove = currentUserRole == 'owner' || currentUserRole == 'admin';
+
+    return ListView(
+      padding: const EdgeInsets.all(24),
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text("Team Members (${ws.members.length})", style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        const SizedBox(height: 16),
+        ...ws.members.map((memberId) {
+          return FutureBuilder<DocumentSnapshot>(
+            future: FirebaseFirestore.instance.collection('users').doc(memberId).get(),
+            builder: (context, userSnapshot) {
+              if (!userSnapshot.hasData) return const ListTile(title: Text("Loading..."));
+              final userData = userSnapshot.data!.data() as Map<String, dynamic>?;
+              final name = userData?['name'] ?? userData?['displayName'] ?? 'Unknown User';
+              final email = userData?['email'] ?? '';
+              final role = ws.memberRoles[memberId] ?? 'member';
+              final isOnline = userData?['isOnline'] ?? false;
+              
+              return ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    CircleAvatar(
+                      backgroundColor: Colors.blue.shade100,
+                      child: Text(name[0].toUpperCase(), style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.bold)),
+                    ),
+                    Positioned(
+                      bottom: 0,
+                      right: 0,
+                      child: Container(
+                        width: 10,
+                        height: 10,
+                        decoration: BoxDecoration(
+                          color: isOnline ? Colors.green : Colors.grey,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Theme.of(context).scaffoldBackgroundColor, width: 2),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                title: Row(
+                  children: [
+                    Text(name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Color(int.parse(ws.color)).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(role.toUpperCase(), style: TextStyle(fontSize: 10, color: Color(int.parse(ws.color)), fontWeight: FontWeight.bold)),
+                    )
+                  ],
+                ),
+                subtitle: Text(email),
+                trailing: (canRemove && role != 'owner' && memberId != currentUserId) 
+                  ? IconButton(
+                      icon: const Icon(Icons.remove_circle_outline, color: Colors.redAccent),
+                      onPressed: () => _workspaceService.removeMember(ws.id, memberId),
+                    )
+                  : null,
+              );
+            }
+          );
+        }).toList(),
+      ],
+    );
+  }
+
+  Widget _buildActivityTab(Workspace ws) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: _activityService.getProjectActivities(ws.id),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.history, size: 64, color: Colors.grey[300]),
+                const SizedBox(height: 16),
+                Text("No recent activity", style: TextStyle(fontSize: 18, color: Colors.grey[600], fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                Text("Activity feed will appear here.", style: TextStyle(color: Colors.grey[500])),
               ],
             ),
           );
@@ -235,115 +433,72 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
           itemBuilder: (context, index) {
             final doc = snapshot.data!.docs[index];
             final data = doc.data() as Map<String, dynamic>;
-            // Reusing existing TaskCard logic, passing data
-            // We pass an empty Map or dummy data if TaskCard expects specific formats
-            // Or we can just adapt TaskCard or build a simple tile
-            // For now, let's use a simple ListTile to avoid TaskCard refactoring conflicts, 
-            // but the prompt says "Reuse existing collaboration system".
-            // TaskCard expects id, data.
+            final userName = data['userName'] ?? 'User';
+            final type = data['type'] ?? '';
+            final taskTitle = data['taskTitle'];
+            final message = data['message'] ?? '';
+            
+            DateTime timestamp = DateTime.now();
+            if (data['timestamp'] is Timestamp) {
+              timestamp = (data['timestamp'] as Timestamp).toDate();
+            }
+
+            IconData icon = Icons.info_outline;
+            Color iconColor = Colors.blue;
+
+            if (type == ActivityType.taskCreated) {
+              icon = Icons.add_circle_outline;
+              iconColor = Colors.green;
+            } else if (type == ActivityType.memberInvited) {
+              icon = Icons.person_add_alt;
+              iconColor = Colors.orange;
+            } else if (type == ActivityType.memberJoined) {
+              icon = Icons.person_add;
+              iconColor = Colors.green;
+            } else if (type == ActivityType.taskEdited || type == ActivityType.taskCompleted) {
+              icon = Icons.edit_note;
+              iconColor = Colors.purple;
+            }
+
             return Padding(
-              padding: const EdgeInsets.only(bottom: 12.0),
-              child: TaskCard(
-                task: doc,
-                onEdit: () {
-                  // TODO: Implement Edit
-                },
-                onShare: () {
-                  // TODO: Implement Share
-                },
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  CircleAvatar(
+                    radius: 16,
+                    backgroundColor: iconColor.withOpacity(0.1),
+                    child: Icon(icon, size: 16, color: iconColor),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        RichText(
+                          text: TextSpan(
+                            style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color, fontSize: 14),
+                            children: [
+                              TextSpan(text: userName, style: const TextStyle(fontWeight: FontWeight.bold)),
+                              TextSpan(text: " $message"),
+                              if (taskTitle != null) ...[
+                                const TextSpan(text: " "),
+                                TextSpan(text: '"$taskTitle"', style: const TextStyle(fontStyle: FontStyle.italic)),
+                              ]
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(timeago.format(timestamp), style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             );
           },
         );
       },
-    );
-  }
-
-  Widget _buildMembersTab() {
-    return StreamBuilder<Workspace?>(
-      stream: _workspaceService.getWorkspace(widget.workspace.id),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-        final ws = snapshot.data!;
-        
-        return ListView(
-          padding: const EdgeInsets.all(24),
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text("Team Members (${ws.members.length})", style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                if (ws.ownerId == currentUserId)
-                  TextButton.icon(
-                    onPressed: _showInviteMemberModal,
-                    icon: const Icon(Icons.person_add, size: 18),
-                    label: const Text("Invite"),
-                    style: TextButton.styleFrom(foregroundColor: Color(int.parse(ws.color))),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            ...ws.members.map((memberId) {
-              return FutureBuilder<DocumentSnapshot>(
-                future: FirebaseFirestore.instance.collection('users').doc(memberId).get(),
-                builder: (context, userSnapshot) {
-                  if (!userSnapshot.hasData) return const ListTile(title: Text("Loading..."));
-                  final userData = userSnapshot.data!.data() as Map<String, dynamic>?;
-                  final name = userData?['name'] ?? userData?['displayName'] ?? 'Unknown User';
-                  final email = userData?['email'] ?? '';
-                  final isOwner = memberId == ws.ownerId;
-                  
-                  return ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: CircleAvatar(
-                      backgroundColor: Colors.grey.shade200,
-                      child: Text(name[0].toUpperCase(), style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.bold)),
-                    ),
-                    title: Row(
-                      children: [
-                        Text(name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                        if (isOwner) ...[
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: Color(int.parse(ws.color)).withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text("Owner", style: TextStyle(fontSize: 10, color: Color(int.parse(ws.color)), fontWeight: FontWeight.bold)),
-                          )
-                        ]
-                      ],
-                    ),
-                    subtitle: Text(email),
-                    trailing: (ws.ownerId == currentUserId && !isOwner) 
-                      ? IconButton(
-                          icon: const Icon(Icons.remove_circle_outline, color: Colors.redAccent),
-                          onPressed: () => _workspaceService.removeMember(ws.id, memberId),
-                        )
-                      : null,
-                  );
-                }
-              );
-            }).toList(),
-          ],
-        );
-      }
-    );
-  }
-
-  Widget _buildActivityTab() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.history, size: 64, color: Colors.grey[300]),
-          const SizedBox(height: 16),
-          Text("No recent activity", style: TextStyle(fontSize: 18, color: Colors.grey[600], fontWeight: FontWeight.bold)),
-          const SizedBox(height: 8),
-          Text("Activity feed will appear here.", style: TextStyle(color: Colors.grey[500])),
-        ],
-      ),
     );
   }
 }

@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
 
 class Workspace {
   final String id;
@@ -7,6 +8,7 @@ class Workspace {
   final String ownerId;
   final String ownerName;
   final List<String> members;
+  final Map<String, String> memberRoles;
   final Timestamp createdAt;
   final String color; // hex string
   final int icon; // code point
@@ -19,6 +21,7 @@ class Workspace {
     required this.ownerId,
     required this.ownerName,
     required this.members,
+    required this.memberRoles,
     required this.createdAt,
     required this.color,
     required this.icon,
@@ -32,6 +35,7 @@ class Workspace {
       'ownerId': ownerId,
       'ownerName': ownerName,
       'members': members,
+      'memberRoles': memberRoles,
       'createdAt': createdAt,
       'color': color,
       'icon': icon,
@@ -48,10 +52,20 @@ class Workspace {
       ownerId: data['ownerId'] ?? '',
       ownerName: data['ownerName'] ?? '',
       members: List<String>.from(data['members'] ?? []),
+      memberRoles: Map<String, String>.from(data['memberRoles'] ?? { (data['ownerId'] ?? ''): 'owner' }),
       createdAt: data['createdAt'] ?? Timestamp.now(),
       color: data['color'] ?? '0xFF0D47A1',
       icon: data['icon'] ?? 0xe14d, // Icons.code.codePoint
       type: data['type'] ?? 'developer',
     );
+  }
+
+  IconData get iconData {
+    if (icon == Icons.rocket_launch.codePoint) return Icons.rocket_launch;
+    if (icon == Icons.business_center.codePoint) return Icons.business_center;
+    if (icon == Icons.devices.codePoint) return Icons.devices;
+    if (icon == Icons.pie_chart.codePoint) return Icons.pie_chart;
+    if (icon == Icons.science.codePoint) return Icons.science;
+    return Icons.code;
   }
 }
