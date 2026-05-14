@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/task_service.dart';
 import '../services/presence_service.dart';
 import '../services/activity_service.dart';
+import 'focus_mode_screen.dart';
 
 class TaskDetailsScreen extends StatefulWidget {
   final String taskId;
@@ -383,6 +384,35 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> with WidgetsBindi
                     );
                   },
                 ),
+                
+                // Focus Button
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => FocusModeScreen(
+                            taskId: widget.taskId,
+                            taskTitle: title,
+                            projectName: widget.projectId != null ? "Project Task" : null, // Could fetch project name later
+                          ),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.center_focus_strong),
+                    label: const Text("Focus on this Task", style: TextStyle(fontWeight: FontWeight.bold)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Theme.of(context).brightness == Brightness.dark ? Colors.white : const Color(0xFF0D47A1),
+                      foregroundColor: Theme.of(context).brightness == Brightness.dark ? Colors.black : Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
                 
                 // Date & Time
                 if (dueDate != null) ...[

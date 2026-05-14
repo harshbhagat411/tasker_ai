@@ -16,6 +16,8 @@ import 'collaboration_requests_screen.dart';
 import '../services/in_app_notification_service.dart';
 import '../services/realtime_notification_listener.dart';
 import 'package:rxdart/rxdart.dart';
+import 'focus_mode_screen.dart';
+import '../services/focus_service.dart';
 
 enum SortType {
   priority,
@@ -1195,15 +1197,100 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       ],
                     ),
                 const SizedBox(height: 30),                
-                // SECTION 2: Title
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                // SECTION 2: Title & Start Focus Action
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Text("Tasker", style: TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyLarge?.color)),
-                    Text("Manage your tasks", style: TextStyle(fontSize: 16, color: Theme.of(context).textTheme.bodyMedium?.color)),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text("Tasker", style: TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyLarge?.color)),
+                        Text("Manage your tasks", style: TextStyle(fontSize: 16, color: Theme.of(context).textTheme.bodyMedium?.color)),
+                      ],
+                    ),
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const FocusModeScreen(),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.center_focus_strong, size: 18),
+                      label: const Text("Focus", style: TextStyle(fontWeight: FontWeight.bold)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Theme.of(context).brightness == Brightness.dark ? Colors.white : const Color(0xFF0D47A1),
+                        foregroundColor: Theme.of(context).brightness == Brightness.dark ? Colors.black : Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 24),
+                
+                // SECTION 2.5: Today's Focus
+                StreamBuilder<Map<String, dynamic>>(
+                  stream: FocusService().getTodayFocusSummary(),
+                  builder: (context, focusSnapshot) {
+                    final data = focusSnapshot.data ?? {'sessions': 0, 'totalMinutes': 0};
+                    final int sessions = data['sessions'];
+                    final int totalMinutes = data['totalMinutes'];
+                    
+                    if (sessions == 0) return const SizedBox.shrink();
+
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 24),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).brightness == Brightness.dark 
+                            ? const Color(0xFF1E1E1E) 
+                            : Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: Theme.of(context).brightness == Brightness.dark 
+                              ? Colors.grey.shade800 
+                              : Colors.blue.shade100,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        children: [
+                          Column(
+                            children: [
+                              const Text("Today's Focus", style: TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.w600)),
+                              const SizedBox(height: 4),
+                              Row(
+                                children: [
+                                  const Icon(Icons.local_fire_department, color: Colors.orange, size: 16),
+                                  const SizedBox(width: 4),
+                                  Text("$sessions Sessions", style: const TextStyle(fontWeight: FontWeight.bold)),
+                                ],
+                              )
+                            ],
+                          ),
+                          Container(width: 1, height: 30, color: Colors.grey.withOpacity(0.3)),
+                          Column(
+                            children: [
+                              const Text("Time Focused", style: TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.w600)),
+                              const SizedBox(height: 4),
+                              Row(
+                                children: [
+                                  const Icon(Icons.timer, color: Colors.blue, size: 16),
+                                  const SizedBox(width: 4),
+                                  Text("${totalMinutes}m Focused", style: const TextStyle(fontWeight: FontWeight.bold)),
+                                ],
+                              )
+                            ],
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
 
                 // SECTION 3: Search Bar
                 Container(
