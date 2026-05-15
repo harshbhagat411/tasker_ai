@@ -18,6 +18,7 @@ import '../services/realtime_notification_listener.dart';
 import 'package:rxdart/rxdart.dart';
 import 'focus_mode_screen.dart';
 import '../services/focus_service.dart';
+import '../widgets/focus_setup_sheet.dart';
 
 enum SortType {
   priority,
@@ -1211,12 +1212,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     ),
                     ElevatedButton.icon(
                       onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const FocusModeScreen(),
-                          ),
-                        );
+                        showFocusSetupSheet(context);
                       },
                       icon: const Icon(Icons.center_focus_strong, size: 18),
                       label: const Text("Focus", style: TextStyle(fontWeight: FontWeight.bold)),
@@ -1236,54 +1232,80 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 StreamBuilder<Map<String, dynamic>>(
                   stream: FocusService().getTodayFocusSummary(),
                   builder: (context, focusSnapshot) {
-                    final data = focusSnapshot.data ?? {'sessions': 0, 'totalMinutes': 0};
+                    final data = focusSnapshot.data ?? {'sessions': 0, 'totalMinutes': 0, 'streak': 0, 'interrupted': 0};
                     final int sessions = data['sessions'];
                     final int totalMinutes = data['totalMinutes'];
+                    final int streak = data['streak'] ?? 0;
                     
-                    if (sessions == 0) return const SizedBox.shrink();
+                    if (sessions == 0 && streak == 0) return const SizedBox.shrink();
 
                     return Container(
                       margin: const EdgeInsets.only(bottom: 24),
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
                         color: Theme.of(context).brightness == Brightness.dark 
                             ? const Color(0xFF1E1E1E) 
                             : Colors.blue.shade50,
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(20),
                         border: Border.all(
                           color: Theme.of(context).brightness == Brightness.dark 
                               ? Colors.grey.shade800 
                               : Colors.blue.shade100,
                         ),
                       ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Column(
+                          const Text("Productivity Stats", style: TextStyle(fontSize: 14, color: Colors.grey, fontWeight: FontWeight.w600)),
+                          const SizedBox(height: 16),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Text("Today's Focus", style: TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.w600)),
-                              const SizedBox(height: 4),
-                              Row(
+                              // Time
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Icon(Icons.local_fire_department, color: Colors.orange, size: 16),
-                                  const SizedBox(width: 4),
-                                  Text("$sessions Sessions", style: const TextStyle(fontWeight: FontWeight.bold)),
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.timer, color: Colors.blue, size: 16),
+                                      const SizedBox(width: 6),
+                                      Text("${totalMinutes}m", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 4),
+                                  const Text("Focused Today", style: TextStyle(fontSize: 12, color: Colors.grey)),
                                 ],
-                              )
-                            ],
-                          ),
-                          Container(width: 1, height: 30, color: Colors.grey.withOpacity(0.3)),
-                          Column(
-                            children: [
-                              const Text("Time Focused", style: TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.w600)),
-                              const SizedBox(height: 4),
-                              Row(
+                              ),
+                              // Sessions
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Icon(Icons.timer, color: Colors.blue, size: 16),
-                                  const SizedBox(width: 4),
-                                  Text("${totalMinutes}m Focused", style: const TextStyle(fontWeight: FontWeight.bold)),
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.check_circle, color: Colors.green, size: 16),
+                                      const SizedBox(width: 6),
+                                      Text("$sessions", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 4),
+                                  const Text("Sessions", style: TextStyle(fontSize: 12, color: Colors.grey)),
                                 ],
-                              )
+                              ),
+                              // Streak
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.local_fire_department, color: Colors.orange, size: 16),
+                                      const SizedBox(width: 6),
+                                      Text("$streak Day${streak != 1 ? 's' : ''}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 4),
+                                  const Text("Streak", style: TextStyle(fontSize: 12, color: Colors.grey)),
+                                ],
+                              ),
                             ],
                           ),
                         ],

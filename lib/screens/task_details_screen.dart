@@ -3,7 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/task_service.dart';
 import '../services/presence_service.dart';
 import '../services/activity_service.dart';
-import 'focus_mode_screen.dart';
+import '../widgets/focus_setup_sheet.dart';
 
 class TaskDetailsScreen extends StatefulWidget {
   final String taskId;
@@ -390,15 +390,11 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> with WidgetsBindi
                   width: double.infinity,
                   child: ElevatedButton.icon(
                     onPressed: () {
-                      Navigator.push(
+                      showFocusSetupSheet(
                         context,
-                        MaterialPageRoute(
-                          builder: (context) => FocusModeScreen(
-                            taskId: widget.taskId,
-                            taskTitle: title,
-                            projectName: widget.projectId != null ? "Project Task" : null, // Could fetch project name later
-                          ),
-                        ),
+                        taskId: widget.taskId,
+                        taskTitle: title,
+                        projectName: widget.projectId != null ? "Project Task" : null,
                       );
                     },
                     icon: const Icon(Icons.center_focus_strong),
