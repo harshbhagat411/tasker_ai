@@ -212,6 +212,114 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
     );
   }
 
+  void _showReassignModal(DocumentSnapshot taskDoc) {
+    final isOwner = widget.workspace.ownerId == currentUserId;
+    final currentUserRole = widget.workspace.memberRoles[currentUserId];
+    if (!isOwner && currentUserRole != 'owner' && currentUserRole != 'admin') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text("You don't have permission to reassign tasks."),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
+    final data = taskDoc.data() as Map<String, dynamic>?;
+    final String taskId = taskDoc.id;
+    final String taskTitle = data?['title'] ?? 'Task';
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return Container(
+          decoration: BoxDecoration(
+            color: Theme.of(context).scaffoldBackgroundColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+            top: 24,
+            left: 24,
+            right: 24,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text("Reassign Task", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(context),
+                  )
+                ],
+              ),
+              const SizedBox(height: 16),
+              const Text("Select a team member to reassign this task to:", style: TextStyle(color: Colors.grey)),
+              const SizedBox(height: 16),
+              Flexible(
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: widget.workspace.members.length,
+                  itemBuilder: (context, index) {
+                    final memberId = widget.workspace.members[index];
+                    final details = _memberDetails[memberId];
+                    if (details == null) return const SizedBox.shrink();
+
+                    final name = details['name'] ?? 'User';
+                    final initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
+                    final email = details['email'] ?? '';
+                    final isCurrentUser = memberId == currentUserId;
+
+                    return ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: CircleAvatar(
+                        backgroundColor: Color(int.parse(widget.workspace.color)).withOpacity(0.2),
+                        child: Text(initial, style: TextStyle(color: Color(int.parse(widget.workspace.color)), fontWeight: FontWeight.bold)),
+                      ),
+                      title: Text(isCurrentUser ? "$name (You)" : name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                      subtitle: Text(email),
+                      onTap: () async {
+                        Navigator.pop(context); // close bottom sheet
+                        try {
+                          await _taskService.reassignProjectTask(
+                            projectId: widget.workspace.id,
+                            taskId: taskId,
+                            newAssigneeDetails: details,
+                            taskTitle: taskTitle,
+                          );
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text("Task reassigned successfully"), backgroundColor: Colors.green),
+                            );
+                          }
+                        } catch (e) {
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text(e.toString().replaceAll('Exception: ', '')), backgroundColor: Colors.red),
+                            );
+                          }
+                        }
+                      },
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 24),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<Workspace?>(
@@ -317,7 +425,7 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
                 // Not fully implemented yet, navigate or show dialog
               },
               onShare: () {
-                // We use reassign logic here if we want
+                _showReassignModal(doc);
               },
             );
           },

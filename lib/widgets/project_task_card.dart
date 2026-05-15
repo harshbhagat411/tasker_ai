@@ -62,9 +62,9 @@ class _ProjectTaskCardState extends State<ProjectTaskCard> {
     
     final currentUserId = FirebaseAuth.instance.currentUser?.uid;
     final bool isAssignee = currentUserId == assignedUid;
-    final bool isProjectAdminOrOwner = widget.workspace.memberRoles[currentUserId] == 'admin' || widget.workspace.memberRoles[currentUserId] == 'owner';
+    final bool isProjectAdminOrOwner = widget.workspace.memberRoles[currentUserId] == 'admin' || widget.workspace.memberRoles[currentUserId] == 'owner' || currentUserId == widget.workspace.ownerId;
     final bool canEdit = isAssignee || isProjectAdminOrOwner || currentUserId == ownerId;
-    final bool canShare = isAssignee || isProjectAdminOrOwner;
+    final bool canShare = isProjectAdminOrOwner;
 
     final List<dynamic>? subtasks = data['subtasks'] as List<dynamic>?;
     double progress = 0.0;

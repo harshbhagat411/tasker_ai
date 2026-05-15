@@ -1210,20 +1210,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         Text("Manage your tasks", style: TextStyle(fontSize: 16, color: Theme.of(context).textTheme.bodyMedium?.color)),
                       ],
                     ),
-                    ElevatedButton.icon(
-                      onPressed: () {
-                        showFocusSetupSheet(context);
-                      },
-                      icon: const Icon(Icons.center_focus_strong, size: 18),
-                      label: const Text("Focus", style: TextStyle(fontWeight: FontWeight.bold)),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Theme.of(context).brightness == Brightness.dark ? Colors.white : const Color(0xFF0D47A1),
-                        foregroundColor: Theme.of(context).brightness == Brightness.dark ? Colors.black : Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      ),
-                    ),
                   ],
                 ),
                 const SizedBox(height: 24),
@@ -1237,7 +1223,45 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     final int totalMinutes = data['totalMinutes'];
                     final int streak = data['streak'] ?? 0;
                     
-                    if (sessions == 0 && streak == 0) return const SizedBox.shrink();
+                    if (sessions == 0 && streak == 0) {
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 24),
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).brightness == Brightness.dark 
+                              ? const Color(0xFF1E1E1E) 
+                              : Colors.blue.shade50,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: Theme.of(context).brightness == Brightness.dark 
+                                ? Colors.grey.shade800 
+                                : Colors.blue.shade100,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text("Ready to Focus?", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                                const SizedBox(height: 4),
+                                Text("Start a session and build your streak.", style: TextStyle(fontSize: 12, color: Colors.grey)),
+                              ],
+                            ),
+                            ElevatedButton(
+                              onPressed: () => showFocusSetupSheet(context),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF0D47A1),
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                              child: const Text("Start"),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
 
                     return Container(
                       margin: const EdgeInsets.only(bottom: 24),
@@ -1256,7 +1280,31 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text("Productivity Stats", style: TextStyle(fontSize: 14, color: Colors.grey, fontWeight: FontWeight.w600)),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text("Productivity Stats", style: TextStyle(fontSize: 14, color: Colors.grey, fontWeight: FontWeight.w600)),
+                              InkWell(
+                                onTap: () => showFocusSetupSheet(context),
+                                borderRadius: BorderRadius.circular(20),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF0D47A1),
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.play_arrow, size: 14, color: Colors.white),
+                                      SizedBox(width: 4),
+                                      Text("Focus", style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                                    ],
+                                  ),
+                                ),
+                              )
+                            ],
+                          ),
                           const SizedBox(height: 16),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,

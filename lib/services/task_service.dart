@@ -341,6 +341,91 @@ class TaskService {
     await _firestore.collection('projects').doc(projectId).collection('tasks').add(data);
   }
 
+  Future<void> reassignProjectTask({
+    required String projectId,
+    required String taskId,
+    required Map<String, dynamic> newAssigneeDetails,
+    required String taskTitle,
+  }) async {
+    final currentUserId = userId;
+    if (currentUserId == null) return;
+
+    // 1. Check Permissions
+    final workspaceDoc = await _firestore.collection('workspaces').doc(projectId).get();
+    if (!workspaceDoc.exists) throw Exception('Workspace not found');
+    final workspaceData = workspaceDoc.data()!;
+    final String ownerId = workspaceData['ownerId']?.toString() ?? '';
+    final memberRoles = workspaceData['memberRoles'] as Map<String, dynamic>?;
+
+    bool hasPermission = (ownerId == currentUserId);
+    if (memberRoles != null && (memberRoles[currentUserId] == 'owner' || memberRoles[currentUserId] == 'admin')) {
+      hasPermission = true;
+    }
+
+    if (!hasPermission) {
+      throw Exception('You don\'t have permission to reassign tasks.');
+    }
+
+    // 2. Fetch previous assignee
+    final taskDocRef = _firestore.collection('projects').doc(projectId).collection('tasks').doc(taskId);
+    final taskDoc = await taskDocRef.get();
+    if (!taskDoc.exists) throw Exception('Task not found');
+    
+    final taskData = taskDoc.data()!;
+    String? previousAssigneeId;
+    if (taskData['assignedTo'] != null) {
+      if (taskData['assignedTo'] is Map) {
+        previousAssigneeId = taskData['assignedTo']['uid'];
+      } else if (taskData['assignedTo'] is String) {
+        previousAssigneeId = taskData['assignedTo'];
+      }
+    }
+
+    final newAssigneeId = newAssigneeDetails['uid'];
+    if (newAssigneeId == previousAssigneeId) return; // No change
+
+    // 3. Update Task
+    await taskDocRef.update({
+      'assignedTo': newAssigneeDetails,
+    });
+
+    // 4. Log Activity
+    final newAssigneeName = newAssigneeDetails['name'] ?? 'User';
+    await ActivityService().logProjectActivity(
+      projectId: projectId,
+      type: ActivityType.taskAssigned,
+      taskTitle: taskTitle,
+      message: "reassigned to $newAssigneeName",
+    );
+
+    // 5. Send Notifications
+    final projectName = workspaceData['name'] ?? 'Project';
+    
+    // Notify new assignee
+    if (newAssigneeId != null && newAssigneeId != currentUserId) {
+      await _inAppNotificationService.createNotification(
+        receiverId: newAssigneeId,
+        type: NotificationType.task_assigned,
+        title: "New Task Assigned",
+        message: "You were assigned a task in '$projectName': '$taskTitle'",
+        projectId: projectId,
+        taskId: taskId,
+      );
+    }
+
+    // Notify previous assignee
+    if (previousAssigneeId != null && previousAssigneeId != currentUserId && previousAssigneeId != newAssigneeId) {
+      await _inAppNotificationService.createNotification(
+        receiverId: previousAssigneeId,
+        type: NotificationType.task_assigned,
+        title: "Task Assignment Updated",
+        message: "You are no longer assigned to '$taskTitle' in '$projectName'.",
+        projectId: projectId,
+        taskId: taskId,
+      );
+    }
+  }
+
   Stream<QuerySnapshot> getWorkspaceTasks(String workspaceId) {
     return _firestore
         .collection('projects')
