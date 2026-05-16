@@ -593,6 +593,243 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
   }
 
+  Widget _buildSmartFocusDashboard(BuildContext context) {
+    return StreamBuilder<FocusSessionState>(
+      stream: FocusService().activeSessionStream,
+      builder: (context, sessionSnapshot) {
+        final sessionState = sessionSnapshot.data ?? FocusSessionState();
+        
+        return StreamBuilder<Map<String, dynamic>>(
+          stream: FocusService().getTodayFocusSummary(),
+          builder: (context, summarySnapshot) {
+            final summary = summarySnapshot.data ?? {'sessions': 0, 'totalMinutes': 0, 'streak': 0};
+            
+            Widget dashboardCard;
+            
+            if (sessionState.status == FocusSessionStatus.running || sessionState.status == FocusSessionStatus.paused) {
+              // STATE 2: ACTIVE SESSION
+              int remaining = sessionState.remainingSeconds;
+              int minutes = remaining ~/ 60;
+              int seconds = remaining % 60;
+              String timeStr = '${minutes}m ${seconds}s remaining';
+              double progress = 0;
+              if (sessionState.targetDurationInSeconds > 0) {
+                progress = sessionState.elapsedSeconds / sessionState.targetDurationInSeconds;
+              }
+              
+              String metadataStr = "";
+              if (sessionState.ambientSound != null && sessionState.ambientSound != 'None') {
+                metadataStr += "${sessionState.ambientSound} • ";
+              }
+              metadataStr += sessionState.taskTitle.isNotEmpty ? sessionState.taskTitle : "Deep Focus";
+
+              int minsToday = summary['totalMinutes'] ?? 0;
+              
+              dashboardCard = InkWell(
+                key: const ValueKey('running'),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    PageRouteBuilder(
+                      transitionDuration: const Duration(milliseconds: 800),
+                      pageBuilder: (context, animation, secondaryAnimation) => const FocusModeScreen(),
+                      transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                        return FadeTransition(opacity: CurvedAnimation(parent: animation, curve: Curves.easeInOut), child: child);
+                      },
+                    ),
+                  );
+                },
+                borderRadius: BorderRadius.circular(20),
+                child: Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF6A1B9A), Color(0xFF4A148C)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(color: const Color(0xFF6A1B9A).withOpacity(0.4), blurRadius: 12, offset: const Offset(0, 4)),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text("Focus Running 🔥", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(20)),
+                            child: const Text("Resume", style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                          )
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(timeStr, style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 14)),
+                      const SizedBox(height: 16),
+                      LinearProgressIndicator(
+                        value: progress,
+                        backgroundColor: Colors.white24,
+                        valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                        borderRadius: BorderRadius.circular(4),
+                        minHeight: 6,
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Row(
+                              children: [
+                                const Icon(Icons.track_changes, color: Colors.white70, size: 14),
+                                const SizedBox(width: 6),
+                                Expanded(child: Text(metadataStr, style: const TextStyle(color: Colors.white70, fontSize: 12), overflow: TextOverflow.ellipsis)),
+                              ],
+                            ),
+                          ),
+                          Text("$minsToday min focused today", style: const TextStyle(color: Colors.white70, fontSize: 11)),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            } else if (sessionState.status == FocusSessionStatus.completed) {
+              // STATE 3: COMPLETED
+              int minsToday = summary['totalMinutes'] ?? 0;
+              int sessionsToday = summary['sessions'] ?? 0;
+              int streak = summary['streak'] ?? 0;
+              
+              dashboardCard = InkWell(
+                key: const ValueKey('completed'),
+                onTap: () => showFocusSetupSheet(context),
+                borderRadius: BorderRadius.circular(20),
+                child: Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF2E7D32), Color(0xFF1B5E20)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(color: const Color(0xFF2E7D32).withOpacity(0.4), blurRadius: 12, offset: const Offset(0, 4)),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text("Great Work 🎉", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(20)),
+                            child: const Text("Start Again", style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                          )
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text("${sessionState.targetDurationInSeconds ~/ 60} min completed", style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 14)),
+                      const SizedBox(height: 16),
+                      Wrap(
+                        spacing: 12,
+                        runSpacing: 8,
+                        children: [
+                          Text("$minsToday min focused today", style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                          const Text("•", style: TextStyle(color: Colors.white54)),
+                          Text("$sessionsToday sessions completed", style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                          if (streak > 0) ...[
+                            const Text("•", style: TextStyle(color: Colors.white54)),
+                            Text("🔥 $streak day streak", style: const TextStyle(color: Colors.orangeAccent, fontSize: 12, fontWeight: FontWeight.bold)),
+                          ]
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            } else {
+              // STATE 1: IDLE
+              int minsToday = summary['totalMinutes'] ?? 0;
+              int sessionsToday = summary['sessions'] ?? 0;
+              int lastDurationMins = summary['lastDuration'] ?? 25;
+              if (lastDurationMins == 0) lastDurationMins = 25;
+              
+              dashboardCard = InkWell(
+                key: const ValueKey('idle'),
+                onTap: () => showFocusSetupSheet(context),
+                borderRadius: BorderRadius.circular(20),
+                child: Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF5E35B1), Color(0xFF311B92)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(color: const Color(0xFF5E35B1).withOpacity(0.3), blurRadius: 10, offset: const Offset(0, 4)),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text("Ready for Deep Work?", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 6),
+                          Text("Stay focused for $lastDurationMins minutes", style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 14)),
+                          const SizedBox(height: 12),
+                          Text("$minsToday min focused today", style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 12)),
+                          if (sessionsToday > 0)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 4),
+                              child: Text("$sessionsToday sessions completed today", style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 12)),
+                            ),
+                        ],
+                      ),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                        child: const Icon(Icons.play_arrow, color: Color(0xFF311B92), size: 28),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }
+
+            return Container(
+              margin: const EdgeInsets.only(bottom: 24),
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 500),
+                switchInCurve: Curves.easeOutCubic,
+                switchOutCurve: Curves.easeInCubic,
+                transitionBuilder: (child, animation) => FadeTransition(
+                  opacity: animation,
+                  child: SlideTransition(
+                    position: Tween<Offset>(begin: const Offset(0, 0.05), end: Offset.zero).animate(animation),
+                    child: child,
+                  ),
+                ),
+                child: dashboardCard,
+              ),
+            );
+          }
+        );
+      }
+    );
+  }
+
+
   Widget _buildTaskAvatars(List<String> memberIds) {
     if (memberIds.isEmpty) return const SizedBox.shrink();
     
@@ -1215,152 +1452,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 const SizedBox(height: 24),
                 
                 // SECTION 2.5: Today's Focus
-                StreamBuilder<Map<String, dynamic>>(
-                  stream: FocusService().getTodayFocusSummary(),
-                  builder: (context, focusSnapshot) {
-                    final data = focusSnapshot.data ?? {'sessions': 0, 'totalMinutes': 0, 'streak': 0, 'interrupted': 0};
-                    final int sessions = data['sessions'];
-                    final int totalMinutes = data['totalMinutes'];
-                    final int streak = data['streak'] ?? 0;
-                    
-                    if (sessions == 0 && streak == 0) {
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 24),
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).brightness == Brightness.dark 
-                              ? const Color(0xFF1E1E1E) 
-                              : Colors.blue.shade50,
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: Theme.of(context).brightness == Brightness.dark 
-                                ? Colors.grey.shade800 
-                                : Colors.blue.shade100,
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text("Ready to Focus?", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                                const SizedBox(height: 4),
-                                Text("Start a session and build your streak.", style: TextStyle(fontSize: 12, color: Colors.grey)),
-                              ],
-                            ),
-                            ElevatedButton(
-                              onPressed: () => showFocusSetupSheet(context),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF0D47A1),
-                                foregroundColor: Colors.white,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                              ),
-                              child: const Text("Start"),
-                            ),
-                          ],
-                        ),
-                      );
-                    }
-
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 24),
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).brightness == Brightness.dark 
-                            ? const Color(0xFF1E1E1E) 
-                            : Colors.blue.shade50,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: Theme.of(context).brightness == Brightness.dark 
-                              ? Colors.grey.shade800 
-                              : Colors.blue.shade100,
-                        ),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const Text("Productivity Stats", style: TextStyle(fontSize: 14, color: Colors.grey, fontWeight: FontWeight.w600)),
-                              InkWell(
-                                onTap: () => showFocusSetupSheet(context),
-                                borderRadius: BorderRadius.circular(20),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFF0D47A1),
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  child: const Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(Icons.play_arrow, size: 14, color: Colors.white),
-                                      SizedBox(width: 4),
-                                      Text("Focus", style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
-                                    ],
-                                  ),
-                                ),
-                              )
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              // Time
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      const Icon(Icons.timer, color: Colors.blue, size: 16),
-                                      const SizedBox(width: 6),
-                                      Text("${totalMinutes}m", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 4),
-                                  const Text("Focused Today", style: TextStyle(fontSize: 12, color: Colors.grey)),
-                                ],
-                              ),
-                              // Sessions
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      const Icon(Icons.check_circle, color: Colors.green, size: 16),
-                                      const SizedBox(width: 6),
-                                      Text("$sessions", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 4),
-                                  const Text("Sessions", style: TextStyle(fontSize: 12, color: Colors.grey)),
-                                ],
-                              ),
-                              // Streak
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      const Icon(Icons.local_fire_department, color: Colors.orange, size: 16),
-                                      const SizedBox(width: 6),
-                                      Text("$streak Day${streak != 1 ? 's' : ''}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 4),
-                                  const Text("Streak", style: TextStyle(fontSize: 12, color: Colors.grey)),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
+                _buildSmartFocusDashboard(context),
 
                 // SECTION 3: Search Bar
                 Container(
@@ -1492,7 +1584,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
                 // SECTION 4.6: Recent Activity or Personal Widgets
                 if (isDeveloper) _buildRecentActivity(),
-                if (!isDeveloper) _buildPersonalWidgets(context),
 
                 // Task Stream
                 StreamBuilder<List<QueryDocumentSnapshot>>(
@@ -2062,56 +2153,4 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
-  Widget _buildPersonalWidgets(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text("Daily Focus", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyLarge?.color)),
-        const SizedBox(height: 12),
-        Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [const Color(0xFF6A1B9A).withOpacity(0.8), const Color(0xFF8E24AA).withOpacity(0.8)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF6A1B9A).withOpacity(0.3),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.self_improvement, color: Colors.white, size: 28),
-              ),
-              const SizedBox(width: 16),
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text("Deep Work Session", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                    SizedBox(height: 4),
-                    Text("Stay focused for 25 minutes", style: TextStyle(color: Colors.white70, fontSize: 14)),
-                  ],
-                ),
-              ),
-              const Icon(Icons.play_circle_fill, color: Colors.white, size: 36),
-            ],
-          ),
-        ),
-        const SizedBox(height: 24),
-      ],
-    );
-  }
 }

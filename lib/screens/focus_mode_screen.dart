@@ -1,54 +1,26 @@
 import 'package:flutter/material.dart';
-import 'dart:async';
 import 'dart:math' as math;
-import 'package:just_audio/just_audio.dart';
 import '../services/focus_service.dart';
 
 class FocusModeScreen extends StatefulWidget {
-  final String? taskId;
-  final String? taskTitle;
-  final String? projectName;
-  final int durationInSeconds;
-  final String? ambientSound;
-
-  const FocusModeScreen({
-    super.key,
-    this.taskId,
-    this.taskTitle,
-    this.projectName,
-    this.durationInSeconds = 25 * 60,
-    this.ambientSound,
-  });
+  const FocusModeScreen({super.key});
 
   @override
   State<FocusModeScreen> createState() => _FocusModeScreenState();
 }
 
 class _FocusModeScreenState extends State<FocusModeScreen> with TickerProviderStateMixin {
-  late int _secondsRemaining;
-  Timer? _timer;
-  bool _isRunning = false;
-  
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
   
   late AnimationController _bgController;
 
   final FocusService _focusService = FocusService();
-  AudioPlayer? _audioPlayer;
-
-  // Sound URLs mapped from selection
-  final Map<String, String> _soundUrls = {
-    'Rain': 'https://web.archive.org/web/20220101120000if_/https://actions.google.com/sounds/v1/weather/rain_heavy_loud.ogg',
-    'Cafe': 'https://web.archive.org/web/20220101120000if_/https://actions.google.com/sounds/v1/ambiences/coffee_shop.ogg',
-    'White Noise': 'https://web.archive.org/web/20220101120000if_/https://actions.google.com/sounds/v1/water/waves_crashing_on_rock_beach.ogg',
-    'Lofi': 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3', // Placeholder instrumental
-  };
+  bool _dialogShowing = false;
 
   @override
   void initState() {
     super.initState();
-    _secondsRemaining = widget.durationInSeconds;
 
     // Entry transition
     _fadeController = AnimationController(vsync: this, duration: const Duration(milliseconds: 1500));
@@ -57,74 +29,21 @@ class _FocusModeScreenState extends State<FocusModeScreen> with TickerProviderSt
 
     // Breathing background animation
     _bgController = AnimationController(vsync: this, duration: const Duration(seconds: 4))..repeat(reverse: true);
-
-    _initAudio();
-  }
-
-  Future<void> _initAudio() async {
-    if (widget.ambientSound != null && widget.ambientSound != 'None') {
-      _audioPlayer = AudioPlayer();
-      final url = _soundUrls[widget.ambientSound!];
-      if (url != null) {
-        try {
-          // Attempt to load the audio source.
-          await _audioPlayer?.setAudioSource(AudioSource.uri(Uri.parse(url)));
-          await _audioPlayer?.setLoopMode(LoopMode.one);
-        } catch (e) {
-          print("Error loading audio: $e");
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text("Could not load ambient sound. It may be unavailable."),
-                backgroundColor: Colors.redAccent,
-              ),
-            );
-          }
-        }
-      }
-    }
   }
 
   @override
   void dispose() {
-    _timer?.cancel();
     _fadeController.dispose();
     _bgController.dispose();
-    _audioPlayer?.dispose();
     super.dispose();
   }
 
-  void _startTimer() {
-    setState(() => _isRunning = true);
-    _audioPlayer?.play();
-    
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (_secondsRemaining > 0) {
-        setState(() => _secondsRemaining--);
-      } else {
-        _timer?.cancel();
-        setState(() => _isRunning = false);
-        _audioPlayer?.pause();
-        _onSessionComplete();
-      }
-    });
-  }
-
-  void _pauseTimer() {
-    _timer?.cancel();
-    setState(() => _isRunning = false);
-    _audioPlayer?.pause();
-  }
-
-  void _resetTimer() {
-    _pauseTimer();
-    setState(() => _secondsRemaining = widget.durationInSeconds);
-    _audioPlayer?.seek(Duration.zero);
-  }
-
   Future<bool> _onWillPop() async {
-    if (_secondsRemaining > 0 && _secondsRemaining < widget.durationInSeconds) {
-      _pauseTimer();
+    final state = _focusService.currentState;
+    if (state.status == FocusSessionStatus.running || state.status == FocusSessionStatus.paused) {
+      if (state.status == FocusSessionStatus.running) {
+        _focusService.pauseSession();
+      }
       final shouldExit = await showDialog<bool>(
         context: context,
         builder: (context) => Dialog(
@@ -147,7 +66,7 @@ class _FocusModeScreenState extends State<FocusModeScreen> with TickerProviderSt
                     TextButton(
                       onPressed: () {
                         Navigator.pop(context, false);
-                        _startTimer(); // Resume
+                        _focusService.resumeSession();
                       },
                       child: const Text("Keep Focusing", style: TextStyle(color: Colors.white70)),
                     ),
@@ -167,14 +86,7 @@ class _FocusModeScreenState extends State<FocusModeScreen> with TickerProviderSt
       );
 
       if (shouldExit == true) {
-        // Save as interrupted
-        await _focusService.saveFocusSession(
-          taskId: widget.taskId,
-          taskTitle: widget.taskTitle ?? 'Deep Focus',
-          durationInSeconds: widget.durationInSeconds,
-          actualDurationInSeconds: widget.durationInSeconds - _secondsRemaining,
-          status: 'interrupted',
-        );
+        await _focusService.endSessionEarly();
         return true;
       }
       return false;
@@ -182,18 +94,9 @@ class _FocusModeScreenState extends State<FocusModeScreen> with TickerProviderSt
     return true;
   }
 
-  void _onSessionComplete() async {
-    // Save as completed
-    await _focusService.saveFocusSession(
-      taskId: widget.taskId,
-      taskTitle: widget.taskTitle ?? 'Deep Focus',
-      durationInSeconds: widget.durationInSeconds,
-      actualDurationInSeconds: widget.durationInSeconds,
-      status: 'completed',
-    );
-
-    if (!mounted) return;
-
+  void _showCompletionDialog(FocusSessionState state) {
+    if (_dialogShowing) return;
+    _dialogShowing = true;
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -214,7 +117,7 @@ class _FocusModeScreenState extends State<FocusModeScreen> with TickerProviderSt
               const Text("Great work.", style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
               Text(
-                "You completed a ${widget.durationInSeconds ~/ 60} minute focus session.",
+                "You completed a ${state.targetDurationInSeconds ~/ 60} minute focus session.",
                 style: const TextStyle(color: Colors.grey, fontSize: 16),
                 textAlign: TextAlign.center,
               ),
@@ -229,45 +132,31 @@ class _FocusModeScreenState extends State<FocusModeScreen> with TickerProviderSt
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                   onPressed: () {
-                    Navigator.pop(context); // Close dialog
-                    _resetTimer();
-                    _startTimer(); // Focus Again
-                  },
-                  child: const Text("Focus Again", style: TextStyle(fontWeight: FontWeight.bold)),
-                ),
-              ),
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: TextButton(
-                  style: TextButton.styleFrom(
-                    foregroundColor: Colors.white70,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                  ),
-                  onPressed: () {
+                    _focusService.resetSession();
                     Navigator.pop(context); // Close dialog
                     Navigator.pop(context); // Exit Focus Space
+                    // Can open setup sheet from home screen instead
                   },
-                  child: const Text("Exit Focus Space"),
+                  child: const Text("Continue", style: TextStyle(fontWeight: FontWeight.bold)),
                 ),
               ),
             ],
           ),
         ),
       ),
-    );
+    ).then((_) {
+      _dialogShowing = false;
+    });
   }
 
-  String get _timerString {
-    int minutes = _secondsRemaining ~/ 60;
-    int seconds = _secondsRemaining % 60;
+  String _formatTimer(int remainingSeconds) {
+    int minutes = remainingSeconds ~/ 60;
+    int seconds = remainingSeconds % 60;
     return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
   }
 
   @override
   Widget build(BuildContext context) {
-    double progress = 1.0 - (_secondsRemaining / widget.durationInSeconds);
-
     return WillPopScope(
       onWillPop: _onWillPop,
       child: Scaffold(
@@ -295,155 +184,197 @@ class _FocusModeScreenState extends State<FocusModeScreen> with TickerProviderSt
           child: SafeArea(
             child: FadeTransition(
               opacity: _fadeAnimation,
-              child: Column(
-                children: [
-                  // Top Action: Exit
-                  Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.close, color: Colors.white54, size: 28),
-                          onPressed: () async {
-                            if (await _onWillPop()) {
-                              if (mounted) Navigator.pop(context);
-                            }
-                          },
-                          tooltip: "Exit Focus Space",
-                        ),
-                        if (widget.ambientSound != null && widget.ambientSound != 'None')
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: Colors.white10,
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Row(
-                              children: [
-                                const Icon(Icons.music_note, color: Colors.white70, size: 16),
-                                const SizedBox(width: 6),
-                                Text(widget.ambientSound!, style: const TextStyle(color: Colors.white70, fontSize: 12)),
-                              ],
-                            ),
-                          )
-                        else
-                          const SizedBox(width: 48), // Balance spacing
-                      ],
-                    ),
-                  ),
+              child: StreamBuilder<FocusSessionState>(
+                stream: _focusService.activeSessionStream,
+                builder: (context, snapshot) {
+                  if (!snapshot.hasData) return const SizedBox.shrink();
                   
-                  const Spacer(),
+                  final state = snapshot.data!;
+                  
+                  // Auto-show completion dialog
+                  if (state.status == FocusSessionStatus.completed) {
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      _showCompletionDialog(state);
+                    });
+                  }
 
-                  // Task Info
-                  if (widget.projectName != null)
-                    Text(
-                      widget.projectName!.toUpperCase(),
-                      style: const TextStyle(color: Colors.white38, fontSize: 12, letterSpacing: 2.0, fontWeight: FontWeight.bold),
-                    ),
-                  const SizedBox(height: 12),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 32.0),
-                    child: Text(
-                      widget.taskTitle ?? "Deep Focus",
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w300, letterSpacing: 0.5),
-                    ),
-                  ),
+                  double progress = 0.0;
+                  if (state.targetDurationInSeconds > 0) {
+                    progress = state.elapsedSeconds / state.targetDurationInSeconds;
+                  }
+                  
+                  final isRunning = state.status == FocusSessionStatus.running;
 
-                  const SizedBox(height: 60),
-
-                  // Timer Circular Display
-                  Stack(
-                    alignment: Alignment.center,
+                  return Column(
                     children: [
-                      SizedBox(
-                        width: 300,
-                        height: 300,
-                        child: CustomPaint(
-                          painter: TimerPainter(
-                            progress: progress,
-                            backgroundColor: Colors.white.withOpacity(0.05),
-                            progressColor: Colors.white,
-                          ),
+                      // Top Action: Exit
+                      Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.keyboard_arrow_down, color: Colors.white54, size: 36),
+                              onPressed: () {
+                                // Minimize without ending
+                                Navigator.pop(context);
+                              },
+                              tooltip: "Minimize Focus Space",
+                            ),
+                            if (state.ambientSound != null && state.ambientSound != 'None')
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: Colors.white10,
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.music_note, color: Colors.white70, size: 16),
+                                    const SizedBox(width: 6),
+                                    Text(state.ambientSound!, style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                                  ],
+                                ),
+                              )
+                            else
+                              const SizedBox(width: 48), // Balance spacing
+                              
+                            IconButton(
+                              icon: const Icon(Icons.close, color: Colors.white54, size: 28),
+                              onPressed: () async {
+                                if (await _onWillPop()) {
+                                  if (mounted) Navigator.pop(context);
+                                }
+                              },
+                              tooltip: "End Session",
+                            ),
+                          ],
                         ),
                       ),
-                      Column(
-                        mainAxisSize: MainAxisSize.min,
+                      
+                      const Spacer(),
+
+                      // Task Info
+                      if (state.projectName != null && state.projectName!.isNotEmpty)
+                        Text(
+                          state.projectName!.toUpperCase(),
+                          style: const TextStyle(color: Colors.white38, fontSize: 12, letterSpacing: 2.0, fontWeight: FontWeight.bold),
+                        ),
+                      const SizedBox(height: 12),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 32.0),
+                        child: Text(
+                          state.taskTitle.isNotEmpty ? state.taskTitle : "Deep Focus",
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w300, letterSpacing: 0.5),
+                        ),
+                      ),
+
+                      const SizedBox(height: 60),
+
+                      // Timer Circular Display
+                      Stack(
+                        alignment: Alignment.center,
                         children: [
-                          Text(
-                            _timerString,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 72,
-                              fontWeight: FontWeight.w200,
-                              fontFeatures: [FontFeature.tabularFigures()],
+                          SizedBox(
+                            width: 300,
+                            height: 300,
+                            child: CustomPaint(
+                              painter: TimerPainter(
+                                progress: progress,
+                                backgroundColor: Colors.white.withOpacity(0.05),
+                                progressColor: Colors.white,
+                              ),
                             ),
                           ),
-                          if (widget.durationInSeconds - _secondsRemaining > 0)
-                            Text(
-                              "${(progress * 100).toInt()}% completed",
-                              style: const TextStyle(color: Colors.white38, fontSize: 14),
-                            ),
-                        ],
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 60),
-
-                  // Controls
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      if (_secondsRemaining < widget.durationInSeconds)
-                        IconButton(
-                          icon: const Icon(Icons.replay),
-                          color: Colors.white54,
-                          iconSize: 32,
-                          onPressed: _resetTimer,
-                        )
-                      else
-                        const SizedBox(width: 48),
-
-                      const SizedBox(width: 24),
-                      
-                      GestureDetector(
-                        onTap: _isRunning ? _pauseTimer : _startTimer,
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 300),
-                          padding: const EdgeInsets.all(24),
-                          decoration: BoxDecoration(
-                            color: _isRunning ? Colors.white10 : Colors.white,
-                            shape: BoxShape.circle,
-                            boxShadow: _isRunning ? [] : [
-                              BoxShadow(color: Colors.white.withOpacity(0.2), blurRadius: 20, spreadRadius: 2)
+                          Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                _formatTimer(state.remainingSeconds),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 72,
+                                  fontWeight: FontWeight.w200,
+                                  fontFeatures: [FontFeature.tabularFigures()],
+                                ),
+                              ),
+                              if (state.remainingSeconds > 0)
+                                Text(
+                                  "${(progress * 100).toInt()}% completed",
+                                  style: const TextStyle(color: Colors.white38, fontSize: 14),
+                                ),
                             ],
                           ),
-                          child: Icon(
-                            _isRunning ? Icons.pause : Icons.play_arrow,
-                            color: _isRunning ? Colors.white : Colors.black,
-                            size: 36,
-                          ),
-                        ),
+                        ],
                       ),
 
-                      const SizedBox(width: 24),
-                      const SizedBox(width: 48), // Invisible placeholder
+                      const SizedBox(height: 60),
+
+                      // Controls
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          if (state.elapsedSeconds > 0 && state.status != FocusSessionStatus.completed)
+                            IconButton(
+                              icon: const Icon(Icons.stop),
+                              color: Colors.white54,
+                              iconSize: 32,
+                              onPressed: () async {
+                                if (await _onWillPop()) {
+                                  if (mounted) Navigator.pop(context);
+                                }
+                              },
+                            )
+                          else
+                            const SizedBox(width: 48),
+
+                          const SizedBox(width: 24),
+                          
+                          GestureDetector(
+                            onTap: () {
+                              if (isRunning) {
+                                _focusService.pauseSession();
+                              } else {
+                                _focusService.resumeSession();
+                              }
+                            },
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 300),
+                              padding: const EdgeInsets.all(24),
+                              decoration: BoxDecoration(
+                                color: isRunning ? Colors.white10 : Colors.white,
+                                shape: BoxShape.circle,
+                                boxShadow: isRunning ? [] : [
+                                  BoxShadow(color: Colors.white.withOpacity(0.2), blurRadius: 20, spreadRadius: 2)
+                                ],
+                              ),
+                              child: Icon(
+                                isRunning ? Icons.pause : Icons.play_arrow,
+                                color: isRunning ? Colors.white : Colors.black,
+                                size: 36,
+                              ),
+                            ),
+                          ),
+
+                          const SizedBox(width: 24),
+                          const SizedBox(width: 48), // Invisible placeholder
+                        ],
+                      ),
+
+                      const Spacer(),
+
+                      // Bottom Motivation
+                      const Padding(
+                        padding: EdgeInsets.only(bottom: 40.0),
+                        child: Text(
+                          "Stay focused on one thing at a time.",
+                          style: TextStyle(color: Colors.white38, fontSize: 14, letterSpacing: 0.5),
+                        ),
+                      ),
                     ],
-                  ),
-
-                  const Spacer(),
-
-                  // Bottom Motivation
-                  const Padding(
-                    padding: EdgeInsets.only(bottom: 40.0),
-                    child: Text(
-                      "Stay focused on one thing at a time.",
-                      style: TextStyle(color: Colors.white38, fontSize: 14, letterSpacing: 0.5),
-                    ),
-                  ),
-                ],
+                  );
+                }
               ),
             ),
           ),

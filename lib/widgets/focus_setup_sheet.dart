@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../screens/focus_mode_screen.dart';
+import '../services/focus_service.dart';
 
 class FocusSetupSheet extends StatefulWidget {
   final String? taskId;
@@ -38,18 +39,20 @@ class _FocusSetupSheetState extends State<FocusSetupSheet> {
 
     Navigator.pop(context); // Close sheet
     
+    FocusService().startSession(
+      taskId: widget.taskId,
+      taskTitle: widget.taskTitle,
+      projectName: widget.projectName,
+      durationInSeconds: durationInMinutes * 60,
+      ambientSound: selectedSound == 'None' ? null : selectedSound,
+    );
+
     // Animate transition to Focus Space
     Navigator.push(
       context,
       PageRouteBuilder(
         transitionDuration: const Duration(milliseconds: 800),
-        pageBuilder: (context, animation, secondaryAnimation) => FocusModeScreen(
-          taskId: widget.taskId,
-          taskTitle: widget.taskTitle,
-          projectName: widget.projectName,
-          durationInSeconds: durationInMinutes * 60,
-          ambientSound: selectedSound == 'None' ? null : selectedSound,
-        ),
+        pageBuilder: (context, animation, secondaryAnimation) => const FocusModeScreen(),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           return FadeTransition(
             opacity: CurvedAnimation(parent: animation, curve: Curves.easeInOut),
@@ -179,20 +182,40 @@ class _FocusSetupSheetState extends State<FocusSetupSheet> {
           
           if (_isCustom) ...[
             const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: Slider(
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+              decoration: BoxDecoration(
+                color: isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.03),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      IconButton(
+                        onPressed: _customDuration > 1 ? () => setState(() => _customDuration--) : null,
+                        icon: const Icon(Icons.remove_circle_outline),
+                        color: isDark ? Colors.white70 : Colors.black54,
+                      ),
+                      Text("$_customDuration min", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                      IconButton(
+                        onPressed: _customDuration < 180 ? () => setState(() => _customDuration++) : null,
+                        icon: const Icon(Icons.add_circle_outline),
+                        color: isDark ? Colors.white70 : Colors.black54,
+                      ),
+                    ],
+                  ),
+                  Slider(
                     value: _customDuration.toDouble(),
-                    min: 5,
-                    max: 120,
-                    divisions: 23,
+                    min: 1,
+                    max: 180,
                     activeColor: isDark ? Colors.white : const Color(0xFF0D47A1),
+                    inactiveColor: isDark ? Colors.white24 : Colors.blue.withOpacity(0.2),
                     onChanged: (val) => setState(() => _customDuration = val.toInt()),
                   ),
-                ),
-                Text("${_customDuration}m", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-              ],
+                ],
+              ),
             ),
           ],
           
@@ -260,7 +283,7 @@ class _FocusSetupSheetState extends State<FocusSetupSheet> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 elevation: 0,
               ),
-              child: const Text("Enter Focus Space", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              child: Text("Focus for ${_isCustom ? _customDuration : _durations[_selectedDurationIndex]} min", style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             ),
           ),
           const SizedBox(height: 16),

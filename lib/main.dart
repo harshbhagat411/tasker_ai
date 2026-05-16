@@ -17,6 +17,7 @@ import 'providers/theme_provider.dart';
 import 'services/fcm_service.dart';
 import 'services/notification_service.dart';
 import 'services/presence_service.dart';
+import 'services/focus_service.dart';
 import 'package:timezone/data/latest_all.dart' as tz_init;
 import 'package:timezone/timezone.dart' as tz;
 
@@ -39,6 +40,7 @@ void main() async {
   final prefs = await SharedPreferences.getInstance();
   final seenOnboarding = prefs.getBool('seenOnboarding') ?? false;
 
+  await FocusService().init();
 
   runApp(
     ChangeNotifierProvider(
