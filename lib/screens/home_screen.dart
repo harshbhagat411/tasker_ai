@@ -19,6 +19,8 @@ import 'package:rxdart/rxdart.dart';
 import 'focus_mode_screen.dart';
 import '../services/focus_service.dart';
 import '../widgets/focus_setup_sheet.dart';
+import '../models/goal.dart';
+import '../services/goal_service.dart';
 
 enum SortType {
   priority,
@@ -591,6 +593,107 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       default:
         return Colors.green.shade100; // Green
     }
+  }
+
+  Widget _buildGoalsDashboard() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+          child: Text(
+            "Goals Dashboard",
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+        ),
+        Row(
+          children: [
+            Expanded(
+              child: StreamBuilder<List<Goal>>(
+                stream: GoalService().getDailyGoals(),
+                builder: (context, snapshot) {
+                  int total = 0;
+                  int completed = 0;
+                  if (snapshot.hasData) {
+                    total = snapshot.data!.length;
+                    completed = snapshot.data!.where((g) => g.isCompleted).length;
+                  }
+                  
+                  return Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).cardColor,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Theme.of(context).primaryColor.withOpacity(0.2)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.today, size: 20, color: Theme.of(context).primaryColor),
+                            const SizedBox(width: 8),
+                            const Text("Today's Goals", style: TextStyle(fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          total > 0 ? "$completed/$total completed" : "No goals set",
+                          style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: StreamBuilder<List<Goal>>(
+                stream: GoalService().getWeeklyGoals(),
+                builder: (context, snapshot) {
+                  int total = 0;
+                  int completed = 0;
+                  if (snapshot.hasData) {
+                    total = snapshot.data!.length;
+                    completed = snapshot.data!.where((g) => g.isCompleted).length;
+                  }
+                  
+                  int percentage = total > 0 ? ((completed / total) * 100).round() : 0;
+                  
+                  return Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).cardColor,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Theme.of(context).primaryColor.withOpacity(0.2)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.calendar_view_week, size: 20, color: Theme.of(context).primaryColor),
+                            const SizedBox(width: 8),
+                            const Text("Weekly Goals", style: TextStyle(fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          total > 0 ? "$percentage% completed" : "No goals set",
+                          style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 24),
+      ],
+    );
   }
 
   Widget _buildSmartFocusDashboard(BuildContext context) {
@@ -1583,7 +1686,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 ),
 
                 // SECTION 4.6: Recent Activity or Personal Widgets
-                if (isDeveloper) _buildRecentActivity(),
+                if (isDeveloper) _buildRecentActivity() else _buildGoalsDashboard(),
 
                 // Task Stream
                 StreamBuilder<List<QueryDocumentSnapshot>>(

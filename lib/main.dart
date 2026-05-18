@@ -18,6 +18,9 @@ import 'services/fcm_service.dart';
 import 'services/notification_service.dart';
 import 'services/presence_service.dart';
 import 'services/focus_service.dart';
+import 'services/goal_service.dart';
+import 'services/habit_service.dart';
+import 'screens/habits_screen.dart';
 import 'package:timezone/data/latest_all.dart' as tz_init;
 import 'package:timezone/timezone.dart' as tz;
 
@@ -279,6 +282,9 @@ class _MainScreenState extends State<MainScreen> {
     super.initState();
     // Initialize presence service to start tracking lifecycle immediately
     PresenceService();
+    // Run maintenance for goals and habits
+    GoalService().performMaintenance();
+    HabitService().performMaintenance();
   }
 
   @override
@@ -296,6 +302,7 @@ class _MainScreenState extends State<MainScreen> {
 
         final screens = [
           const HomeScreen(),
+          const HabitsScreen(), // Added Habits screen
           if (isDeveloper) const ProjectsScreen(),
           const CalendarScreen(),
           const ProfileScreen(),
@@ -303,6 +310,7 @@ class _MainScreenState extends State<MainScreen> {
 
         final items = [
           const BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+          const BottomNavigationBarItem(icon: Icon(Icons.repeat), label: 'Habits'), // Added Habits tab
           if (isDeveloper) const BottomNavigationBarItem(icon: Icon(Icons.business_center), label: 'Projects'),
           const BottomNavigationBarItem(icon: Icon(Icons.calendar_month), label: 'Calendar'),
           const BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
