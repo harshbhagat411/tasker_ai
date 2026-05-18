@@ -21,6 +21,8 @@ import '../services/focus_service.dart';
 import '../widgets/focus_setup_sheet.dart';
 import '../models/goal.dart';
 import '../services/goal_service.dart';
+import '../services/habit_service.dart';
+import 'habits_screen.dart';
 
 enum SortType {
   priority,
@@ -595,53 +597,74 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
   }
 
-  Widget _buildGoalsDashboard() {
+  Widget _buildGoalsDashboard(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Padding(
           padding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
           child: Text(
-            "Goals Dashboard",
+            "Habits & Goals",
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
         ),
         Row(
           children: [
             Expanded(
-              child: StreamBuilder<List<Goal>>(
-                stream: GoalService().getDailyGoals(),
+              child: StreamBuilder<List<dynamic>>(
+                stream: HabitService().getHabits(),
                 builder: (context, snapshot) {
                   int total = 0;
                   int completed = 0;
                   if (snapshot.hasData) {
                     total = snapshot.data!.length;
-                    completed = snapshot.data!.where((g) => g.isCompleted).length;
+                    completed = snapshot.data!.where((h) => h.isCompleted || (h.progress >= h.target)).length;
                   }
                   
-                  return Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).cardColor,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Theme.of(context).primaryColor.withOpacity(0.2)),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(Icons.today, size: 20, color: Theme.of(context).primaryColor),
-                            const SizedBox(width: 8),
-                            const Text("Today's Goals", style: TextStyle(fontWeight: FontWeight.bold)),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          total > 0 ? "$completed/$total completed" : "No goals set",
-                          style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
-                        ),
-                      ],
+                  final progressVal = total > 0 ? completed / total : 0.0;
+                  
+                  return InkWell(
+                    onTap: () {
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => Scaffold(
+                        appBar: AppBar(title: const Text('Today\'s Habits')),
+                        body: const SafeArea(child: HabitsScreen()),
+                      )));
+                    },
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).cardColor,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Theme.of(context).primaryColor.withOpacity(0.2)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(Icons.repeat, size: 20, color: Theme.of(context).primaryColor),
+                              const SizedBox(width: 8),
+                              const Text("Today's Habits", style: TextStyle(fontWeight: FontWeight.bold)),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            total > 0 ? "$completed/$total completed" : "No habits set",
+                            style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                          ),
+                          const SizedBox(height: 8),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(4),
+                            child: LinearProgressIndicator(
+                              value: total > 0 ? progressVal : 0,
+                              backgroundColor: Colors.grey.withOpacity(0.2),
+                              valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).primaryColor),
+                              minHeight: 4,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   );
                 },
@@ -649,41 +672,61 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: StreamBuilder<List<Goal>>(
-                stream: GoalService().getWeeklyGoals(),
+              child: StreamBuilder<List<dynamic>>(
+                stream: HabitService().getHabits(),
                 builder: (context, snapshot) {
                   int total = 0;
-                  int completed = 0;
+                  int activeStreaks = 0;
                   if (snapshot.hasData) {
                     total = snapshot.data!.length;
-                    completed = snapshot.data!.where((g) => g.isCompleted).length;
+                    activeStreaks = snapshot.data!.where((h) => h.streakCount > 0).length;
                   }
                   
-                  int percentage = total > 0 ? ((completed / total) * 100).round() : 0;
+                  int percentage = total > 0 ? ((activeStreaks / total) * 100).round() : 0;
+                  final progressVal = total > 0 ? activeStreaks / total : 0.0;
                   
-                  return Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).cardColor,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Theme.of(context).primaryColor.withOpacity(0.2)),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(Icons.calendar_view_week, size: 20, color: Theme.of(context).primaryColor),
-                            const SizedBox(width: 8),
-                            const Text("Weekly Goals", style: TextStyle(fontWeight: FontWeight.bold)),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          total > 0 ? "$percentage% completed" : "No goals set",
-                          style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
-                        ),
-                      ],
+                  return InkWell(
+                    onTap: () {
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => Scaffold(
+                        appBar: AppBar(title: const Text('Habit Streaks')),
+                        body: const SafeArea(child: HabitsScreen()),
+                      )));
+                    },
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).cardColor,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Theme.of(context).primaryColor.withOpacity(0.2)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(Icons.local_fire_department, size: 20, color: Theme.of(context).primaryColor),
+                              const SizedBox(width: 8),
+                              const Text("Active Streaks", style: TextStyle(fontWeight: FontWeight.bold)),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            total > 0 ? "$percentage% active" : "Start a streak",
+                            style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                          ),
+                          const SizedBox(height: 8),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(4),
+                            child: LinearProgressIndicator(
+                              value: total > 0 ? progressVal : 0,
+                              backgroundColor: Colors.grey.withOpacity(0.2),
+                              valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).primaryColor),
+                              minHeight: 4,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   );
                 },
@@ -691,7 +734,66 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             ),
           ],
         ),
+        const SizedBox(height: 16),
+        _buildMiniStatsRow(),
         const SizedBox(height: 24),
+      ],
+    );
+  }
+
+  Widget _buildMiniStatsRow() {
+    return StreamBuilder<List<dynamic>>(
+      stream: Rx.combineLatest3(
+        FocusService().getTodayFocusSummary(),
+        GoalService().getWeeklyGoals(),
+        HabitService().getHabits(),
+        (focus, weeklyGoals, habits) => [focus, weeklyGoals, habits],
+      ),
+      builder: (context, snapshot) {
+        int focusMins = 0;
+        int weeklyGoalsCount = 0;
+        int highestStreak = 0;
+        
+        if (snapshot.hasData) {
+          final focusData = snapshot.data![0] as Map<String, dynamic>;
+          focusMins = focusData['totalMinutes'] ?? 0;
+          
+          final wGoals = snapshot.data![1] as List<Goal>;
+          weeklyGoalsCount = wGoals.length;
+          
+          final habs = snapshot.data![2] as List<dynamic>;
+          for (var h in habs) {
+            if (h.streakCount > highestStreak) highestStreak = h.streakCount;
+          }
+        }
+        
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: Theme.of(context).cardColor,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey.withOpacity(0.1)),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _buildMiniStatItem("🔥", "$highestStreak day streak"),
+              _buildMiniStatItem("🎯", "$weeklyGoalsCount goals"),
+              _buildMiniStatItem("⏱", "${focusMins}m focused"),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildMiniStatItem(String emoji, String text) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(emoji, style: const TextStyle(fontSize: 14)),
+        const SizedBox(width: 4),
+        Text(text, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
       ],
     );
   }
@@ -1686,7 +1788,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 ),
 
                 // SECTION 4.6: Recent Activity or Personal Widgets
-                if (isDeveloper) _buildRecentActivity() else _buildGoalsDashboard(),
+                if (isDeveloper) _buildRecentActivity() else _buildGoalsDashboard(context),
 
                 // Task Stream
                 StreamBuilder<List<QueryDocumentSnapshot>>(
