@@ -1,7 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/productivity_daily_data.dart';
-import 'dart:math';
 
 class ProductivityEngine {
   static final ProductivityEngine _instance = ProductivityEngine._internal();
