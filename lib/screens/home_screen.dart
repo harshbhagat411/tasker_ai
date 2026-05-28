@@ -781,7 +781,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         Text(
                           total > 0 
                               ? "$completed of $total goals achieved" 
-                              : "No daily or weekly goals set yet. Tap to add!",
+                              : "No active goals or weekly goals set yet. Tap to add!",
                           style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
                         ),
                         if (total > 0) ...[

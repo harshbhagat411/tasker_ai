@@ -1,7 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/goal.dart';
-import 'productivity_engine.dart';
 import 'productivity_tracking_service.dart';
 
 class GoalService {

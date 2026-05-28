@@ -4,7 +4,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:just_audio/just_audio.dart';
-import 'productivity_engine.dart';
 import 'productivity_tracking_service.dart';
 
 enum FocusSessionStatus { idle, running, paused, completed }

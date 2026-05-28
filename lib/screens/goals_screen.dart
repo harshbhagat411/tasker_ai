@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/goal.dart';
 import '../services/goal_service.dart';
-import 'package:intl/intl.dart';
 
 class GoalsScreen extends StatefulWidget {
   const GoalsScreen({super.key});
@@ -71,7 +69,7 @@ class _GoalsScreenState extends State<GoalsScreen> with SingleTickerProviderStat
               unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
               indicatorSize: TabBarIndicatorSize.tab,
               tabs: const [
-                Tab(text: "Daily Goals"),
+                Tab(text: "Today's Goal"),
                 Tab(text: "Weekly Goals"),
               ],
             ),
@@ -145,7 +143,7 @@ class _GoalsScreenState extends State<GoalsScreen> with SingleTickerProviderStat
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    isDaily ? "No Daily Goals Set" : "No Weekly Goals Set",
+                    isDaily ? "No Today's Goals Set" : "No Weekly Goals Set",
                     style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 8),
@@ -262,7 +260,7 @@ class _GoalsScreenState extends State<GoalsScreen> with SingleTickerProviderStat
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
-                    goal.type == 'daily' ? "Daily Goal" : "Weekly Goal",
+                    goal.type == 'daily' ? "Today's Goal" : "Weekly Goal",
                     style: TextStyle(
                       fontSize: 9,
                       fontWeight: FontWeight.bold,
@@ -376,7 +374,7 @@ class _AddGoalSheetState extends State<_AddGoalSheet> {
 
             Row(
               children: [
-                _buildTypeChip("daily", "Daily Goal"),
+                _buildTypeChip("daily", "Today's Goal"),
                 const SizedBox(width: 12),
                 _buildTypeChip("weekly", "Weekly Goal"),
               ],
