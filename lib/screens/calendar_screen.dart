@@ -63,16 +63,16 @@ class _CalendarScreenState extends State<CalendarScreen> {
   Color _getProductivityColorByStatus(String status, bool isDark) {
     switch (status.toLowerCase()) {
       case 'excellent':
-        return isDark ? const Color(0xFF2A3B5C) : const Color(0xFFD2E3FC);
+        return isDark ? const Color(0xFF2A3B5C) : const Color(0xFFDDE7FF);
       case 'productive':
-        return isDark ? const Color(0xFF1B4021) : const Color(0xFFD1F2D9);
+        return isDark ? const Color(0xFF1B4021) : const Color(0xFFDDF6E5);
       case 'average':
-        return isDark ? const Color(0xFF55441B) : const Color(0xFFFFF2CC);
+        return isDark ? const Color(0xFF55441B) : const Color(0xFFFFF4CC);
       case 'low':
       case 'poor':
-        return isDark ? const Color(0xFF5C2626) : const Color(0xFFFCE8E6);
+        return isDark ? const Color(0xFF5C2626) : const Color(0xFFFFE0E0);
       default:
-        return isDark ? Colors.white.withOpacity(0.01) : const Color(0xFFF5F5F7);
+        return isDark ? Colors.white.withOpacity(0.01) : Colors.transparent;
     }
   }
 
@@ -95,16 +95,16 @@ class _CalendarScreenState extends State<CalendarScreen> {
     } else {
       switch (status.toLowerCase()) {
         case 'excellent':
-          return const Color(0xFF1A73E8); // premium clean blue
+          return const Color(0xFF1E40AF); // premium Notion slate blue
         case 'productive':
-          return const Color(0xFF1B5E20); // premium clean green
+          return const Color(0xFF065F46); // premium Forest emerald green
         case 'average':
-          return const Color(0xFF7F5F00); // premium clean yellow/gold
+          return const Color(0xFF854D0E); // premium Golden brown
         case 'low':
         case 'poor':
-          return const Color(0xFFC5221F); // premium clean pink/red
+          return const Color(0xFF991B1B); // premium crimson red
         default:
-          return const Color(0xFF1C1C1E);
+          return const Color(0xFF6B7280); // Notion style gray
       }
     }
   }
@@ -280,12 +280,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
     if (!isCurrentMonth) {
       return Expanded(
         child: Container(
-          height: 48,
+          height: isDark ? 48 : 50,
           alignment: Alignment.center,
           child: Text(
             '${day.day.toString().padLeft(2, '0')}',
             style: TextStyle(
-              color: isDark ? Colors.white10 : Colors.black.withOpacity(0.12),
+              color: isDark ? Colors.white10 : const Color(0xFFD1D5DB),
               fontSize: 13,
               fontWeight: FontWeight.w400,
             ),
@@ -330,10 +330,15 @@ class _CalendarScreenState extends State<CalendarScreen> {
       textColor = _getProductivityTextColorByStatus(dayType, isDark);
     } else {
       bgColor = Colors.transparent;
-      textColor = isDark ? Colors.white38 : const Color(0xFF6E6E73);
+      textColor = isDark ? Colors.white38 : const Color(0xFF6B7280);
     }
     
-    // Custom margin and border radius for connected pills
+    // Selected Day overriding text color
+    if (isSelected && !isDark) {
+      textColor = const Color(0xFF2563EB);
+    }
+    
+    // Custom margin and border radius for connected pills (999 for elegant pill endpoints)
     final double leftMargin = hasLeftConnection ? 0.0 : 4.0;
     final double rightMargin = hasRightConnection ? 0.0 : 4.0;
     
@@ -341,11 +346,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
     if (hasLeftConnection && hasRightConnection) {
       borderRadius = BorderRadius.zero;
     } else if (hasLeftConnection && !hasRightConnection) {
-      borderRadius = const BorderRadius.horizontal(right: Radius.circular(24));
+      borderRadius = const BorderRadius.horizontal(right: Radius.circular(999));
     } else if (!hasLeftConnection && hasRightConnection) {
-      borderRadius = const BorderRadius.horizontal(left: Radius.circular(24));
+      borderRadius = const BorderRadius.horizontal(left: Radius.circular(999));
     } else {
-      borderRadius = BorderRadius.circular(24);
+      borderRadius = BorderRadius.circular(999);
     }
     
     return Expanded(
@@ -357,7 +362,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
         },
         behavior: HitTestBehavior.opaque,
         child: Container(
-          height: 48,
+          height: isDark ? 48 : 50, // Slightly taller cell in light mode for airiness
           alignment: Alignment.center,
           child: Stack(
             alignment: Alignment.center,
@@ -370,8 +375,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   margin: EdgeInsets.only(
                     left: leftMargin,
                     right: rightMargin,
-                    top: 4,
-                    bottom: 4,
+                    top: isDark ? 4 : 3, // slightly thicker/taller pills in light mode
+                    bottom: isDark ? 4 : 3,
                   ),
                   decoration: BoxDecoration(
                     color: bgColor,
@@ -380,17 +385,18 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 ),
               ),
               
-              // Selection highlight ring (thin outline ring only)
+              // Selection highlight ring (thin outline ring for dark, elegant custom blue indicator for light)
               if (isSelected)
-                Positioned.fill(
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    margin: const EdgeInsets.all(2),
+                Center(
+                  child: Container(
+                    width: 36,
+                    height: 36,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
+                      color: isDark ? Colors.transparent : const Color(0xFF2563EB).withOpacity(0.08),
                       border: Border.all(
-                        color: Theme.of(context).primaryColor,
-                        width: 1.5,
+                        color: isDark ? Theme.of(context).primaryColor : const Color(0xFF2563EB),
+                        width: isDark ? 1.5 : 2.0,
                       ),
                     ),
                   ),
@@ -416,7 +422,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 style: TextStyle(
                   color: textColor,
                   fontSize: 13,
-                  fontWeight: isSelected || isToday ? FontWeight.w800 : FontWeight.w600,
+                  fontWeight: isSelected || isToday
+                      ? FontWeight.w700
+                      : (isDark ? FontWeight.w600 : FontWeight.w500), // lighter premium typography in light mode
                 ),
               ),
             ],
@@ -438,11 +446,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
           color: isDark ? const Color(0xFF1E1E24) : Colors.white,
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(isDark ? 24 : 32), // Premium 30+ radius in light mode
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(isDark ? 0.15 : 0.04),
-              blurRadius: 16,
+              color: Colors.black.withOpacity(isDark ? 0.15 : 0.05), // opacity 0.05-0.08
+              blurRadius: isDark ? 16 : 24, // blur 18-25
               offset: const Offset(0, 8),
             )
           ],
@@ -488,12 +496,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E1E24) : Colors.white,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(isDark ? 24 : 32), // Premium 30+ radius in light mode
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.15 : 0.04),
-            blurRadius: 16,
-            offset: const Offset(0, 8),
+            color: Colors.black.withOpacity(isDark ? 0.15 : 0.05), // opacity 0.05-0.08
+            blurRadius: isDark ? 16 : 24, // blur 18-25
+            offset: const Offset(0, 10),
           )
         ],
       ),
@@ -528,16 +536,16 @@ class _CalendarScreenState extends State<CalendarScreen> {
               ),
               if (data.streakGroup.isNotEmpty && data.streakGroup != "0 days")
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                  padding: EdgeInsets.symmetric(horizontal: isDark ? 12 : 10, vertical: isDark ? 5 : 4),
                   decoration: BoxDecoration(
-                    color: scoreColor.withOpacity(isDark ? 0.25 : 0.6),
-                    borderRadius: BorderRadius.circular(12),
+                    color: isDark ? scoreColor.withOpacity(0.25) : scoreColor.withOpacity(0.4),
+                    borderRadius: BorderRadius.circular(20), // smaller cleaner badge pill
                   ),
                   child: Text(
                     "🔥 ${data.streakGroup}",
                     style: TextStyle(
                       color: textColor,
-                      fontSize: 11,
+                      fontSize: isDark ? 11 : 10, // cleaner text layout
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -545,7 +553,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
             ],
           ),
           
-          const SizedBox(height: 20),
+          SizedBox(height: isDark ? 20 : 24), // more breathing space
           
           // Productivity Score Circular Gauge & Metric row
           Row(
@@ -600,7 +608,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
             ],
           ),
           
-          const SizedBox(height: 20),
+          SizedBox(height: isDark ? 20 : 24),
           
           // Dashboard Grid (2x3) - Clean, highly responsive card tiles to prevent RenderFlex overflows
           GridView.count(
@@ -608,8 +616,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
             physics: const NeverScrollableScrollPhysics(),
             crossAxisCount: 2,
             childAspectRatio: 2.8,
-            crossAxisSpacing: 10,
-            mainAxisSpacing: 10,
+            crossAxisSpacing: isDark ? 10 : 12, // airy spacing in light mode
+            mainAxisSpacing: isDark ? 10 : 12,
             children: [
               _buildMetricTile("Tasks Done", "${data.tasksCompleted} / ${data.tasksTotal}", Icons.check_circle_outline, Colors.blue),
               _buildMetricTile("Habits Kept", "${data.habitsCompleted} / ${data.habitsTotal}", Icons.repeat, Colors.green),
@@ -630,12 +638,21 @@ class _CalendarScreenState extends State<CalendarScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: isDark ? Colors.white.withOpacity(0.02) : Colors.black.withOpacity(0.015),
+        color: isDark ? Colors.white.withOpacity(0.02) : Colors.white, // Elevated card tiles in light mode
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isDark ? Colors.white10 : Colors.black.withOpacity(0.02),
+          color: isDark ? Colors.white10 : const Color(0xFFF1F5F9), // Notion/Linear style clean border
           width: 1,
         ),
+        boxShadow: isDark
+            ? []
+            : [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.02),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
+                ),
+              ],
       ),
       child: Row(
         children: [
@@ -689,7 +706,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     });
 
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: isDark ? Theme.of(context).scaffoldBackgroundColor : const Color(0xFFF5F6FA), // LAYERED SURFACES background #F5F6FA
       body: SafeArea(
         child: StreamBuilder<List<ProductivityDailyData>>(
           stream: _getMonthlyProductivityStream(_focusedDay),
@@ -765,83 +782,96 @@ class _CalendarScreenState extends State<CalendarScreen> {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Icon(
-                                Icons.calendar_today_rounded,
-                                size: 14,
-                                color: Theme.of(context).primaryColor,
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                DateFormat('MMM yyyy').format(_focusedDay),
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: isDark ? Colors.white.withOpacity(0.9) : Colors.black87,
+                                  Icons.calendar_today_rounded,
+                                  size: 14,
+                                  color: Theme.of(context).primaryColor,
                                 ),
-                              ),
-                              const SizedBox(width: 4),
-                              Icon(
-                                Icons.keyboard_arrow_down,
-                                size: 14,
-                                color: isDark ? Colors.white54 : Colors.black54,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                
-
-                
-                // 2. DAY-OF-WEEK HEADER
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: Row(
-                    children: dowList.map((dow) {
-                      return Expanded(
-                        child: Center(
-                          child: Text(
-                            dow,
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              color: isDark ? Colors.white30 : Colors.black38,
+                                const SizedBox(width: 6),
+                                Text(
+                                  DateFormat('MMM yyyy').format(_focusedDay),
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: isDark ? Colors.white.withOpacity(0.9) : Colors.black87,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                Icon(
+                                  Icons.keyboard_arrow_down,
+                                  size: 14,
+                                  color: isDark ? Colors.white54 : Colors.black54,
+                                ),
+                              ],
                             ),
                           ),
                         ),
-                      );
-                    }).toList(),
-                  ),
-                ),
-                
-                // 3. CUSTOM CALENDAR MONTH MAP (Sleek unified rounded light-gray/dark block)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: isDark ? const Color(0xFF1E1E24) : const Color(0xFFF5F5F7),
-                      borderRadius: BorderRadius.circular(24),
+                      ],
                     ),
-                    child: Column(
-                      children: weeks.map((week) {
-                        return Row(
-                          children: List.generate(7, (d) {
-                            return _buildDayCell(context, week[d], d, week, dataMap);
-                          }),
+                  ),
+                  
+  
+                  
+                  // 2. DAY-OF-WEEK HEADER
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 4), // adjusted bottom padding
+                    child: Row(
+                      children: dowList.map((dow) {
+                        return Expanded(
+                          child: Center(
+                            child: Text(
+                              dow,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: isDark ? Colors.white30 : Colors.black38,
+                              ),
+                            ),
+                          ),
                         );
                       }).toList(),
                     ),
                   ),
-                ),
-                
-                // 4. DAY PRODUCTIVITY DETAILS CARD & TASKS LIST
-                Expanded(
-                  child: SingleChildScrollView(
-                    physics: const BouncingScrollPhysics(),
-                    child: Column(
-                      children: [
+                  
+                  // 3. CUSTOM CALENDAR MONTH MAP (Sleek elevated white rounded container card)
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: isDark ? 8 : 12), // elevated spacing
+                    child: Container(
+                      padding: isDark ? const EdgeInsets.all(12) : const EdgeInsets.all(20), // airy inside margins
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF1E1E24) : Colors.white, // elevated card feel
+                        borderRadius: BorderRadius.circular(isDark ? 24 : 32),
+                        boxShadow: isDark
+                            ? []
+                            : [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.06), // opacity 0.05-0.08
+                                  blurRadius: 20, // blur 18-25
+                                  offset: const Offset(0, 8),
+                                ),
+                              ],
+                      ),
+                      child: Column(
+                        children: List.generate(weeks.length, (index) {
+                          final week = weeks[index];
+                          return Padding(
+                            padding: EdgeInsets.symmetric(vertical: isDark ? 0 : 2), // vertical airy margins
+                            child: Row(
+                              children: List.generate(7, (d) {
+                                return _buildDayCell(context, week[d], d, week, dataMap);
+                              }),
+                            ),
+                          );
+                        }),
+                      ),
+                    ),
+                  ),
+                  
+                  // 4. DAY PRODUCTIVITY DETAILS CARD & TASKS LIST
+                  Expanded(
+                    child: SingleChildScrollView(
+                      physics: const BouncingScrollPhysics(),
+                      child: Column(
+                        children: [
                         _buildDayDetailsCard(selectedData),
                         
                         // Database Empty State Tip
