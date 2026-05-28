@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/productivity_daily_data.dart';
+import 'productivity_tracking_service.dart';
 import 'dart:math';
 
 class ProductivityEngine {
@@ -58,109 +59,73 @@ class ProductivityEngine {
   }
 
   /// Classifies a day based on the score.
-  String classifyDay(double score) {
-    if (score == 0) return 'empty';
-    if (score >= 90) return 'excellent';
-    if (score >= 70) return 'good';
-    if (score >= 40) return 'average';
+  String classifyDay(double score, {bool hasActivity = true}) {
+    if (!hasActivity) return 'empty';
+    int rounded = score.round();
+    if (rounded >= 81) return 'excellent';
+    if (rounded >= 61) return 'productive';
+    if (rounded >= 31) return 'average';
     return 'poor';
   }
 
+  /// Automatically creates today's productivity document if it does not exist.
+  Future<void> initializeTodayDocument() async {
+    final uid = userId;
+    if (uid == null) return;
+
+    try {
+      final now = DateTime.now();
+      final todayStr = "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
+
+      final docRef = _firestore
+          .collection('users')
+          .doc(uid)
+          .collection('productivity_data')
+          .doc(todayStr);
+
+      final docSnap = await docRef.get();
+      if (!docSnap.exists) {
+        await docRef.set({
+          'date': FieldValue.serverTimestamp(),
+          'tasksCompleted': 0,
+          'tasksTotal': 0,
+          'habitsCompleted': 0,
+          'habitsTotal': 0,
+          'goalsCompleted': 0,
+          'goalsTotal': 0,
+          'focusMinutes': 0,
+          'focusSessions': 0,
+          'productivityScore': 0,
+          'successRate': 0,
+          'dayType': 'empty',
+          'streakGroup': '',
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+        print("PRODUCTIVITY LOG CREATED - userId: $uid, date: $todayStr");
+      }
+    } catch (e) {
+      print("Silent Fallback: Error initializing today productivity document: $e");
+    }
+  }
+
   /// Generates and saves the productivity snapshot for today.
-  Future<void> generateAndSaveTodaySnapshot() async {
+  Future<void> generateAndSaveTodaySnapshot({String? triggerType}) async {
     if (userId == null) return;
 
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final todayStr = "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
-
-    // 1. Fetch Tasks
-    int tasksTotal = 0;
-    int tasksCompleted = 0;
-    final tasksSnapshot = await _firestore.collection('users').doc(userId).collection('tasks').get();
-    for (var doc in tasksSnapshot.docs) {
-      tasksTotal++;
-      if (doc.data()['isDone'] == true) {
-        tasksCompleted++;
+    try {
+      if (triggerType == 'TASK') {
+        print("Task completed → updating productivity");
+      } else if (triggerType == 'HABIT') {
+        print("Habit completed → updating productivity");
+      } else if (triggerType == 'FOCUS') {
+        print("Focus session saved for userId: $userId");
       }
+
+      await ProductivityTrackingService.updateDailyProductivity(userId!);
+    } catch (e) {
+      // Debug safety: Never crash the application, silent fallback
+      print("Silent Fallback: Error creating daily productivity record: $e");
     }
-
-    // 2. Fetch Habits
-    int habitsTotal = 0;
-    int habitsCompleted = 0;
-    final habitsSnapshot = await _firestore.collection('users').doc(userId).collection('habits').get();
-    for (var doc in habitsSnapshot.docs) {
-      habitsTotal++;
-      if (doc.data()['isCompleted'] == true) {
-        habitsCompleted++;
-      }
-    }
-
-    // 3. Fetch Goals
-    int goalsTotal = 0;
-    int goalsCompleted = 0;
-    final goalsSnapshot = await _firestore.collection('users').doc(userId).collection('goals').get();
-    for (var doc in goalsSnapshot.docs) {
-      goalsTotal++;
-      if (doc.data()['isCompleted'] == true) {
-        goalsCompleted++;
-      }
-    }
-
-    // 4. Fetch Focus Sessions for Today
-    int focusMinutes = 0;
-    int focusSessions = 0;
-    final focusSnapshot = await _firestore
-        .collection('focus_sessions')
-        .where('userId', isEqualTo: userId)
-        .where('completedAt', isGreaterThanOrEqualTo: Timestamp.fromDate(today))
-        .where('completedAt', isLessThan: Timestamp.fromDate(today.add(const Duration(days: 1))))
-        .get();
-
-    for (var doc in focusSnapshot.docs) {
-      focusSessions++;
-      int durationSeconds = doc.data()['actualDuration'] ?? 0;
-      focusMinutes += (durationSeconds ~/ 60);
-    }
-
-    // Calculate Score
-    double score = calculateDailyScore(
-      tasksCompleted: tasksCompleted,
-      tasksTotal: tasksTotal,
-      habitsCompleted: habitsCompleted,
-      habitsTotal: habitsTotal,
-      goalsCompleted: goalsCompleted,
-      goalsTotal: goalsTotal,
-      focusMinutes: focusMinutes,
-    );
-
-    String dayType = classifyDay(score);
-
-    // Calculate overall success rate dynamically based on historical data
-    double successRate = await getSuccessRate();
-
-    ProductivityDailyData data = ProductivityDailyData(
-      date: today,
-      tasksCompleted: tasksCompleted,
-      tasksTotal: tasksTotal,
-      habitsCompleted: habitsCompleted,
-      habitsTotal: habitsTotal,
-      goalsCompleted: goalsCompleted,
-      goalsTotal: goalsTotal,
-      focusMinutes: focusMinutes,
-      focusSessions: focusSessions,
-      productivityScore: score,
-      successRate: successRate,
-      dayType: dayType,
-      streakGroup: await detectStreaks(dayType, todayStr),
-    );
-
-    await _firestore
-        .collection('users')
-        .doc(userId)
-        .collection('productivity_data')
-        .doc(todayStr)
-        .set(data.toMap(), SetOptions(merge: true));
   }
 
   /// Detects consecutive days of a certain type to group them (e.g. "4 productive days").
@@ -317,4 +282,105 @@ class ProductivityEngine {
     
     return trackedDays > 0 ? (successfulDays / trackedDays) * 100 : 0.0;
   }
+
+  /// Seeds realistic mock productivity data for the past 30 days for testing.
+  Future<void> seedMockDataForTesting() async {
+    if (userId == null) return;
+    final now = DateTime.now();
+    final random = Random();
+    
+    // We'll seed the last 30 days
+    for (int i = 29; i >= 0; i--) {
+      final date = now.subtract(Duration(days: i));
+      final dateStr = "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+      
+      // Let's create realistic streaks!
+      // i = 0 represents today, i = 29 is 29 days ago.
+      // We will define specific day types based on date offset to form perfect horizontal streaks:
+      // May 1-4: excellent/good
+      // May 5-6: average
+      // May 7-8: poor
+      // May 9: empty
+      // May 10-14: excellent/good
+      // May 15: empty
+      // May 16-20: excellent/good
+      // May 21-22: poor
+      // May 23-28: excellent/good
+      
+      String dayType;
+      double score;
+      
+      int dayOffset = i % 12;
+      if (dayOffset >= 0 && dayOffset <= 3) {
+        // Excellent/good streak (4 days)
+        dayType = dayOffset % 2 == 0 ? 'excellent' : 'good';
+        score = 75.0 + random.nextDouble() * 20.0;
+      } else if (dayOffset == 4 || dayOffset == 5) {
+        // Average streak (2 days)
+        dayType = 'average';
+        score = 45.0 + random.nextDouble() * 20.0;
+      } else if (dayOffset == 6 || dayOffset == 7) {
+        // Poor streak (2 days)
+        dayType = 'poor';
+        score = 15.0 + random.nextDouble() * 20.0;
+      } else if (dayOffset == 8) {
+        // Empty day
+        dayType = 'empty';
+        score = 0.0;
+      } else {
+        // Excellent/good streak (3 days)
+        dayType = dayOffset % 2 == 0 ? 'excellent' : 'good';
+        score = 72.0 + random.nextDouble() * 23.0;
+      }
+      
+      if (dayType == 'empty') {
+        // Delete or clear so it represents an empty day
+        await _firestore
+            .collection('users')
+            .doc(userId)
+            .collection('productivity_data')
+            .doc(dateStr)
+            .delete();
+        continue;
+      }
+      
+      int tasksTotal = 3 + random.nextInt(5);
+      int tasksCompleted = (tasksTotal * (score / 100)).round().clamp(0, tasksTotal);
+      
+      int habitsTotal = 2 + random.nextInt(3);
+      int habitsCompleted = (habitsTotal * (score / 100)).round().clamp(0, habitsTotal);
+      
+      int goalsTotal = 1;
+      int goalsCompleted = random.nextDouble() > 0.4 ? 1 : 0;
+      
+      int focusMinutes = (score * 0.8).round().clamp(10, 90);
+      int focusSessions = (focusMinutes / 30).ceil();
+      
+      ProductivityDailyData data = ProductivityDailyData(
+        date: DateTime(date.year, date.month, date.day),
+        tasksCompleted: tasksCompleted,
+        tasksTotal: tasksTotal,
+        habitsCompleted: habitsCompleted,
+        habitsTotal: habitsTotal,
+        goalsCompleted: goalsCompleted,
+        goalsTotal: goalsTotal,
+        focusMinutes: focusMinutes,
+        focusSessions: focusSessions,
+        productivityScore: score,
+        successRate: 75.0,
+        dayType: dayType,
+        streakGroup: dayType == 'excellent' || dayType == 'good' 
+            ? "Productive Streak" 
+            : (dayType == 'poor' ? "Poor Streak" : "Average Streak"),
+      );
+      
+      await _firestore
+          .collection('users')
+          .doc(userId)
+          .collection('productivity_data')
+          .doc(dateStr)
+          .set(data.toMap(), SetOptions(merge: true));
+    }
+  }
 }
+

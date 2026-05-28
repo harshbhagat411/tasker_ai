@@ -20,6 +20,7 @@ import 'services/presence_service.dart';
 import 'services/focus_service.dart';
 import 'services/goal_service.dart';
 import 'services/habit_service.dart';
+import 'services/productivity_engine.dart';
 import 'screens/habits_screen.dart';
 import 'package:timezone/data/latest_all.dart' as tz_init;
 import 'package:timezone/timezone.dart' as tz;
@@ -285,6 +286,8 @@ class _MainScreenState extends State<MainScreen> {
     // Run maintenance for goals and habits
     GoalService().performMaintenance();
     HabitService().performMaintenance();
+    // Initialize today's productivity document on app launch
+    ProductivityEngine().initializeTodayDocument();
   }
 
   @override
@@ -295,6 +298,52 @@ class _MainScreenState extends State<MainScreen> {
     return StreamBuilder<DocumentSnapshot>(
       stream: FirebaseFirestore.instance.collection('users').doc(user.uid).snapshots(),
       builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return Scaffold(
+            backgroundColor: const Color(0xFFF5F6FA),
+            body: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(32.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.error_outline, color: Colors.redAccent, size: 48),
+                    const SizedBox(height: 16),
+                    const Text(
+                      "Firebase Firestore Error",
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      "${snapshot.error}",
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontSize: 14, color: Colors.black54),
+                    ),
+                    const SizedBox(height: 24),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF0D47A1),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                      ),
+                      onPressed: () async {
+                        await FirebaseAuth.instance.signOut();
+                        if (context.mounted) {
+                          Navigator.pushAndRemoveUntil(
+                            context,
+                            MaterialPageRoute(builder: (_) => const AuthGateScreen()),
+                            (route) => false,
+                          );
+                        }
+                      },
+                      child: const Text("Sign Out & Retry"),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }
         if (!snapshot.hasData) return const Scaffold(body: Center(child: CircularProgressIndicator()));
 
         final data = snapshot.data!.data() as Map<String, dynamic>?;

@@ -5,6 +5,7 @@ import 'in_app_notification_service.dart';
 import '../models/notification_model.dart';
 import 'package:rxdart/rxdart.dart';
 import 'activity_service.dart';
+import 'productivity_tracking_service.dart';
 
 class TaskService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -40,7 +41,12 @@ class TaskService {
         .doc();
 
     // We don't await this so the UI doesn't hang if the user is offline
-    docRef.set(data).catchError((e) => print("Error saving task: $e"));
+    docRef.set(data).then((_) async {
+      print("TASK TOGGLED");
+      print("Task completion changed");
+      print("Calling productivity update");
+      await ProductivityTrackingService.updateDailyProductivity(userId!);
+    }).catchError((e) => print("Error saving task: $e"));
     print("Task created with ID: ${docRef.id}");
 
     if (dueDate != null && dueDate.isAfter(DateTime.now())) {
@@ -87,6 +93,12 @@ class TaskService {
           
       await NotificationService().cancelNotification(id.hashCode);
     }
+
+    // Recalculate productivity snapshot
+    print("TASK TOGGLED");
+    print("Task completion changed");
+    print("Calling productivity update");
+    await ProductivityTrackingService.updateDailyProductivity(userId!);
   }
   Future<void> toggleTask(String id, bool isDone, {String? projectId}) async {
     if (userId == null) return;
@@ -141,6 +153,12 @@ class TaskService {
         await NotificationService().cancelNotification(id.hashCode);
       }
     }
+
+    // Recalculate productivity snapshot
+    print("TASK TOGGLED");
+    print("Task completion changed");
+    print("Calling productivity update");
+    await ProductivityTrackingService.updateDailyProductivity(userId!);
   }
 
   Future<void> togglePinTask(String id, bool isPinned, {String? projectId}) async {
@@ -207,7 +225,12 @@ class TaskService {
           .doc(projectId)
           .collection('tasks')
           .doc(id)
-          .update(data).catchError((e) => print("Error updating task: $e"));
+          .update(data).then((_) async {
+        print("TASK TOGGLED");
+        print("Task completion changed");
+        print("Calling productivity update");
+        await ProductivityTrackingService.updateDailyProductivity(userId!);
+      }).catchError((e) => print("Error updating task: $e"));
     } else {
       // We don't await this so the UI doesn't hang if the user is offline
       _firestore
@@ -215,7 +238,12 @@ class TaskService {
           .doc(userId)
           .collection('tasks')
           .doc(id)
-          .update(data).catchError((e) => print("Error updating task: $e"));
+          .update(data).then((_) async {
+        print("TASK TOGGLED");
+        print("Task completion changed");
+        print("Calling productivity update");
+        await ProductivityTrackingService.updateDailyProductivity(userId!);
+      }).catchError((e) => print("Error updating task: $e"));
 
       syncSharedTask(originalTaskId: id, updatedData: data);
 

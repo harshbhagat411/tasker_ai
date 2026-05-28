@@ -1169,7 +1169,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         final permissions = data?['permissions'] as Map<String, dynamic>?;
         
         bool canEdit = false;
-        if (realOwnerId == currentUserId) {
+        if (data?['projectId'] == null) {
+          canEdit = true; // Automatically allow modifications for personal and shared tasks
+        } else if (realOwnerId == currentUserId) {
           canEdit = true;
         } else if (permissions != null && (permissions[currentUserId] == 'owner' || permissions[currentUserId] == 'admin')) {
           canEdit = true;

@@ -221,6 +221,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> with WidgetsBindi
           final permissions = data['permissions'] as Map<String, dynamic>?;
 
           Future<bool> determineCanEdit() async {
+            if (widget.projectId == null || data['projectId'] == null) return true;
             if (ownerId == widget.currentUserId) return true;
             if (assignedToId == widget.currentUserId) return true;
             if (permissions != null && (permissions[widget.currentUserId] == 'owner' || permissions[widget.currentUserId] == 'admin')) return true;

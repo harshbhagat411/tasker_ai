@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/goal.dart';
+import 'productivity_engine.dart';
+import 'productivity_tracking_service.dart';
 
 class GoalService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -85,6 +87,8 @@ class GoalService {
       'createdAt': FieldValue.serverTimestamp(),
       'date': Timestamp.fromDate(DateTime(now.year, now.month, now.day)),
     });
+
+    await ProductivityTrackingService.updateDailyProductivity(userId!);
   }
 
   Future<void> addWeeklyGoal(String title, int target) async {
@@ -110,6 +114,8 @@ class GoalService {
       'weekStartDate': Timestamp.fromDate(DateTime(monday.year, monday.month, monday.day)),
       'weekEndDate': Timestamp.fromDate(DateTime(sunday.year, sunday.month, sunday.day)),
     });
+
+    await ProductivityTrackingService.updateDailyProductivity(userId!);
   }
 
   Future<void> incrementGoalProgress(String id, String type, int currentProgress, int target) async {
@@ -129,6 +135,8 @@ class GoalService {
       'progress': newProgress,
       'isCompleted': isCompleted,
     });
+
+    await ProductivityTrackingService.updateDailyProductivity(userId!);
   }
   
   Future<void> toggleGoalComplete(String id, String type, bool currentCompleted) async {
@@ -144,6 +152,8 @@ class GoalService {
         .update({
       'isCompleted': !currentCompleted,
     });
+
+    await ProductivityTrackingService.updateDailyProductivity(userId!);
   }
 
   Future<void> deleteGoal(String id, String type) async {
@@ -155,6 +165,8 @@ class GoalService {
         .collection(collection)
         .doc(id)
         .delete();
+
+    await ProductivityTrackingService.updateDailyProductivity(userId!);
   }
 
   Stream<List<Goal>> getDailyGoals() {

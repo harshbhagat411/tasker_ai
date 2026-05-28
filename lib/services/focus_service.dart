@@ -4,6 +4,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:just_audio/just_audio.dart';
+import 'productivity_engine.dart';
+import 'productivity_tracking_service.dart';
 
 enum FocusSessionStatus { idle, running, paused, completed }
 
@@ -89,21 +91,22 @@ class FocusService {
 
   void _restoreAnalytics() {
     if (_prefs == null) return;
+    final userId = _auth.currentUser?.uid ?? 'guest';
     
-    final lastDateStr = _prefs!.getString('focus_analytics_date');
+    final lastDateStr = _prefs!.getString('focus_analytics_date_$userId');
     final todayStr = DateTime.now().toIso8601String().substring(0, 10); // YYYY-MM-DD
     
     if (lastDateStr != todayStr) {
-      // Reset daily stats
-      _prefs!.setInt('focus_sessions_today', 0);
-      _prefs!.setInt('focus_minutes_today', 0);
-      _prefs!.setString('focus_analytics_date', todayStr);
+      // Reset daily stats for this user
+      _prefs!.setInt('focus_sessions_today_$userId', 0);
+      _prefs!.setInt('focus_minutes_today_$userId', 0);
+      _prefs!.setString('focus_analytics_date_$userId', todayStr);
     }
     
-    int sessions = _prefs!.getInt('focus_sessions_today') ?? 0;
-    int minutes = _prefs!.getInt('focus_minutes_today') ?? 0;
-    int streak = _prefs!.getInt('focus_streak_count') ?? 0;
-    int lastDuration = _prefs!.getInt('focus_last_duration') ?? 0;
+    int sessions = _prefs!.getInt('focus_sessions_today_$userId') ?? 0;
+    int minutes = _prefs!.getInt('focus_minutes_today_$userId') ?? 0;
+    int streak = _prefs!.getInt('focus_streak_count_$userId') ?? 0;
+    int lastDuration = _prefs!.getInt('focus_last_duration_$userId') ?? 0;
     
     _analyticsSubject.add({
       'sessions': sessions,
@@ -116,15 +119,16 @@ class FocusService {
 
   void _updateLocalAnalyticsOnComplete(int durationInSeconds) {
     if (_prefs == null) return;
+    final userId = _auth.currentUser?.uid ?? 'guest';
     
-    int sessions = (_prefs!.getInt('focus_sessions_today') ?? 0) + 1;
-    int minutes = (_prefs!.getInt('focus_minutes_today') ?? 0) + (durationInSeconds ~/ 60);
+    int sessions = (_prefs!.getInt('focus_sessions_today_$userId') ?? 0) + 1;
+    int minutes = (_prefs!.getInt('focus_minutes_today_$userId') ?? 0) + (durationInSeconds ~/ 60);
     int lastDuration = durationInSeconds ~/ 60;
-    int streak = _prefs!.getInt('focus_streak_count') ?? 0; 
+    int streak = _prefs!.getInt('focus_streak_count_$userId') ?? 0; 
     
-    _prefs!.setInt('focus_sessions_today', sessions);
-    _prefs!.setInt('focus_minutes_today', minutes);
-    _prefs!.setInt('focus_last_duration', lastDuration);
+    _prefs!.setInt('focus_sessions_today_$userId', sessions);
+    _prefs!.setInt('focus_minutes_today_$userId', minutes);
+    _prefs!.setInt('focus_last_duration_$userId', lastDuration);
     
     _analyticsSubject.add({
       'sessions': sessions,
@@ -137,17 +141,18 @@ class FocusService {
 
   void _restoreSession() {
     if (_prefs == null) return;
-    final statusStr = _prefs!.getString('focus_status') ?? 'idle';
+    final userId = _auth.currentUser?.uid ?? 'guest';
+    final statusStr = _prefs!.getString('focus_status_$userId') ?? 'idle';
     if (statusStr == 'idle') return;
 
     final status = FocusSessionStatus.values.firstWhere((e) => e.name == statusStr, orElse: () => FocusSessionStatus.idle);
-    final taskId = _prefs!.getString('focus_taskId');
-    final taskTitle = _prefs!.getString('focus_taskTitle') ?? '';
-    final projectName = _prefs!.getString('focus_projectName');
-    final targetDurationInSeconds = _prefs!.getInt('focus_targetDuration') ?? 0;
-    final ambientSound = _prefs!.getString('focus_ambientSound');
-    final savedElapsedSeconds = _prefs!.getInt('focus_elapsedSeconds') ?? 0;
-    final lastUpdated = _prefs!.getInt('focus_lastUpdated') ?? DateTime.now().millisecondsSinceEpoch;
+    final taskId = _prefs!.getString('focus_taskId_$userId');
+    final taskTitle = _prefs!.getString('focus_taskTitle_$userId') ?? '';
+    final projectName = _prefs!.getString('focus_projectName_$userId');
+    final targetDurationInSeconds = _prefs!.getInt('focus_targetDuration_$userId') ?? 0;
+    final ambientSound = _prefs!.getString('focus_ambientSound_$userId');
+    final savedElapsedSeconds = _prefs!.getInt('focus_elapsedSeconds_$userId') ?? 0;
+    final lastUpdated = _prefs!.getInt('focus_lastUpdated_$userId') ?? DateTime.now().millisecondsSinceEpoch;
 
     int currentElapsed = savedElapsedSeconds;
     if (status == FocusSessionStatus.running) {
@@ -182,26 +187,28 @@ class FocusService {
 
   void _saveSessionToPrefs(FocusSessionState state) {
     if (_prefs == null) return;
-    _prefs!.setString('focus_status', state.status.name);
-    if (state.taskId != null) _prefs!.setString('focus_taskId', state.taskId!);
-    _prefs!.setString('focus_taskTitle', state.taskTitle);
-    if (state.projectName != null) _prefs!.setString('focus_projectName', state.projectName!);
-    _prefs!.setInt('focus_targetDuration', state.targetDurationInSeconds);
-    _prefs!.setInt('focus_elapsedSeconds', state.elapsedSeconds);
-    if (state.ambientSound != null) _prefs!.setString('focus_ambientSound', state.ambientSound!);
-    _prefs!.setInt('focus_lastUpdated', DateTime.now().millisecondsSinceEpoch);
+    final userId = _auth.currentUser?.uid ?? 'guest';
+    _prefs!.setString('focus_status_$userId', state.status.name);
+    if (state.taskId != null) _prefs!.setString('focus_taskId_$userId', state.taskId!);
+    _prefs!.setString('focus_taskTitle_$userId', state.taskTitle);
+    if (state.projectName != null) _prefs!.setString('focus_projectName_$userId', state.projectName!);
+    _prefs!.setInt('focus_targetDuration_$userId', state.targetDurationInSeconds);
+    _prefs!.setInt('focus_elapsedSeconds_$userId', state.elapsedSeconds);
+    if (state.ambientSound != null) _prefs!.setString('focus_ambientSound_$userId', state.ambientSound!);
+    _prefs!.setInt('focus_lastUpdated_$userId', DateTime.now().millisecondsSinceEpoch);
   }
 
   void _clearSessionPrefs() {
     if (_prefs == null) return;
-    _prefs!.remove('focus_status');
-    _prefs!.remove('focus_taskId');
-    _prefs!.remove('focus_taskTitle');
-    _prefs!.remove('focus_projectName');
-    _prefs!.remove('focus_targetDuration');
-    _prefs!.remove('focus_elapsedSeconds');
-    _prefs!.remove('focus_ambientSound');
-    _prefs!.remove('focus_lastUpdated');
+    final userId = _auth.currentUser?.uid ?? 'guest';
+    _prefs!.remove('focus_status_$userId');
+    _prefs!.remove('focus_taskId_$userId');
+    _prefs!.remove('focus_taskTitle_$userId');
+    _prefs!.remove('focus_projectName_$userId');
+    _prefs!.remove('focus_targetDuration_$userId');
+    _prefs!.remove('focus_elapsedSeconds_$userId');
+    _prefs!.remove('focus_ambientSound_$userId');
+    _prefs!.remove('focus_lastUpdated_$userId');
   }
 
   Future<void> _playAudio(String? soundName) async {
@@ -353,8 +360,12 @@ class FocusService {
       });
 
       if (status == 'completed') {
+        print("FOCUS SESSION COMPLETED");
+        print("Current user id: ${user.uid}");
         await _updateStreak(user.uid, now);
       }
+
+      await ProductivityTrackingService.updateDailyProductivity(user.uid);
     } catch (e) {
       print("Error saving focus session: $e");
     }
@@ -398,7 +409,7 @@ class FocusService {
     }
 
     // Update local streak
-    _prefs?.setInt('focus_streak_count', currentStreak);
+    _prefs?.setInt('focus_streak_count_$userId', currentStreak);
     final currentStats = Map<String, dynamic>.from(_analyticsSubject.value);
     currentStats['streak'] = currentStreak;
     _analyticsSubject.add(currentStats);

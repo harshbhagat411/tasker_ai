@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/habit.dart';
+import 'productivity_engine.dart';
+import 'productivity_tracking_service.dart';
 
 class HabitService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -95,6 +97,8 @@ class HabitService {
       'streakCount': 0,
       'createdAt': FieldValue.serverTimestamp(),
     });
+
+    await ProductivityTrackingService.updateDailyProductivity(userId!);
   }
 
   Future<void> incrementProgress(String id, Habit habit, int amount) async {
@@ -142,6 +146,8 @@ class HabitService {
         .collection('habits')
         .doc(id)
         .update(updates);
+
+    await ProductivityTrackingService.updateDailyProductivity(userId!);
   }
   
   Future<void> toggleDailyHabit(String id, Habit habit) async {
@@ -179,6 +185,7 @@ class HabitService {
       });
       
       _logHabitHistory(id, habit.title);
+      print("HABIT COMPLETED");
     } else {
       // Un-completing it (mistake)
       // We decrement streak if we completed it today and uncheck it today.
@@ -205,6 +212,8 @@ class HabitService {
         if (newStreak == 0) 'lastCompletedDate': FieldValue.delete(),
       });
     }
+
+    await ProductivityTrackingService.updateDailyProductivity(userId!);
   }
 
   Future<void> _logHabitHistory(String habitId, String title) async {
@@ -228,6 +237,8 @@ class HabitService {
         .collection('habits')
         .doc(id)
         .delete();
+
+    await ProductivityTrackingService.updateDailyProductivity(userId!);
   }
 
   Stream<List<Habit>> getHabits() {
