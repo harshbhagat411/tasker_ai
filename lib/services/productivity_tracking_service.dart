@@ -191,6 +191,7 @@ class ProductivityTrackingService {
       double score = totalWeight > 0 ? (earned / totalWeight) * 100.0 : 0.0;
 
       // 6. Classify dayType
+      bool hasActivity = (tasksTotal > 0 || habitsTotal > 0 || goalsTotal > 0 || focusMinutes > 0);
       String dayType = 'empty';
       int roundedScore = score.round();
       if (roundedScore >= 80) {
@@ -199,6 +200,8 @@ class ProductivityTrackingService {
         dayType = 'productive';
       } else if (roundedScore >= 30) {
         dayType = 'average';
+      } else if (hasActivity) {
+        dayType = 'low';
       } else {
         dayType = 'empty';
       }

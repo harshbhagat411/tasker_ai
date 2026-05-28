@@ -59,21 +59,53 @@ class _CalendarScreenState extends State<CalendarScreen> {
     }).toList();
   }
 
-  /// Returns a Color based on the productivity score
-  Color _getProductivityColor(double score, bool isDark) {
-    final rounded = score.round();
-    if (rounded >= 81) {
-      // Excellent -> Green
-      return isDark ? const Color(0xFF2E7D32) : const Color(0xFF4CAF50);
-    } else if (rounded >= 61) {
-      // Productive -> Blue
-      return isDark ? const Color(0xFF1565C0) : const Color(0xFF2196F3);
-    } else if (rounded >= 31) {
-      // Average -> Yellow
-      return isDark ? const Color(0xFFE65100) : const Color(0xFFFFB300);
+  /// Returns a Color based on the productivity status (soft pastel colors)
+  Color _getProductivityColorByStatus(String status, bool isDark) {
+    switch (status.toLowerCase()) {
+      case 'excellent':
+        return isDark ? const Color(0xFF2A3B5C) : const Color(0xFFD2E3FC);
+      case 'productive':
+        return isDark ? const Color(0xFF1B4021) : const Color(0xFFD1F2D9);
+      case 'average':
+        return isDark ? const Color(0xFF55441B) : const Color(0xFFFFF2CC);
+      case 'low':
+      case 'poor':
+        return isDark ? const Color(0xFF5C2626) : const Color(0xFFFCE8E6);
+      default:
+        return isDark ? Colors.white.withOpacity(0.01) : const Color(0xFFF5F5F7);
+    }
+  }
+
+  /// Returns a complementary dark/light high-contrast text color based on the status
+  Color _getProductivityTextColorByStatus(String status, bool isDark) {
+    if (isDark) {
+      switch (status.toLowerCase()) {
+        case 'excellent':
+          return const Color(0xFFADC6FF);
+        case 'productive':
+          return const Color(0xFF81C784);
+        case 'average':
+          return const Color(0xFFFFD54F);
+        case 'low':
+        case 'poor':
+          return const Color(0xFFE57373);
+        default:
+          return Colors.white70;
+      }
     } else {
-      // Poor -> Red
-      return isDark ? const Color(0xFFC62828) : const Color(0xFFE53935);
+      switch (status.toLowerCase()) {
+        case 'excellent':
+          return const Color(0xFF1A73E8); // premium clean blue
+        case 'productive':
+          return const Color(0xFF1B5E20); // premium clean green
+        case 'average':
+          return const Color(0xFF7F5F00); // premium clean yellow/gold
+        case 'low':
+        case 'poor':
+          return const Color(0xFFC5221F); // premium clean pink/red
+        default:
+          return const Color(0xFF1C1C1E);
+      }
     }
   }
 
@@ -251,7 +283,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
           height: 48,
           alignment: Alignment.center,
           child: Text(
-            '${day.day}',
+            '${day.day.toString().padLeft(2, '0')}',
             style: TextStyle(
               color: isDark ? Colors.white10 : Colors.black.withOpacity(0.12),
               fontSize: 13,
@@ -276,10 +308,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
       if (targetData == null) return 'empty';
       
       final type = targetData.dayType.toLowerCase();
-      if (type == 'excellent' || type == 'good' || type == 'productive') return 'productive';
-      if (type == 'poor' || type == 'low') return 'poor';
-      if (type == 'average') return 'average';
-      return 'empty';
+      if (type == 'empty') return 'empty';
+      return type;
     }
     
     final currentGroup = getGroup(day);
@@ -291,19 +321,16 @@ class _CalendarScreenState extends State<CalendarScreen> {
       hasRightConnection = cellIndexInWeek < 6 && getGroup(weekDays[cellIndexInWeek + 1]) == currentGroup;
     }
     
-    // Dynamic color calculation based on score instead of hardcoded dayType switches
+    // Dynamic color calculation based on status instead of scores
     Color bgColor;
     Color textColor;
     
     if (data != null && dayType != 'empty') {
-      final double score = data.productivityScore;
-      final Color baseColor = _getProductivityColor(score, isDark);
-      
-      bgColor = isDark ? baseColor.withOpacity(0.35) : baseColor.withOpacity(0.12);
-      textColor = isDark ? baseColor.withOpacity(0.9) : baseColor;
+      bgColor = _getProductivityColorByStatus(dayType, isDark);
+      textColor = _getProductivityTextColorByStatus(dayType, isDark);
     } else {
-      bgColor = isDark ? Colors.white.withOpacity(0.02) : Colors.black.withOpacity(0.015);
-      textColor = isDark ? Colors.white38 : Colors.black38;
+      bgColor = Colors.transparent;
+      textColor = isDark ? Colors.white38 : const Color(0xFF6E6E73);
     }
     
     // Custom margin and border radius for connected pills
@@ -314,11 +341,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
     if (hasLeftConnection && hasRightConnection) {
       borderRadius = BorderRadius.zero;
     } else if (hasLeftConnection && !hasRightConnection) {
-      borderRadius = const BorderRadius.horizontal(right: Radius.circular(20));
+      borderRadius = const BorderRadius.horizontal(right: Radius.circular(24));
     } else if (!hasLeftConnection && hasRightConnection) {
-      borderRadius = const BorderRadius.horizontal(left: Radius.circular(20));
+      borderRadius = const BorderRadius.horizontal(left: Radius.circular(24));
     } else {
-      borderRadius = BorderRadius.circular(20);
+      borderRadius = BorderRadius.circular(24);
     }
     
     return Expanded(
@@ -343,8 +370,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   margin: EdgeInsets.only(
                     left: leftMargin,
                     right: rightMargin,
-                    top: 5,
-                    bottom: 5,
+                    top: 4,
+                    bottom: 4,
                   ),
                   decoration: BoxDecoration(
                     color: bgColor,
@@ -353,25 +380,18 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 ),
               ),
               
-              // Selection highlight ring (glowing outer circle)
+              // Selection highlight ring (thin outline ring only)
               if (isSelected)
                 Positioned.fill(
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 200),
-                    margin: const EdgeInsets.all(1),
+                    margin: const EdgeInsets.all(2),
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       border: Border.all(
                         color: Theme.of(context).primaryColor,
-                        width: 2.0,
+                        width: 1.5,
                       ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Theme.of(context).primaryColor.withOpacity(0.2),
-                          blurRadius: 4,
-                          spreadRadius: 0.5,
-                        )
-                      ],
                     ),
                   ),
                 ),
@@ -390,9 +410,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   ),
                 ),
               
-              // Day Number Text
+              // Day Number Text padded to two-digits
               Text(
-                '${day.day}',
+                '${day.day.toString().padLeft(2, '0')}',
                 style: TextStyle(
                   color: textColor,
                   fontSize: 13,
@@ -407,72 +427,21 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   /// Builds a single dashboard metric card
-  Widget _buildMetricCard(String label, String value, IconData icon, Color color) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: isDark ? Colors.white.withOpacity(0.03) : Colors.black.withOpacity(0.015),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isDark ? Colors.white10 : Colors.black.withOpacity(0.03),
-          width: 1,
-        ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.12),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, color: color, size: 18),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: isDark ? Colors.white38 : Colors.black45,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Builds the Premium Details Card for the selected date
+  /// Redesigned premium Details Card for the selected date
   Widget _buildDayDetailsCard(ProductivityDailyData? data) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final selectedStr = DateFormat('EEEE, MMMM d, yyyy').format(_selectedDay ?? _focusedDay);
     
     if (data == null || data.dayType == 'empty') {
       return Container(
-        margin: const EdgeInsets.all(16),
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+          color: isDark ? const Color(0xFF1E1E24) : Colors.white,
           borderRadius: BorderRadius.circular(24),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(isDark ? 0.2 : 0.05),
+              color: Colors.black.withOpacity(isDark ? 0.15 : 0.04),
               blurRadius: 16,
               offset: const Offset(0, 8),
             )
@@ -484,24 +453,24 @@ class _CalendarScreenState extends State<CalendarScreen> {
             Text(
               selectedStr,
               style: TextStyle(
-                fontSize: 15,
+                fontSize: 14,
                 fontWeight: FontWeight.w600,
                 color: isDark ? Colors.white54 : Colors.black54,
               ),
             ),
-            const SizedBox(height: 24),
-            Icon(Icons.calendar_view_month, size: 48, color: isDark ? Colors.white24 : Colors.black12),
+            const SizedBox(height: 20),
+            Icon(Icons.calendar_view_month, size: 44, color: isDark ? Colors.white24 : Colors.black12),
             const SizedBox(height: 12),
             const Text(
               "No Productivity Records",
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 6),
             Text(
               "No logs tracked for this day yet. Fill your tasks, habits, or focus mode to map productivity scores automatically!",
               textAlign: TextAlign.center,
               style: TextStyle(
-                fontSize: 12,
+                fontSize: 11,
                 color: isDark ? Colors.white38 : Colors.black45,
                 height: 1.4,
               ),
@@ -511,17 +480,18 @@ class _CalendarScreenState extends State<CalendarScreen> {
       );
     }
 
-    Color scoreColor = _getProductivityColor(data.productivityScore, isDark);
+    Color scoreColor = _getProductivityColorByStatus(data.dayType, isDark);
+    Color textColor = _getProductivityTextColorByStatus(data.dayType, isDark);
 
     return Container(
-      margin: const EdgeInsets.all(16),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+        color: isDark ? const Color(0xFF1E1E24) : Colors.white,
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.2 : 0.05),
+            color: Colors.black.withOpacity(isDark ? 0.15 : 0.04),
             blurRadius: 16,
             offset: const Offset(0, 8),
           )
@@ -541,13 +511,13 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     Text(
                       selectedStr,
                       style: const TextStyle(
-                        fontSize: 16,
+                        fontSize: 15,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      "Daily Summary Map",
+                      "Daily Productivity Summary",
                       style: TextStyle(
                         fontSize: 11,
                         color: isDark ? Colors.white38 : Colors.black45,
@@ -556,25 +526,22 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   ],
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: scoreColor.withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  children: [
-                    Text(
-                      "🔥 ${data.streakGroup}",
-                      style: TextStyle(
-                        color: scoreColor,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
+              if (data.streakGroup.isNotEmpty && data.streakGroup != "0 days")
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: scoreColor.withOpacity(isDark ? 0.25 : 0.6),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    "🔥 ${data.streakGroup}",
+                    style: TextStyle(
+                      color: textColor,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
                     ),
-                  ],
+                  ),
                 ),
-              ),
             ],
           ),
           
@@ -584,22 +551,22 @@ class _CalendarScreenState extends State<CalendarScreen> {
           Row(
             children: [
               Container(
-                width: 68,
-                height: 68,
-                margin: const EdgeInsets.only(right: 20),
+                width: 60,
+                height: 60,
+                margin: const EdgeInsets.only(right: 16),
                 child: Stack(
                   alignment: Alignment.center,
                   children: [
                     CircularProgressIndicator(
                       value: data.productivityScore / 100,
-                      strokeWidth: 6,
-                      backgroundColor: isDark ? Colors.white10 : Colors.black.withOpacity(0.06),
-                      valueColor: AlwaysStoppedAnimation<Color>(scoreColor),
+                      strokeWidth: 5,
+                      backgroundColor: isDark ? Colors.white10 : Colors.black.withOpacity(0.04),
+                      valueColor: AlwaysStoppedAnimation<Color>(textColor),
                     ),
                     Text(
                       "${data.productivityScore.round()}%",
                       style: const TextStyle(
-                        fontSize: 15,
+                        fontSize: 13,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
@@ -611,11 +578,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      "Productivity Status: ${data.dayType.toUpperCase()}",
+                      "Status: ${data.dayType.toUpperCase()}",
                       style: TextStyle(
-                        fontSize: 14,
+                        fontSize: 13,
                         fontWeight: FontWeight.bold,
-                        color: scoreColor,
+                        color: textColor,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -635,53 +602,69 @@ class _CalendarScreenState extends State<CalendarScreen> {
           
           const SizedBox(height: 20),
           
-          // Dashboard Grid (2x2) - Flexible responsive Column & Row layout to prevent RenderFlex overflows
-          Column(
+          // Dashboard Grid (2x3) - Clean, highly responsive card tiles to prevent RenderFlex overflows
+          GridView.count(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisCount: 2,
+            childAspectRatio: 2.8,
+            crossAxisSpacing: 10,
+            mainAxisSpacing: 10,
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildMetricCard(
-                      "Tasks Completed", 
-                      "${data.tasksCompleted} / ${data.tasksTotal}", 
-                      Icons.check_circle_outline, 
-                      const Color(0xFF2196F3),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _buildMetricCard(
-                      "Habits Streak", 
-                      "${data.habitsCompleted} / ${data.habitsTotal}", 
-                      Icons.repeat, 
-                      const Color(0xFF4CAF50),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildMetricCard(
-                      "Goals Achieved", 
-                      "${data.goalsCompleted} / ${data.goalsTotal}", 
-                      Icons.emoji_events_outlined, 
-                      const Color(0xFFFF9800),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _buildMetricCard(
-                      "Focus Sessions", 
-                      "${data.focusMinutes}m (${data.focusSessions}s)", 
-                      Icons.timer_sharp, 
-                      const Color(0xFF9C27B0),
-                    ),
-                  ),
-                ],
-              ),
+              _buildMetricTile("Tasks Done", "${data.tasksCompleted} / ${data.tasksTotal}", Icons.check_circle_outline, Colors.blue),
+              _buildMetricTile("Habits Kept", "${data.habitsCompleted} / ${data.habitsTotal}", Icons.repeat, Colors.green),
+              _buildMetricTile("Goals Achieved", "${data.goalsCompleted} / ${data.goalsTotal}", Icons.emoji_events_outlined, Colors.orange),
+              _buildMetricTile("Focus Sessions", "${data.focusSessions}", Icons.timer_outlined, Colors.purple),
+              _buildMetricTile("Focus Minutes", "${data.focusMinutes}m", Icons.av_timer, Colors.deepPurple),
+              _buildMetricTile("Success Rate", "${data.successRate.round()}%", Icons.trending_up, Colors.teal),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Builds a single premium responsive dashboard metric tile
+  Widget _buildMetricTile(String label, String value, IconData icon, Color color) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: isDark ? Colors.white.withOpacity(0.02) : Colors.black.withOpacity(0.015),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isDark ? Colors.white10 : Colors.black.withOpacity(0.02),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: color, size: 20),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 1),
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 9,
+                    color: isDark ? Colors.white30 : Colors.black45,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -832,17 +815,24 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   ),
                 ),
                 
-                // 3. CUSTOM CALENDAR MONTH MAP
+                // 3. CUSTOM CALENDAR MONTH MAP (Sleek unified rounded light-gray/dark block)
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: Column(
-                    children: weeks.map((week) {
-                      return Row(
-                        children: List.generate(7, (d) {
-                          return _buildDayCell(context, week[d], d, week, dataMap);
-                        }),
-                      );
-                    }).toList(),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF1E1E24) : const Color(0xFFF5F5F7),
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                    child: Column(
+                      children: weeks.map((week) {
+                        return Row(
+                          children: List.generate(7, (d) {
+                            return _buildDayCell(context, week[d], d, week, dataMap);
+                          }),
+                        );
+                      }).toList(),
+                    ),
                   ),
                 ),
                 

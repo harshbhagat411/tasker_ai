@@ -46,7 +46,10 @@ class TaskService {
       print("Task completion changed");
       print("Calling productivity update");
       await ProductivityTrackingService.updateDailyProductivity(userId!);
-    }).catchError((e) => print("Error saving task: $e"));
+    }).catchError((e) {
+      print("Error saving task: $e");
+      return null;
+    });
     print("Task created with ID: ${docRef.id}");
 
     if (dueDate != null && dueDate.isAfter(DateTime.now())) {
@@ -230,7 +233,10 @@ class TaskService {
         print("Task completion changed");
         print("Calling productivity update");
         await ProductivityTrackingService.updateDailyProductivity(userId!);
-      }).catchError((e) => print("Error updating task: $e"));
+      }).catchError((e) {
+        print("Error updating task: $e");
+        return null;
+      });
     } else {
       // We don't await this so the UI doesn't hang if the user is offline
       _firestore
@@ -243,7 +249,10 @@ class TaskService {
         print("Task completion changed");
         print("Calling productivity update");
         await ProductivityTrackingService.updateDailyProductivity(userId!);
-      }).catchError((e) => print("Error updating task: $e"));
+      }).catchError((e) {
+        print("Error updating task: $e");
+        return null;
+      });
 
       syncSharedTask(originalTaskId: id, updatedData: data);
 
