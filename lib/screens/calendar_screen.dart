@@ -110,7 +110,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   /// Listens to real-time productivity data stream for the current month
-  Stream<List<ProductivityDailyData>> _getMonthlyProductivityStream(DateTime month) {
+  Stream<Map<String, ProductivityDailyData>> _getMonthlyProductivityStream(DateTime month) {
     final userId = _productivityEngine.userId;
     if (userId == null) return const Stream.empty();
     
@@ -126,7 +126,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
         .where(FieldPath.documentId, isLessThanOrEqualTo: endStr)
         .snapshots()
         .map((snapshot) {
-          return snapshot.docs.map((doc) => ProductivityDailyData.fromMap(doc.data())).toList();
+          return {
+            for (var doc in snapshot.docs)
+              doc.id: ProductivityDailyData.fromMap(doc.data())
+          };
         });
   }
 
@@ -363,7 +366,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
         behavior: HitTestBehavior.opaque,
         child: Container(
           height: isDark ? 48 : 50, // Slightly taller cell in light mode for airiness
-          alignment: Alignment.center,
           child: Stack(
             alignment: Alignment.center,
             children: [
@@ -393,7 +395,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     height: 36,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: isDark ? Colors.transparent : const Color(0xFF2563EB).withOpacity(0.08),
+                      color: isDark 
+                          ? Colors.transparent 
+                          : (dayType == 'empty' ? const Color(0xFF2563EB).withOpacity(0.08) : Colors.transparent),
                       border: Border.all(
                         color: isDark ? Theme.of(context).primaryColor : const Color(0xFF2563EB),
                         width: isDark ? 1.5 : 2.0,
@@ -416,15 +420,17 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   ),
                 ),
               
-              // Day Number Text padded to two-digits
-              Text(
-                '${day.day.toString().padLeft(2, '0')}',
-                style: TextStyle(
-                  color: textColor,
-                  fontSize: 13,
-                  fontWeight: isSelected || isToday
-                      ? FontWeight.w700
-                      : (isDark ? FontWeight.w600 : FontWeight.w500), // lighter premium typography in light mode
+              // Day Number Text padded to two-digits (Centered perfectly inside stack)
+              Center(
+                child: Text(
+                  '${day.day.toString().padLeft(2, '0')}',
+                  style: TextStyle(
+                    color: textColor,
+                    fontSize: 13,
+                    fontWeight: isSelected || isToday
+                        ? FontWeight.w700
+                        : (isDark ? FontWeight.w600 : FontWeight.w500), // lighter premium typography in light mode
+                  ),
                 ),
               ),
             ],
@@ -708,16 +714,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
     return Scaffold(
       backgroundColor: isDark ? Theme.of(context).scaffoldBackgroundColor : const Color(0xFFF5F6FA), // LAYERED SURFACES background #F5F6FA
       body: SafeArea(
-        child: StreamBuilder<List<ProductivityDailyData>>(
+        child: StreamBuilder<Map<String, ProductivityDailyData>>(
           stream: _getMonthlyProductivityStream(_focusedDay),
           builder: (context, productivitySnapshot) {
-            final monthlyData = productivitySnapshot.data ?? [];
-            
-            // Map productivity records into date strings for O(1) grid calculations
-            final Map<String, ProductivityDailyData> dataMap = {
-              for (var item in monthlyData)
-                "${item.date.year}-${item.date.month.toString().padLeft(2, '0')}-${item.date.day.toString().padLeft(2, '0')}": item
-            };
+            final dataMap = productivitySnapshot.data ?? {};
             
             final activeSelectedDay = _selectedDay ?? _focusedDay;
             final selectedStr = "${activeSelectedDay.year}-${activeSelectedDay.month.toString().padLeft(2, '0')}-${activeSelectedDay.day.toString().padLeft(2, '0')}";
@@ -875,7 +875,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         _buildDayDetailsCard(selectedData),
                         
                         // Database Empty State Tip
-                        if (monthlyData.isEmpty)
+                        if (dataMap.isEmpty)
                           Container(
                             margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                             padding: const EdgeInsets.all(16),
