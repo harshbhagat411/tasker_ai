@@ -40,13 +40,30 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
   Future<void> _fetchMemberDetails() async {
     Map<String, Map<String, dynamic>> details = {};
     for (String uid in widget.workspace.members) {
-      final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
-      if (doc.exists) {
+      try {
+        final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+        if (doc.exists) {
+          details[uid] = {
+            'uid': uid,
+            'name': doc.data()?['displayName'] ?? doc.data()?['name'] ?? 'User',
+            'email': doc.data()?['email'] ?? '',
+            'avatar': doc.data()?['avatar'] ?? '',
+          };
+        } else {
+          details[uid] = {
+            'uid': uid,
+            'name': 'Unknown Member',
+            'email': 'No profile details yet',
+            'avatar': '',
+          };
+        }
+      } catch (e) {
+        print("Error fetching details for member $uid: $e");
         details[uid] = {
           'uid': uid,
-          'name': doc.data()?['displayName'] ?? doc.data()?['name'] ?? 'User',
-          'email': doc.data()?['email'] ?? '',
-          'avatar': doc.data()?['avatar'] ?? '',
+          'name': 'Restricted Profile',
+          'email': 'Protected by security rules',
+          'avatar': '',
         };
       }
     }
@@ -397,6 +414,28 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
           return const Center(child: CircularProgressIndicator());
         }
         
+        if (snapshot.hasError) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.error_outline_rounded, size: 54, color: Colors.redAccent),
+                  const SizedBox(height: 16),
+                  const Text("Error Loading Tasks", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  Text(
+                    "This is typically due to Firestore Security Rules. Ensure your rules allow reading '/projects/${ws.id}/tasks'.\n\nError details: ${snapshot.error}",
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 12, color: Colors.grey, height: 1.4),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+        
         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
           return Center(
             child: Column(
@@ -452,6 +491,31 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
           return FutureBuilder<DocumentSnapshot>(
             future: FirebaseFirestore.instance.collection('users').doc(memberId).get(),
             builder: (context, userSnapshot) {
+              if (userSnapshot.hasError) {
+                final role = ws.memberRoles[memberId] ?? 'member';
+                return ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: CircleAvatar(
+                    backgroundColor: Color(int.parse(ws.color)).withOpacity(0.2),
+                    child: Text(memberId.isNotEmpty ? memberId[0].toUpperCase() : '?', style: TextStyle(color: Color(int.parse(ws.color)), fontWeight: FontWeight.bold)),
+                  ),
+                  title: Row(
+                    children: [
+                      const Text("Restricted Profile", style: TextStyle(fontWeight: FontWeight.bold)),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Color(int.parse(ws.color)).withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(role.toUpperCase(), style: TextStyle(fontSize: 10, color: Color(int.parse(ws.color)), fontWeight: FontWeight.bold)),
+                      )
+                    ],
+                  ),
+                  subtitle: const Text("Protected by Firestore security rules"),
+                );
+              }
               if (!userSnapshot.hasData) return const ListTile(title: Text("Loading..."));
               final userData = userSnapshot.data!.data() as Map<String, dynamic>?;
               final name = userData?['name'] ?? userData?['displayName'] ?? 'Unknown User';
@@ -518,6 +582,28 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
+        }
+
+        if (snapshot.hasError) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.error_outline_rounded, size: 54, color: Colors.redAccent),
+                  const SizedBox(height: 16),
+                  const Text("Error Loading Activity", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  Text(
+                    "This is typically due to Firestore Security Rules. Ensure your rules allow reading '/projects/${ws.id}/activity'.\n\nError details: ${snapshot.error}",
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 12, color: Colors.grey, height: 1.4),
+                  ),
+                ],
+              ),
+            ),
+          );
         }
 
         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
