@@ -67,9 +67,16 @@ class WorkspaceService {
   }
 
   // Add member to workspace
-  Future<void> addMember(String workspaceId, String memberId, {String role = 'editor'}) async {
+  Future<void> addMember(String workspaceId, String memberId, {String role = 'member'}) async {
     await _firestore.collection('workspaces').doc(workspaceId).update({
       'members': FieldValue.arrayUnion([memberId]),
+      'memberRoles.$memberId': role,
+    });
+  }
+
+  // Update member role
+  Future<void> updateMemberRole(String workspaceId, String memberId, String role) async {
+    await _firestore.collection('workspaces').doc(workspaceId).update({
       'memberRoles.$memberId': role,
     });
   }

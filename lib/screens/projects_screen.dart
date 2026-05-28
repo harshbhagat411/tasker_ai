@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:timeago/timeago.dart' as timeago;
 import '../services/workspace_service.dart';
+import '../services/task_service.dart';
+import '../services/activity_service.dart';
 import '../models/workspace_model.dart';
 import 'create_workspace_screen.dart';
 import 'workspace_details_screen.dart';
@@ -13,11 +17,14 @@ class ProjectsScreen extends StatefulWidget {
 
 class _ProjectsScreenState extends State<ProjectsScreen> {
   final WorkspaceService _workspaceService = WorkspaceService();
+  final ActivityService _activityService = ActivityService();
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: isDark ? const Color(0xFF121212) : Colors.grey[50],
       appBar: AppBar(
         title: const Text(
           "Your Projects",
@@ -31,7 +38,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
         stream: _workspaceService.getUserWorkspaces(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return const Center(child: CircularProgressIndicator(color: Color(0xFF0F766E)));
           }
 
           if (snapshot.hasError) {
@@ -49,7 +56,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                   const SizedBox(height: 16),
                   const Text(
                     "No projects yet",
-                    style: TextStyle(fontSize: 18, color: Colors.grey),
+                    style: TextStyle(fontSize: 18, color: Colors.grey, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 8),
                   const Text(
@@ -67,9 +74,10 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                     icon: const Icon(Icons.add),
                     label: const Text("Create Workspace"),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF0D47A1),
+                      backgroundColor: const Color(0xFF0F766E),
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                   )
                 ],
@@ -94,14 +102,15 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
             MaterialPageRoute(builder: (_) => const CreateWorkspaceScreen()),
           );
         },
-        backgroundColor: const Color(0xFF0D47A1),
+        backgroundColor: const Color(0xFF0F766E),
         child: const Icon(Icons.add, color: Colors.white),
       ),
     );
   }
 
   Widget _buildProjectCard(Workspace workspace) {
-    final color = Color(int.parse(workspace.color));
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    const accentColor = Color(0xFF0F766E);
     
     return GestureDetector(
       onTap: () {
@@ -116,16 +125,16 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
         margin: const EdgeInsets.only(bottom: 16),
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
+          color: isDark ? const Color(0xFF1E1E24) : Colors.white,
+          borderRadius: BorderRadius.circular(24),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
               blurRadius: 10,
               offset: const Offset(0, 4),
             )
           ],
-          border: Border.all(color: Colors.grey.shade100),
+          border: Border.all(color: isDark ? Colors.grey[800]! : Colors.grey[200]!),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -135,12 +144,12 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: color.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(12),
+                    color: accentColor.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(16),
                   ),
                   child: Icon(
                     workspace.iconData,
-                    color: color,
+                    color: accentColor,
                     size: 24,
                   ),
                 ),
@@ -149,39 +158,150 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        workspace.name,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              workspace.name,
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            width: 8,
+                            height: 8,
+                            decoration: const BoxDecoration(
+                              color: Colors.green,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        "${workspace.members.length} member${workspace.members.length == 1 ? '' : 's'}",
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey,
+                        "${workspace.members.length} collaborator${workspace.members.length == 1 ? '' : 's'}",
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: isDark ? Colors.grey[400] : Colors.grey[600],
                         ),
                       ),
                     ],
                   ),
                 ),
-                const Icon(Icons.chevron_right, color: Colors.grey),
               ],
             ),
             if (workspace.description.isNotEmpty) ...[
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
               Text(
                 workspace.description,
                 style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey[700],
+                  fontSize: 13,
+                  color: isDark ? Colors.grey[350] : Colors.grey[700],
                 ),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
-            ]
+            ],
+            const SizedBox(height: 16),
+            const Divider(height: 1),
+            const SizedBox(height: 16),
+            
+            // Middle section: Tasks completion progress bar
+            StreamBuilder<QuerySnapshot>(
+              stream: TaskService().getWorkspaceTasks(workspace.id),
+              builder: (context, taskSnapshot) {
+                final docs = taskSnapshot.data?.docs ?? [];
+                final total = docs.length;
+                final completed = docs.where((d) => (d.data() as Map<String, dynamic>?)?['isDone'] == true).length;
+                final double progress = total > 0 ? completed / total : 0.0;
+                final percent = (progress * 100).toInt();
+                
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          "Progress: $completed/$total Tasks",
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? Colors.grey[400] : Colors.grey[600]),
+                        ),
+                        Text(
+                          "$percent%",
+                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: accentColor),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: LinearProgressIndicator(
+                        value: progress,
+                        minHeight: 6,
+                        backgroundColor: isDark ? Colors.grey[800] : Colors.grey[200],
+                        valueColor: const AlwaysStoppedAnimation<Color>(accentColor),
+                      ),
+                    ),
+                  ],
+                );
+              }
+            ),
+            const SizedBox(height: 16),
+            
+            // Bottom section: Recent activity text
+            StreamBuilder<QuerySnapshot>(
+              stream: _activityService.getProjectActivities(workspace.id),
+              builder: (context, activitySnapshot) {
+                final docs = activitySnapshot.data?.docs ?? [];
+                if (docs.isEmpty) {
+                  return Row(
+                    children: [
+                      Icon(Icons.history, size: 14, color: isDark ? Colors.grey[600] : Colors.grey[400]),
+                      const SizedBox(width: 8),
+                      Text(
+                        "No recent activity logged",
+                        style: TextStyle(fontSize: 12, color: isDark ? Colors.grey[500] : Colors.grey[500]),
+                      ),
+                    ],
+                  );
+                }
+                
+                final data = docs.first.data() as Map<String, dynamic>;
+                final userName = data['userName'] ?? 'User';
+                final message = data['message'] ?? 'updated project';
+                final taskTitle = data['taskTitle'];
+                
+                DateTime timestamp = DateTime.now();
+                if (data['timestamp'] is Timestamp) {
+                  timestamp = (data['timestamp'] as Timestamp).toDate();
+                }
+                
+                final text = "$userName $message${taskTitle != null ? ' \"$taskTitle\"' : ''}";
+                
+                return Row(
+                  children: [
+                    Icon(Icons.history, size: 14, color: isDark ? Colors.grey[600] : Colors.grey[400]),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        text,
+                        style: TextStyle(fontSize: 12, color: isDark ? Colors.grey[400] : Colors.grey[600]),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      timeago.format(timestamp),
+                      style: TextStyle(fontSize: 11, color: isDark ? Colors.grey[500] : Colors.grey[500], fontWeight: FontWeight.w500),
+                    ),
+                  ],
+                );
+              }
+            ),
           ],
         ),
       ),

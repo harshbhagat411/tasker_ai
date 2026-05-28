@@ -7,6 +7,7 @@ import '../services/task_service.dart';
 import '../services/activity_service.dart';
 import '../widgets/project_task_card.dart';
 import 'package:timeago/timeago.dart' as timeago;
+import 'package:intl/intl.dart';
 
 class WorkspaceDetailsScreen extends StatefulWidget {
   final Workspace workspace;
@@ -30,7 +31,7 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
     _tabController.addListener(() {
       setState(() {});
     });
@@ -73,6 +74,238 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
         _isLoadingMembers = false;
       });
     }
+  }
+
+  void _showWorkspaceSettingsModal(Workspace ws) {
+    final nameController = TextEditingController(text: ws.name);
+    final descController = TextEditingController(text: ws.description);
+    final isOwner = ws.ownerId == currentUserId;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Container(
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1E1E24) : Colors.white,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+                top: 24,
+                left: 24,
+                right: 24,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text("Project Settings", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.pop(context),
+                      )
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: nameController,
+                    decoration: InputDecoration(
+                      labelText: "Project Name",
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: descController,
+                    decoration: InputDecoration(
+                      labelText: "Description",
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    maxLines: 3,
+                  ),
+                  const SizedBox(height: 24),
+                  
+                  // Save Settings Button (for Owner & Admin)
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () async {
+                        if (nameController.text.trim().isNotEmpty) {
+                          // Update project settings!
+                          await FirebaseFirestore.instance.collection('workspaces').doc(ws.id).update({
+                            'name': nameController.text.trim(),
+                            'description': descController.text.trim(),
+                          });
+                          if (context.mounted) Navigator.pop(context);
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF0F766E),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: const Text("Save Changes", style: TextStyle(fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                  
+                  // Delete Workspace and Transfer Ownership (Owner ONLY!)
+                  if (isOwner) ...[
+                    const SizedBox(height: 16),
+                    const Divider(),
+                    const SizedBox(height: 8),
+                    const Text("Danger Zone", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.redAccent)),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        // Transfer Ownership
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            icon: const Icon(Icons.swap_horiz, size: 18),
+                            label: const Text("Transfer", style: TextStyle(fontSize: 12)),
+                            onPressed: () {
+                              Navigator.pop(context); // Close settings
+                              _showTransferOwnershipModal(ws);
+                            },
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.orangeAccent,
+                              side: const BorderSide(color: Colors.orangeAccent),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        // Delete Workspace
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            icon: const Icon(Icons.delete_forever, size: 18),
+                            label: const Text("Delete", style: TextStyle(fontSize: 12)),
+                            onPressed: () {
+                              Navigator.pop(context); // Close settings
+                              _showDeleteConfirmationDialog(ws);
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.redAccent,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              elevation: 0,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+            );
+          }
+        );
+      }
+    );
+  }
+
+  void _showDeleteConfirmationDialog(Workspace ws) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text("Delete Workspace?"),
+          content: Text("Are you sure you want to permanently delete '${ws.name}'? This will erase all tasks, activities, and cannot be undone."),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Cancel", style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.pop(context); // close dialog
+                Navigator.pop(context); // exit workspace screen back to projects
+                await _workspaceService.deleteWorkspace(ws.id);
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, foregroundColor: Colors.white),
+              child: const Text("Delete"),
+            ),
+          ],
+        );
+      }
+    );
+  }
+
+  void _showTransferOwnershipModal(Workspace ws) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return Container(
+          decoration: BoxDecoration(
+            color: Theme.of(context).scaffoldBackgroundColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+            top: 24,
+            left: 24,
+            right: 24,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text("Transfer Ownership", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              const Text("Select a member to transfer ownership to. You will become an Admin.", style: TextStyle(color: Colors.grey)),
+              const SizedBox(height: 16),
+              Flexible(
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: ws.members.length,
+                  itemBuilder: (context, index) {
+                    final memberId = ws.members[index];
+                    if (memberId == currentUserId) return const SizedBox.shrink();
+                    final details = _memberDetails[memberId];
+                    final name = details?['name'] ?? 'User';
+                    final email = details?['email'] ?? '';
+                    final initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
+
+                    return ListTile(
+                      leading: CircleAvatar(
+                        backgroundColor: const Color(0xFF0F766E).withOpacity(0.2),
+                        child: Text(initial, style: const TextStyle(color: Color(0xFF0F766E), fontWeight: FontWeight.bold)),
+                      ),
+                      title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                      subtitle: Text(email),
+                      onTap: () async {
+                        Navigator.pop(context); // close sheet
+                        await FirebaseFirestore.instance.collection('workspaces').doc(ws.id).update({
+                          'ownerId': memberId,
+                          'memberRoles.$memberId': 'owner',
+                          'memberRoles.$currentUserId': 'admin',
+                        });
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text("Ownership successfully transferred to $name!")),
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      }
+    );
   }
 
   void _showCreateTaskModal() {
@@ -343,7 +576,8 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
       stream: _workspaceService.getWorkspace(widget.workspace.id),
       builder: (context, snapshot) {
         final ws = snapshot.data ?? widget.workspace;
-        final color = Color(int.parse(ws.color));
+        const color = Color(0xFF0F766E); // emerald teal accent
+        final currentUserRole = ws.memberRoles[currentUserId] ?? 'member';
         
         return Scaffold(
           appBar: AppBar(
@@ -357,6 +591,13 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
                 Expanded(child: Text(ws.name, overflow: TextOverflow.ellipsis)),
               ],
             ),
+            actions: [
+              if (currentUserRole == 'owner' || currentUserRole == 'admin')
+                IconButton(
+                  icon: const Icon(Icons.settings),
+                  onPressed: () => _showWorkspaceSettingsModal(ws),
+                ),
+            ],
             bottom: TabBar(
               controller: _tabController,
               indicatorColor: Colors.white,
@@ -364,6 +605,7 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
               labelColor: Colors.white,
               unselectedLabelColor: Colors.white70,
               tabs: const [
+                Tab(text: "Overview"),
                 Tab(text: "Tasks"),
                 Tab(text: "Members"),
                 Tab(text: "Activity"),
@@ -373,6 +615,7 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
           body: TabBarView(
             controller: _tabController,
             children: [
+              _buildOverviewTab(ws),
               _buildTasksTab(ws),
               _buildMembersTab(ws),
               _buildActivityTab(ws),
@@ -385,25 +628,555 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
   }
 
   Widget? _buildSmartFAB(Workspace ws, Color color) {
-    if (_tabController.index == 0) {
+    final currentUserRole = ws.memberRoles[currentUserId] ?? 'member';
+    if (currentUserRole == 'member') {
+      return null;
+    }
+    if (_tabController.index == 1) {
       return FloatingActionButton.extended(
         onPressed: _showCreateTaskModal,
         backgroundColor: color,
         icon: const Icon(Icons.add, color: Colors.white),
         label: const Text("Task", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
       );
-    } else if (_tabController.index == 1) {
-      // Allow any member of the workspace to invite others
-      if (ws.members.contains(currentUserId)) {
-        return FloatingActionButton.extended(
-          onPressed: _showInviteMemberModal,
-          backgroundColor: color,
-          icon: const Icon(Icons.person_add, color: Colors.white),
-          label: const Text("Invite", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+    } else if (_tabController.index == 2) {
+      return FloatingActionButton.extended(
+        onPressed: _showInviteMemberModal,
+        backgroundColor: color,
+        icon: const Icon(Icons.person_add, color: Colors.white),
+        label: const Text("Invite", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+      );
+    }
+    return null; // Hide FAB on Overview or Activity tab
+  }
+
+  Widget _buildOverviewTab(Workspace ws) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    return ListView(
+      padding: const EdgeInsets.all(20),
+      children: [
+        _buildProjectSummaryCard(ws, isDark),
+        const SizedBox(height: 20),
+        _buildProgressSection(ws, isDark),
+        const SizedBox(height: 20),
+        _buildRecentActivityPreview(ws, isDark),
+        const SizedBox(height: 20),
+        _buildSprintPlaceholderCard(isDark),
+        const SizedBox(height: 12),
+      ],
+    );
+  }
+
+  Widget _buildProjectSummaryCard(Workspace ws, bool isDark) {
+    final formattedDate = DateFormat.yMMMd().format(ws.createdAt.toDate());
+    
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: isDark 
+              ? [const Color(0xFF0F766E).withOpacity(0.3), const Color(0xFF0F766E).withOpacity(0.1)]
+              : [const Color(0xFF0F766E).withOpacity(0.15), const Color(0xFF0F766E).withOpacity(0.05)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: const Color(0xFF0F766E).withOpacity(isDark ? 0.3 : 0.2),
+          width: 1.5,
+        ),
+      ),
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0F766E).withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(ws.iconData, size: 28, color: const Color(0xFF0F766E)),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      ws.name,
+                      style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, letterSpacing: -0.5),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      "Created: $formattedDate • Owner: ${ws.ownerName}",
+                      style: TextStyle(fontSize: 12, color: isDark ? Colors.grey[400] : Colors.grey[600]),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (ws.description.trim().isNotEmpty) ...[
+            const SizedBox(height: 16),
+            Text(
+              ws.description,
+              style: TextStyle(
+                fontSize: 14, 
+                height: 1.4,
+                color: isDark ? Colors.grey[300] : Colors.grey[700],
+              ),
+            ),
+          ],
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              const Icon(Icons.group_outlined, size: 16, color: Color(0xFF0F766E)),
+              const SizedBox(width: 8),
+              Text(
+                "${ws.members.length} team ${ws.members.length == 1 ? 'member' : 'members'}",
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProgressSection(Workspace ws, bool isDark) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: _taskService.getWorkspaceTasks(ws.id),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Container(
+            height: 140,
+            alignment: Alignment.center,
+            child: const CircularProgressIndicator(color: Color(0xFF0F766E)),
+          );
+        }
+        
+        final docs = snapshot.data?.docs ?? [];
+        final totalTasks = docs.length;
+        final completedTasks = docs.where((d) => (d.data() as Map<String, dynamic>?)?['isDone'] == true).length;
+        final pendingTasks = totalTasks - completedTasks;
+        
+        final now = DateTime.now();
+        int overdueTasks = 0;
+        for (var d in docs) {
+          final data = d.data() as Map<String, dynamic>?;
+          if (data != null && data['isDone'] != true && data['dueDate'] != null) {
+            final due = (data['dueDate'] as Timestamp).toDate();
+            if (due.isBefore(now)) {
+              overdueTasks++;
+            }
+          }
+        }
+        
+        final double progress = totalTasks > 0 ? completedTasks / totalTasks : 0.0;
+        final percent = (progress * 100).toInt();
+        
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1E1E24) : Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+                border: Border.all(color: isDark ? Colors.grey[800]! : Colors.grey[200]!),
+              ),
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text("Workspace Progress", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                      Text("$percent% Done", style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF0F766E))),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: LinearProgressIndicator(
+                      value: progress,
+                      backgroundColor: isDark ? Colors.grey[800] : Colors.grey[200],
+                      valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF0F766E)),
+                      minHeight: 10,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      _buildProgressMetric("Total", totalTasks.toString(), Colors.blue),
+                      _buildProgressMetric("Completed", completedTasks.toString(), Colors.green),
+                      _buildProgressMetric("Pending", pendingTasks.toString(), Colors.orange),
+                      _buildProgressMetric("Overdue", overdueTasks.toString(), Colors.red, isAlert: overdueTasks > 0),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            _buildTeamStatsSection(ws, docs, isDark),
+          ],
         );
+      },
+    );
+  }
+
+  Widget _buildProgressMetric(String label, String value, Color color, {bool isAlert = false}) {
+    return Column(
+      children: [
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 20, 
+            fontWeight: FontWeight.bold, 
+            color: isAlert ? Colors.redAccent : color,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.w500),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTeamStatsSection(Workspace ws, List<DocumentSnapshot> taskDocs, bool isDark) {
+    final assignedCount = taskDocs.where((d) => (d.data() as Map<String, dynamic>?)?['assignedTo'] != null).length;
+    final totalTasks = taskDocs.length;
+    final completedTasks = taskDocs.where((d) => (d.data() as Map<String, dynamic>?)?['isDone'] == true).length;
+    
+    final velocity = totalTasks > 0 ? (completedTasks * 100 ~/ totalTasks) : 0;
+    String ratingLabel = "Idle";
+    Color ratingColor = Colors.grey;
+    if (totalTasks > 0) {
+      if (velocity >= 80) {
+        ratingLabel = "Excellent";
+        ratingColor = Colors.green;
+      } else if (velocity >= 50) {
+        ratingLabel = "Steady";
+        ratingColor = Colors.orange;
+      } else {
+        ratingLabel = "Needs Focus";
+        ratingColor = Colors.redAccent;
       }
     }
-    return null; // Hide FAB on Activity tab or if no permission
+
+    return Row(
+      children: [
+        Expanded(
+          child: _buildStatCard(
+            title: "Assigned Tasks",
+            value: "$assignedCount / $totalTasks",
+            subtitle: "tasks delegated",
+            icon: Icons.assignment_turned_in_outlined,
+            isDark: isDark,
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: _buildStatCard(
+            title: "Team Velocity",
+            value: totalTasks > 0 ? "$velocity%" : "N/A",
+            subtitle: ratingLabel,
+            subtitleColor: ratingColor,
+            icon: Icons.speed_outlined,
+            isDark: isDark,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStatCard({
+    required String title,
+    required String value,
+    required String subtitle,
+    required IconData icon,
+    required bool isDark,
+    Color? subtitleColor,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E1E24) : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+        border: Border.all(color: isDark ? Colors.grey[800]! : Colors.grey[200]!),
+      ),
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  title, 
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey[500]),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              Icon(icon, size: 18, color: const Color(0xFF0F766E)),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            value,
+            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            subtitle,
+            style: TextStyle(
+              fontSize: 12, 
+              fontWeight: FontWeight.w600, 
+              color: subtitleColor ?? (isDark ? Colors.grey[400] : Colors.grey[600]),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRecentActivityPreview(Workspace ws, bool isDark) {
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E1E24) : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+        border: Border.all(color: isDark ? Colors.grey[800]! : Colors.grey[200]!),
+      ),
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text("Recent Activity", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              TextButton(
+                onPressed: () {
+                  _tabController.animateTo(3); // Switch to Activity tab (index 3)
+                },
+                child: const Row(
+                  children: [
+                    Text("View All", style: TextStyle(color: Color(0xFF0F766E), fontWeight: FontWeight.bold)),
+                    SizedBox(width: 4),
+                    Icon(Icons.arrow_forward_ios, size: 12, color: Color(0xFF0F766E)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const Divider(),
+          const SizedBox(height: 8),
+          StreamBuilder<QuerySnapshot>(
+            stream: _activityService.getProjectActivities(ws.id),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator(color: Color(0xFF0F766E)));
+              }
+              
+              final docs = snapshot.data?.docs ?? [];
+              if (docs.isEmpty) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 20.0),
+                  child: Center(
+                    child: Text("No activity logged yet.", style: TextStyle(color: Colors.grey[500], fontSize: 13)),
+                  ),
+                );
+              }
+              
+              final previewDocs = docs.take(3).toList();
+              
+              return ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: previewDocs.length,
+                itemBuilder: (context, index) {
+                  final doc = previewDocs[index];
+                  final data = doc.data() as Map<String, dynamic>;
+                  final userName = data['userName'] ?? 'User';
+                  final type = data['type'] ?? '';
+                  final message = data['message'] ?? '';
+                  final taskTitle = data['taskTitle'];
+                  
+                  DateTime timestamp = DateTime.now();
+                  if (data['timestamp'] is Timestamp) {
+                    timestamp = (data['timestamp'] as Timestamp).toDate();
+                  }
+                  
+                  IconData icon = Icons.info_outline;
+                  Color iconColor = Colors.blue;
+                  
+                  if (type == ActivityType.taskCreated) {
+                    icon = Icons.add_circle_outline;
+                    iconColor = Colors.green;
+                  } else if (type == ActivityType.memberInvited) {
+                    icon = Icons.person_add_alt;
+                    iconColor = Colors.orange;
+                  } else if (type == ActivityType.memberJoined) {
+                    icon = Icons.person_add;
+                    iconColor = Colors.green;
+                  } else if (type == ActivityType.taskEdited || type == ActivityType.taskCompleted) {
+                    icon = Icons.edit_note;
+                    iconColor = Colors.purple;
+                  }
+                  
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        CircleAvatar(
+                          radius: 14,
+                          backgroundColor: iconColor.withOpacity(0.1),
+                          child: Icon(icon, size: 14, color: iconColor),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              RichText(
+                                text: TextSpan(
+                                  style: TextStyle(
+                                    color: Theme.of(context).textTheme.bodyLarge?.color, 
+                                    fontSize: 13,
+                                  ),
+                                  children: [
+                                    TextSpan(text: userName, style: const TextStyle(fontWeight: FontWeight.bold)),
+                                    TextSpan(text: " $message"),
+                                    if (taskTitle != null) ...[
+                                      const TextSpan(text: " "),
+                                      TextSpan(text: '"$taskTitle"', style: const TextStyle(fontStyle: FontStyle.italic)),
+                                    ]
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(timeago.format(timestamp), style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSprintPlaceholderCard(bool isDark) {
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E1E24) : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: const Color(0xFF0F766E).withOpacity(0.3),
+          style: BorderStyle.solid,
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F766E).withOpacity(isDark ? 0.1 : 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.rocket_launch_outlined, color: Color(0xFF0F766E), size: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    "Agile Sprints",
+                    style: TextStyle(
+                      fontSize: 15, 
+                      fontWeight: FontWeight.bold, 
+                      color: isDark ? Colors.teal.shade300 : const Color(0xFF0F766E),
+                    ),
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0F766E).withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: const Text(
+                  "PHASE 9 COMING SOON",
+                  style: TextStyle(
+                    fontSize: 8,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF0F766E),
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            "Sprint Planning & Burndowns",
+            style: TextStyle(
+              fontSize: 16, 
+              fontWeight: FontWeight.bold,
+              color: isDark ? Colors.white : Colors.grey[800],
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            "Track team velocity, establish bi-weekly milestones, analyze scope creep, and orchestrate sprint retrospectives right inside your developer workspace.",
+            style: TextStyle(
+              fontSize: 12, 
+              height: 1.4,
+              color: isDark ? Colors.grey[400] : Colors.grey[600],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildTasksTab(Workspace ws) {
@@ -473,10 +1246,84 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
     );
   }
 
-  Widget _buildMembersTab(Workspace ws) {
-    final currentUserRole = ws.memberRoles[currentUserId] ?? 'viewer';
-    final canRemove = currentUserRole == 'owner' || currentUserRole == 'admin';
+  Widget? _buildMemberTrailing(Workspace ws, String memberId, String role, String name) {
+    if (memberId == currentUserId || role == 'owner') return null;
 
+    final currentUserRole = ws.memberRoles[currentUserId] ?? 'member';
+
+    if (currentUserRole == 'owner') {
+      return PopupMenuButton<String>(
+        icon: const Icon(Icons.more_vert),
+        onSelected: (value) async {
+          if (value == 'admin') {
+            await _workspaceService.updateMemberRole(ws.id, memberId, 'admin');
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("$name is now an Admin.")));
+            }
+          } else if (value == 'member') {
+            await _workspaceService.updateMemberRole(ws.id, memberId, 'member');
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("$name is now a Member.")));
+            }
+          } else if (value == 'remove') {
+            await _workspaceService.removeMember(ws.id, memberId);
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("$name removed from workspace.")));
+            }
+          }
+        },
+        itemBuilder: (context) => [
+          if (role == 'member')
+            const PopupMenuItem(
+              value: 'admin',
+              child: Row(
+                children: [
+                  Icon(Icons.shield, size: 18),
+                  SizedBox(width: 8),
+                  Text("Promote to Admin"),
+                ],
+              ),
+            ),
+          if (role == 'admin')
+            const PopupMenuItem(
+              value: 'member',
+              child: Row(
+                children: [
+                  Icon(Icons.person_outline, size: 18),
+                  SizedBox(width: 8),
+                  Text("Demote to Member"),
+                ],
+              ),
+            ),
+          const PopupMenuItem(
+            value: 'remove',
+            child: Row(
+              children: [
+                Icon(Icons.person_remove, size: 18, color: Colors.redAccent),
+                SizedBox(width: 8),
+                Text("Remove Member", style: TextStyle(color: Colors.redAccent)),
+              ],
+            ),
+          ),
+        ],
+      );
+    } else if (currentUserRole == 'admin') {
+      if (role == 'member') {
+        return IconButton(
+          icon: const Icon(Icons.remove_circle_outline, color: Colors.redAccent),
+          onPressed: () async {
+            await _workspaceService.removeMember(ws.id, memberId);
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("$name removed from workspace.")));
+            }
+          },
+        );
+      }
+    }
+    return null;
+  }
+
+  Widget _buildMembersTab(Workspace ws) {
     return ListView(
       padding: const EdgeInsets.all(24),
       children: [
@@ -496,8 +1343,8 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
                 return ListTile(
                   contentPadding: EdgeInsets.zero,
                   leading: CircleAvatar(
-                    backgroundColor: Color(int.parse(ws.color)).withOpacity(0.2),
-                    child: Text(memberId.isNotEmpty ? memberId[0].toUpperCase() : '?', style: TextStyle(color: Color(int.parse(ws.color)), fontWeight: FontWeight.bold)),
+                    backgroundColor: const Color(0xFF0F766E).withOpacity(0.2),
+                    child: Text(memberId.isNotEmpty ? memberId[0].toUpperCase() : '?', style: const TextStyle(color: Color(0xFF0F766E), fontWeight: FontWeight.bold)),
                   ),
                   title: Row(
                     children: [
@@ -506,14 +1353,15 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
-                          color: Color(int.parse(ws.color)).withOpacity(0.1),
+                          color: const Color(0xFF0F766E).withOpacity(0.1),
                           borderRadius: BorderRadius.circular(4),
                         ),
-                        child: Text(role.toUpperCase(), style: TextStyle(fontSize: 10, color: Color(int.parse(ws.color)), fontWeight: FontWeight.bold)),
+                        child: Text(role.toUpperCase(), style: const TextStyle(fontSize: 10, color: Color(0xFF0F766E), fontWeight: FontWeight.bold)),
                       )
                     ],
                   ),
                   subtitle: const Text("Protected by Firestore security rules"),
+                  trailing: _buildMemberTrailing(ws, memberId, role, "Restricted Profile"),
                 );
               }
               if (!userSnapshot.hasData) return const ListTile(title: Text("Loading..."));
@@ -554,20 +1402,15 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
-                        color: Color(int.parse(ws.color)).withOpacity(0.1),
+                        color: const Color(0xFF0F766E).withOpacity(0.1),
                         borderRadius: BorderRadius.circular(4),
                       ),
-                      child: Text(role.toUpperCase(), style: TextStyle(fontSize: 10, color: Color(int.parse(ws.color)), fontWeight: FontWeight.bold)),
+                      child: Text(role.toUpperCase(), style: const TextStyle(fontSize: 10, color: Color(0xFF0F766E), fontWeight: FontWeight.bold)),
                     )
                   ],
                 ),
                 subtitle: Text(email),
-                trailing: (canRemove && role != 'owner' && memberId != currentUserId) 
-                  ? IconButton(
-                      icon: const Icon(Icons.remove_circle_outline, color: Colors.redAccent),
-                      onPressed: () => _workspaceService.removeMember(ws.id, memberId),
-                    )
-                  : null,
+                trailing: _buildMemberTrailing(ws, memberId, role, name),
               );
             }
           );

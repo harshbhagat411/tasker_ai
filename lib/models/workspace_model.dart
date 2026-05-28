@@ -45,14 +45,32 @@ class Workspace {
 
   factory Workspace.fromFirestore(DocumentSnapshot doc) {
     Map data = doc.data() as Map<String, dynamic>;
+    final String owner = data['ownerId'] ?? '';
+    final rawRoles = Map<String, String>.from(data['memberRoles'] ?? {});
+
+    // On-the-fly migration of roles: editor -> admin, ownerId -> owner, others -> member
+    final Map<String, String> migratedRoles = {};
+    rawRoles.forEach((uid, role) {
+      String newRole = role.toLowerCase();
+      if (newRole == 'editor') newRole = 'admin';
+      if (newRole == 'owner' || uid == owner) newRole = 'owner';
+      if (newRole != 'owner' && newRole != 'admin') newRole = 'member';
+      migratedRoles[uid] = newRole;
+    });
+
+    // Ensure ownerId is always marked as owner
+    if (owner.isNotEmpty) {
+      migratedRoles[owner] = 'owner';
+    }
+
     return Workspace(
       id: doc.id,
       name: data['name'] ?? '',
       description: data['description'] ?? '',
-      ownerId: data['ownerId'] ?? '',
+      ownerId: owner,
       ownerName: data['ownerName'] ?? '',
       members: List<String>.from(data['members'] ?? []),
-      memberRoles: Map<String, String>.from(data['memberRoles'] ?? { (data['ownerId'] ?? ''): 'owner' }),
+      memberRoles: migratedRoles,
       createdAt: data['createdAt'] ?? Timestamp.now(),
       color: data['color'] ?? '0xFF0D47A1',
       icon: data['icon'] ?? 0xe14d, // Icons.code.codePoint
