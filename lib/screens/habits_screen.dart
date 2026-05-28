@@ -17,29 +17,40 @@ class _HabitsScreenState extends State<HabitsScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: isDark ? Theme.of(context).scaffoldBackgroundColor : const Color(0xFFF5F6FA),
       appBar: AppBar(
-        title: const Text("Habits", style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text(
+          "Habits",
+          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 24, letterSpacing: -0.5),
+        ),
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: false,
       ),
       body: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.symmetric(horizontal: 16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              "Today's Habits",
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            const Padding(
+              padding: EdgeInsets.only(left: 4.0, bottom: 8.0, top: 4.0),
+              child: Text(
+                "Today's Habits",
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: -0.5),
+              ),
             ),
-            const SizedBox(height: 16),
             Expanded(
               child: StreamBuilder<List<Habit>>(
                 stream: _habitService.getHabits(),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
+                    return const Center(
+                      child: SizedBox(
+                        width: 32,
+                        height: 32,
+                        child: CircularProgressIndicator(strokeWidth: 2.5),
+                      ),
+                    );
                   }
                   
                   if (snapshot.hasError) {
@@ -50,18 +61,53 @@ class _HabitsScreenState extends State<HabitsScreen> {
                   
                   if (habits.isEmpty) {
                     return Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.repeat, size: 64, color: Colors.grey.withOpacity(0.5)),
-                          const SizedBox(height: 16),
-                          Text("No habits yet", style: TextStyle(color: Colors.grey.shade600, fontSize: 16)),
-                        ],
+                      child: Container(
+                        margin: const EdgeInsets.all(24),
+                        padding: const EdgeInsets.all(24),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF1E1E24) : Colors.white,
+                          borderRadius: BorderRadius.circular(32),
+                          boxShadow: isDark
+                              ? []
+                              : [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.04),
+                                    blurRadius: 16,
+                                    offset: const Offset(0, 8),
+                                  ),
+                                ],
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.repeat,
+                              size: 54,
+                              color: isDark ? Colors.white24 : Colors.black12,
+                            ),
+                            const SizedBox(height: 16),
+                            const Text(
+                              "Build Healthy Habits",
+                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              "Create daily consistency loops. Repeat, track streaks, and transform your routine!",
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: isDark ? Colors.white38 : Colors.black45,
+                                height: 1.4,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     );
                   }
                   
                   return ListView.builder(
+                    padding: const EdgeInsets.only(top: 8, bottom: 96),
                     itemCount: habits.length,
                     itemBuilder: (context, index) {
                       final habit = habits[index];
@@ -74,31 +120,81 @@ class _HabitsScreenState extends State<HabitsScreen> {
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showAddHabitSheet(context),
         backgroundColor: Theme.of(context).primaryColor,
-        child: const Icon(Icons.add, color: Colors.white),
+        icon: const Icon(Icons.add, color: Colors.white),
+        label: const Text("New Habit", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
     );
   }
 
   Widget _buildHabitCard(Habit habit, bool isDark) {
+    final primaryColor = Theme.of(context).primaryColor;
+    final successColor = const Color(0xFF10B981); // Emerald Green
+    
+    // Define card background and border colors based on completed state
+    final Color cardBg = habit.isCompleted
+        ? (isDark ? const Color(0xFF142D22) : const Color(0xFFF0FDF4))
+        : (isDark ? const Color(0xFF1E1E24) : Colors.white);
+        
+    final Color borderCol = habit.isCompleted
+        ? (isDark ? Colors.transparent : const Color(0xFFDCFCE7))
+        : (isDark ? Colors.white10 : const Color(0xFFF1F5F9));
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
       decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        color: cardBg,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: borderCol, width: 1),
+        boxShadow: isDark
+            ? []
+            : [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.03),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
       ),
       child: Row(
         children: [
+          // Completed checkbox
+          GestureDetector(
+            onTap: habit.type == 'daily'
+                ? () => _habitService.toggleDailyHabit(habit.id, habit)
+                : null,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              width: 26,
+              height: 26,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: habit.isCompleted
+                    ? successColor
+                    : Colors.transparent,
+                border: Border.all(
+                  color: habit.isCompleted
+                      ? successColor
+                      : (isDark ? Colors.white24 : const Color(0xFFD1D5DB)),
+                  width: 2.0,
+                ),
+              ),
+              child: habit.isCompleted
+                  ? const Icon(
+                      Icons.check,
+                      size: 16,
+                      color: Colors.white,
+                    )
+                  : null,
+            ),
+          ),
+          const SizedBox(width: 16),
+
+          // Habit Title and Stats
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -106,70 +202,93 @@ class _HabitsScreenState extends State<HabitsScreen> {
                 Text(
                   habit.title,
                   style: TextStyle(
-                    fontSize: 16,
+                    fontSize: 15,
                     fontWeight: FontWeight.w600,
-                    decoration: habit.isCompleted ? TextDecoration.lineThrough : null,
-                    color: habit.isCompleted ? Colors.grey : null,
+                    color: habit.isCompleted
+                        ? (isDark ? Colors.white30 : const Color(0xFF166534).withOpacity(0.6))
+                        : (isDark ? Colors.white.withOpacity(0.9) : const Color(0xFF1C1C1E)),
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 6),
                 Row(
                   children: [
-                    if (habit.streakCount > 0)
-                      Text("🔥 ${habit.streakCount} day streak", style: const TextStyle(color: Colors.orangeAccent, fontSize: 12, fontWeight: FontWeight.bold)),
-                    if (habit.streakCount > 0 && habit.type != 'daily')
-                      const SizedBox(width: 8),
-                    if (habit.type != 'daily')
-                      Text(
-                        "${habit.progress} / ${habit.target} ${habit.type == 'time' ? 'mins' : ''}",
-                        style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                    // Streak Pill
+                    if (habit.streakCount > 0) ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Text("🔥", style: TextStyle(fontSize: 10)),
+                            const SizedBox(width: 4),
+                            Text(
+                              "${habit.streakCount} day streak",
+                              style: const TextStyle(
+                                color: Colors.orangeAccent,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
+                    ],
+                    // Progress Pill for Count/Time types
+                    if (habit.type != 'daily') ...[
+                      if (habit.streakCount > 0) const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: isDark ? Colors.white10 : const Color(0xFFF1F5F9),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          "${habit.progress} / ${habit.target}${habit.type == 'time' ? 'm' : ''}",
+                          style: TextStyle(
+                            color: isDark ? Colors.white70 : const Color(0xFF475569),
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ],
             ),
           ),
           
-          // Actions based on habit type
-          if (habit.type == 'daily')
-            IconButton(
-              icon: Icon(
-                habit.isCompleted ? Icons.check_circle : Icons.circle_outlined,
-                color: habit.isCompleted ? Colors.green : Colors.grey,
-                size: 28,
+          // Action elements based on habit type
+          if (habit.type == 'count' && !habit.isCompleted)
+            GestureDetector(
+              onTap: () => _habitService.incrementProgress(habit.id, habit, 1),
+              child: Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: primaryColor.withOpacity(0.1),
+                ),
+                child: Icon(Icons.add, color: primaryColor, size: 18),
               ),
-              onPressed: () => _habitService.toggleDailyHabit(habit.id, habit),
             )
-          else if (habit.type == 'count')
-            Row(
-              children: [
-                if (!habit.isCompleted)
-                  IconButton(
-                    icon: const Icon(Icons.add_circle_outline, color: Colors.blue),
-                    onPressed: () => _habitService.incrementProgress(habit.id, habit, 1),
-                  ),
-                if (habit.isCompleted)
-                  const Icon(Icons.check_circle, color: Colors.green, size: 28),
-              ],
-            )
-          else if (habit.type == 'time')
-            Row(
-              children: [
-                if (!habit.isCompleted)
-                  ElevatedButton(
-                    onPressed: () => _habitService.incrementProgress(habit.id, habit, 10), // Adds 10 mins for Phase 7A
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Theme.of(context).primaryColor.withOpacity(0.1),
-                      foregroundColor: Theme.of(context).primaryColor,
-                      elevation: 0,
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    child: const Text("+10m"),
-                  ),
-                if (habit.isCompleted)
-                  const Icon(Icons.check_circle, color: Colors.green, size: 28),
-              ],
+          else if (habit.type == 'time' && !habit.isCompleted)
+            ElevatedButton(
+              onPressed: () => _habitService.incrementProgress(habit.id, habit, 10), // Adds 10 mins
+              style: ElevatedButton.styleFrom(
+                backgroundColor: primaryColor.withOpacity(0.1),
+                foregroundColor: primaryColor,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: const Text("+10m", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
             )
         ],
       ),
@@ -208,55 +327,68 @@ class _AddHabitSheetState extends State<_AddHabitSheet> {
       child: Container(
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-          color: Theme.of(context).scaffoldBackgroundColor,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          color: isDark ? const Color(0xFF1E1E24) : Colors.white,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.15),
+              blurRadius: 20,
+              offset: const Offset(0, -4),
+            ),
+          ],
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text("New Habit", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+            // Slide indicator
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 20),
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.white24 : Colors.black12,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const Text(
+              "New Habit",
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, letterSpacing: -0.5),
+            ),
             const SizedBox(height: 20),
             TextField(
               controller: _titleController,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: "Habit Title",
                 hintText: "e.g., Workout, Drink Water",
+                labelStyle: TextStyle(color: isDark ? Colors.white70 : const Color(0xFF6B7280)),
+                focusedBorder: UnderlineInputBorder(
+                  borderSide: BorderSide(color: Theme.of(context).primaryColor, width: 2),
+                ),
               ),
               autofocus: true,
+              style: TextStyle(color: isDark ? Colors.white : Colors.black87),
             ),
-            const SizedBox(height: 20),
-            const Text("Habit Type", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 24),
+            const Text("Habit Type", style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
             const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
+            Row(
               children: [
-                ChoiceChip(
-                  label: const Text("Daily (Once)"),
-                  selected: _selectedType == 'daily',
-                  onSelected: (val) {
-                    if (val) setState(() { _selectedType = 'daily'; _target = 1; });
-                  },
-                ),
-                ChoiceChip(
-                  label: const Text("Count"),
-                  selected: _selectedType == 'count',
-                  onSelected: (val) {
-                    if (val) setState(() { _selectedType = 'count'; _target = 8; });
-                  },
-                ),
-                ChoiceChip(
-                  label: const Text("Time"),
-                  selected: _selectedType == 'time',
-                  onSelected: (val) {
-                    if (val) setState(() { _selectedType = 'time'; _target = 60; });
-                  },
-                ),
+                _buildTypeChip("daily", "Daily"),
+                const SizedBox(width: 8),
+                _buildTypeChip("count", "Count"),
+                const SizedBox(width: 8),
+                _buildTypeChip("time", "Time"),
               ],
             ),
             if (_selectedType != 'daily') ...[
-              const SizedBox(height: 20),
-              Text("Target (${_selectedType == 'time' ? 'minutes' : 'times'})", style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 24),
+              Text(
+                "Target (${_selectedType == 'time' ? 'minutes' : 'times'})",
+                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+              ),
               const SizedBox(height: 12),
               Row(
                 children: [
@@ -280,7 +412,8 @@ class _AddHabitSheetState extends State<_AddHabitSheet> {
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   backgroundColor: Theme.of(context).primaryColor,
                   foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  elevation: 0,
                 ),
                 onPressed: () {
                   if (_titleController.text.trim().isNotEmpty) {
@@ -296,6 +429,52 @@ class _AddHabitSheetState extends State<_AddHabitSheet> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTypeChip(String type, String label) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isSelected = _selectedType == type;
+    final primaryColor = Theme.of(context).primaryColor;
+
+    return Expanded(
+      child: GestureDetector(
+        onTap: () {
+          setState(() {
+            _selectedType = type;
+            if (type == 'daily') _target = 1;
+            if (type == 'count') _target = 8;
+            if (type == 'time') _target = 60;
+          });
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? primaryColor
+                : (isDark ? Colors.white.withOpacity(0.04) : const Color(0xFFF1F5F9)),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: isSelected
+                  ? primaryColor
+                  : (isDark ? Colors.white10 : Colors.black.withOpacity(0.05)),
+              width: 1,
+            ),
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+              color: isSelected
+                  ? Colors.white
+                  : (isDark ? Colors.white70 : const Color(0xFF4B5563)),
+            ),
+          ),
         ),
       ),
     );

@@ -598,15 +598,245 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
   }
 
+  void _showHabitsGoalsExplanationSheet(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) {
+        return Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1E1E24) : Colors.white,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.15),
+                blurRadius: 20,
+                offset: const Offset(0, -4),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Pull bar indicator
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 24),
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.white24 : Colors.black12,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const Text(
+                "What's the difference?",
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.5,
+                ),
+              ),
+              const SizedBox(height: 24),
+              
+              // Habit Section
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text("🔁", style: TextStyle(fontSize: 24)),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          "Habit",
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          "A habit is something you repeat regularly.",
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: isDark ? Colors.white70 : const Color(0xFF4B5563),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          "Examples:\n• Drink water daily\n• Go to gym\n• Study 30 mins every day",
+                          style: TextStyle(
+                            fontSize: 12,
+                            height: 1.5,
+                            color: isDark ? Colors.white38 : const Color(0xFF6B7280),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          "Habits help build consistency.",
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Theme.of(context).primaryColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 20),
+                child: Divider(height: 1),
+              ),
+
+              // Goal Section
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text("🎯", style: TextStyle(fontSize: 24)),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          "Goal",
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          "A goal is something you want to achieve.",
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: isDark ? Colors.white70 : const Color(0xFF4B5563),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          "Examples:\n• Lose 5kg\n• Finish syllabus\n• Save money",
+                          style: TextStyle(
+                            fontSize: 12,
+                            height: 1.5,
+                            color: isDark ? Colors.white38 : const Color(0xFF6B7280),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          "Goals help track progress.",
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Theme.of(context).primaryColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 20),
+                child: Divider(height: 1),
+              ),
+
+              // Summary / Simple Rule
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.white.withOpacity(0.04) : const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const Text("💡", style: TextStyle(fontSize: 18)),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: RichText(
+                        text: TextSpan(
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: isDark ? Colors.white.withOpacity(0.9) : const Color(0xFF334155),
+                            height: 1.4,
+                          ),
+                          children: const [
+                            TextSpan(text: "Simple rule:\n"),
+                            TextSpan(
+                              text: "Habits",
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            TextSpan(text: " = repeat   |   "),
+                            TextSpan(
+                              text: "Goals",
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            TextSpan(text: " = achieve"),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 28),
+
+              // Got it button
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    backgroundColor: Theme.of(context).primaryColor,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    elevation: 0,
+                  ),
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text(
+                    "Got it",
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildGoalsDashboard(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-          child: Text(
-            "Habits & Goals",
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+          child: Row(
+            children: [
+              const Text(
+                "Habits & Goals",
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(width: 6),
+              GestureDetector(
+                onTap: () => _showHabitsGoalsExplanationSheet(context),
+                child: Icon(
+                  Icons.info_outline_rounded,
+                  size: 18,
+                  color: Theme.of(context).primaryColor.withOpacity(0.8),
+                ),
+              ),
+            ],
           ),
         ),
         Row(
@@ -626,10 +856,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   
                   return InkWell(
                     onTap: () {
-                      Navigator.push(context, MaterialPageRoute(builder: (_) => Scaffold(
-                        appBar: AppBar(title: const Text('Today\'s Habits')),
-                        body: const SafeArea(child: HabitsScreen()),
-                      )));
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => const HabitsScreen()));
                     },
                     borderRadius: BorderRadius.circular(16),
                     child: Container(
@@ -686,48 +913,39 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   int percentage = total > 0 ? ((activeStreaks / total) * 100).round() : 0;
                   final progressVal = total > 0 ? activeStreaks / total : 0.0;
                   
-                  return InkWell(
-                    onTap: () {
-                      Navigator.push(context, MaterialPageRoute(builder: (_) => Scaffold(
-                        appBar: AppBar(title: const Text('Habit Streaks')),
-                        body: const SafeArea(child: HabitsScreen()),
-                      )));
-                    },
-                    borderRadius: BorderRadius.circular(16),
-                    child: Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).cardColor,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: Theme.of(context).primaryColor.withOpacity(0.2)),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(Icons.local_fire_department, size: 20, color: Theme.of(context).primaryColor),
-                              const SizedBox(width: 8),
-                              const Text("Active Streaks", style: TextStyle(fontWeight: FontWeight.bold)),
-                            ],
+                  return Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).cardColor,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Theme.of(context).primaryColor.withOpacity(0.2)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.local_fire_department, size: 20, color: Theme.of(context).primaryColor),
+                            const SizedBox(width: 8),
+                            const Text("Active Streaks", style: TextStyle(fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          total > 0 ? "$percentage% active" : "Start a streak",
+                          style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                        ),
+                        const SizedBox(height: 8),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(4),
+                          child: LinearProgressIndicator(
+                            value: total > 0 ? progressVal : 0,
+                            backgroundColor: Colors.grey.withOpacity(0.2),
+                            valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).primaryColor),
+                            minHeight: 4,
                           ),
-                          const SizedBox(height: 8),
-                          Text(
-                            total > 0 ? "$percentage% active" : "Start a streak",
-                            style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
-                          ),
-                          const SizedBox(height: 8),
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(4),
-                            child: LinearProgressIndicator(
-                              value: total > 0 ? progressVal : 0,
-                              backgroundColor: Colors.grey.withOpacity(0.2),
-                              valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).primaryColor),
-                              minHeight: 4,
-                            ),
-                          ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   );
                 },
