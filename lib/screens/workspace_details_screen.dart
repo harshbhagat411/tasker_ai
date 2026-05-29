@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:rxdart/rxdart.dart';
 import '../models/workspace_model.dart';
 import '../services/workspace_service.dart';
 import '../services/task_service.dart';
@@ -148,7 +149,7 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
                         }
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF0F766E),
+                        backgroundColor: Color(int.parse(ws.color)),
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -281,8 +282,8 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
 
                     return ListTile(
                       leading: CircleAvatar(
-                        backgroundColor: const Color(0xFF0F766E).withOpacity(0.2),
-                        child: Text(initial, style: const TextStyle(color: Color(0xFF0F766E), fontWeight: FontWeight.bold)),
+                        backgroundColor: Color(int.parse(ws.color)).withOpacity(0.2),
+                        child: Text(initial, style: TextStyle(color: Color(int.parse(ws.color)), fontWeight: FontWeight.bold)),
                       ),
                       title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold)),
                       subtitle: Text(email),
@@ -576,7 +577,7 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
       stream: _workspaceService.getWorkspace(widget.workspace.id),
       builder: (context, snapshot) {
         final ws = snapshot.data ?? widget.workspace;
-        const color = Color(0xFF0F766E); // emerald teal accent
+        final color = Color(int.parse(ws.color));
         final currentUserRole = ws.memberRoles[currentUserId] ?? 'member';
         
         return Scaffold(
@@ -660,29 +661,114 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
         const SizedBox(height: 20),
         _buildProgressSection(ws, isDark),
         const SizedBox(height: 20),
+        _buildMemberStatsCard(ws, isDark),
+        const SizedBox(height: 20),
         _buildRecentActivityPreview(ws, isDark),
         const SizedBox(height: 20),
-        _buildSprintPlaceholderCard(isDark),
+        _buildSprintPlaceholderCard(ws, isDark),
         const SizedBox(height: 12),
       ],
     );
   }
 
+  Widget _buildMemberStatsCard(Workspace ws, bool isDark) {
+    final workspaceColor = Color(int.parse(ws.color));
+    
+    final membersStream = FirebaseFirestore.instance
+        .collection('users')
+        .where(FieldPath.documentId, whereIn: ws.members.take(30).toList())
+        .snapshots();
+        
+    final invitesStream = FirebaseFirestore.instance
+        .collection('project_invites')
+        .where('projectId', isEqualTo: ws.id)
+        .where('status', isEqualTo: 'pending')
+        .snapshots();
+        
+    return StreamBuilder<List<QuerySnapshot>>(
+      stream: Rx.combineLatest2(
+        membersStream,
+        invitesStream,
+        (QuerySnapshot members, QuerySnapshot invites) => [members, invites],
+      ),
+      builder: (context, snapshot) {
+        int activeNow = 0;
+        int pendingInvites = 0;
+        
+        if (snapshot.hasData) {
+          final membersSnap = snapshot.data![0];
+          final invitesSnap = snapshot.data![1];
+          
+          for (var doc in membersSnap.docs) {
+            final data = doc.data() as Map<String, dynamic>?;
+            if (data != null && data['isOnline'] == true) {
+              activeNow++;
+            }
+          }
+          
+          pendingInvites = invitesSnap.docs.length;
+        }
+        
+        final totalMembers = ws.members.length;
+        final adminCount = ws.memberRoles.values.where((role) => role == 'admin' || role == 'owner').length;
+        
+        return Container(
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1E1E24) : Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+            border: Border.all(color: isDark ? Colors.grey[800]! : Colors.grey[200]!),
+          ),
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text("Active Members Statistics", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  Icon(Icons.analytics_outlined, size: 20, color: workspaceColor),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  _buildProgressMetric("Total Members", totalMembers.toString(), workspaceColor),
+                  _buildProgressMetric("Active Now", activeNow.toString(), Colors.green),
+                  _buildProgressMetric("Admins", adminCount.toString(), Colors.blue),
+                  _buildProgressMetric("Pending Invites", pendingInvites.toString(), Colors.orange),
+                ],
+              ),
+            ],
+          ),
+        );
+      }
+    );
+  }
+
   Widget _buildProjectSummaryCard(Workspace ws, bool isDark) {
     final formattedDate = DateFormat.yMMMd().format(ws.createdAt.toDate());
+    final color = Color(int.parse(ws.color));
     
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: isDark 
-              ? [const Color(0xFF0F766E).withOpacity(0.3), const Color(0xFF0F766E).withOpacity(0.1)]
-              : [const Color(0xFF0F766E).withOpacity(0.15), const Color(0xFF0F766E).withOpacity(0.05)],
+              ? [color.withOpacity(0.3), color.withOpacity(0.1)]
+              : [color.withOpacity(0.15), color.withOpacity(0.05)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
-          color: const Color(0xFF0F766E).withOpacity(isDark ? 0.3 : 0.2),
+          color: color.withOpacity(isDark ? 0.3 : 0.2),
           width: 1.5,
         ),
       ),
@@ -695,10 +781,10 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF0F766E).withOpacity(0.2),
+                  color: color.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(16),
                 ),
-                child: Icon(ws.iconData, size: 28, color: const Color(0xFF0F766E)),
+                child: Icon(ws.iconData, size: 28, color: color),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -733,7 +819,7 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
           const SizedBox(height: 16),
           Row(
             children: [
-              const Icon(Icons.group_outlined, size: 16, color: Color(0xFF0F766E)),
+              Icon(Icons.group_outlined, size: 16, color: color),
               const SizedBox(width: 8),
               Text(
                 "${ws.members.length} team ${ws.members.length == 1 ? 'member' : 'members'}",
@@ -747,6 +833,8 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
   }
 
   Widget _buildProgressSection(Workspace ws, bool isDark) {
+    final color = Color(int.parse(ws.color));
+    
     return StreamBuilder<QuerySnapshot>(
       stream: _taskService.getWorkspaceTasks(ws.id),
       builder: (context, snapshot) {
@@ -754,7 +842,7 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
           return Container(
             height: 140,
             alignment: Alignment.center,
-            child: const CircularProgressIndicator(color: Color(0xFF0F766E)),
+            child: CircularProgressIndicator(color: color),
           );
         }
         
@@ -802,7 +890,7 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const Text("Workspace Progress", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                      Text("$percent% Done", style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF0F766E))),
+                      Text("$percent% Done", style: TextStyle(fontWeight: FontWeight.bold, color: color)),
                     ],
                   ),
                   const SizedBox(height: 12),
@@ -811,7 +899,7 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
                     child: LinearProgressIndicator(
                       value: progress,
                       backgroundColor: isDark ? Colors.grey[800] : Colors.grey[200],
-                      valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF0F766E)),
+                      valueColor: AlwaysStoppedAnimation<Color>(color),
                       minHeight: 10,
                     ),
                   ),
@@ -860,6 +948,7 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
     final assignedCount = taskDocs.where((d) => (d.data() as Map<String, dynamic>?)?['assignedTo'] != null).length;
     final totalTasks = taskDocs.length;
     final completedTasks = taskDocs.where((d) => (d.data() as Map<String, dynamic>?)?['isDone'] == true).length;
+    final color = Color(int.parse(ws.color));
     
     final velocity = totalTasks > 0 ? (completedTasks * 100 ~/ totalTasks) : 0;
     String ratingLabel = "Idle";
@@ -886,6 +975,7 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
             subtitle: "tasks delegated",
             icon: Icons.assignment_turned_in_outlined,
             isDark: isDark,
+            color: color,
           ),
         ),
         const SizedBox(width: 16),
@@ -897,6 +987,7 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
             subtitleColor: ratingColor,
             icon: Icons.speed_outlined,
             isDark: isDark,
+            color: color,
           ),
         ),
       ],
@@ -909,6 +1000,7 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
     required String subtitle,
     required IconData icon,
     required bool isDark,
+    required Color color,
     Color? subtitleColor,
   }) {
     return Container(
@@ -938,7 +1030,7 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              Icon(icon, size: 18, color: const Color(0xFF0F766E)),
+              Icon(icon, size: 18, color: color),
             ],
           ),
           const SizedBox(height: 12),
@@ -961,6 +1053,8 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
   }
 
   Widget _buildRecentActivityPreview(Workspace ws, bool isDark) {
+    final color = Color(int.parse(ws.color));
+    
     return Container(
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E1E24) : Colors.white,
@@ -986,11 +1080,11 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
                 onPressed: () {
                   _tabController.animateTo(3); // Switch to Activity tab (index 3)
                 },
-                child: const Row(
+                child: Row(
                   children: [
-                    Text("View All", style: TextStyle(color: Color(0xFF0F766E), fontWeight: FontWeight.bold)),
-                    SizedBox(width: 4),
-                    Icon(Icons.arrow_forward_ios, size: 12, color: Color(0xFF0F766E)),
+                    Text("View All", style: TextStyle(color: color, fontWeight: FontWeight.bold)),
+                    const SizedBox(width: 4),
+                    Icon(Icons.arrow_forward_ios, size: 12, color: color),
                   ],
                 ),
               ),
@@ -1002,7 +1096,7 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
             stream: _activityService.getProjectActivities(ws.id),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator(color: Color(0xFF0F766E)));
+                return Center(child: CircularProgressIndicator(color: color));
               }
               
               final docs = snapshot.data?.docs ?? [];
@@ -1099,19 +1193,21 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
     );
   }
 
-  Widget _buildSprintPlaceholderCard(bool isDark) {
+  Widget _buildSprintPlaceholderCard(Workspace ws, bool isDark) {
+    final color = Color(int.parse(ws.color));
+    
     return Container(
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E1E24) : Colors.white,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: const Color(0xFF0F766E).withOpacity(0.3),
+          color: color.withOpacity(0.3),
           style: BorderStyle.solid,
           width: 1.5,
         ),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF0F766E).withOpacity(isDark ? 0.1 : 0.03),
+            color: color.withOpacity(isDark ? 0.1 : 0.03),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -1126,14 +1222,14 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
             children: [
               Row(
                 children: [
-                  const Icon(Icons.rocket_launch_outlined, color: Color(0xFF0F766E), size: 20),
+                  Icon(Icons.rocket_launch_outlined, color: color, size: 20),
                   const SizedBox(width: 8),
                   Text(
                     "Agile Sprints",
                     style: TextStyle(
                       fontSize: 15, 
                       fontWeight: FontWeight.bold, 
-                      color: isDark ? Colors.teal.shade300 : const Color(0xFF0F766E),
+                      color: isDark ? color.withOpacity(0.9) : color,
                     ),
                   ),
                 ],
@@ -1141,15 +1237,15 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF0F766E).withOpacity(0.15),
+                  color: color.withOpacity(0.15),
                   borderRadius: BorderRadius.circular(6),
                 ),
-                child: const Text(
+                child: Text(
                   "PHASE 9 COMING SOON",
                   style: TextStyle(
                     fontSize: 8,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF0F766E),
+                    color: color,
                     letterSpacing: 0.5,
                   ),
                 ),
@@ -1338,13 +1434,15 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
           return FutureBuilder<DocumentSnapshot>(
             future: FirebaseFirestore.instance.collection('users').doc(memberId).get(),
             builder: (context, userSnapshot) {
+              final color = Color(int.parse(ws.color));
+              
               if (userSnapshot.hasError) {
                 final role = ws.memberRoles[memberId] ?? 'member';
                 return ListTile(
                   contentPadding: EdgeInsets.zero,
                   leading: CircleAvatar(
-                    backgroundColor: const Color(0xFF0F766E).withOpacity(0.2),
-                    child: Text(memberId.isNotEmpty ? memberId[0].toUpperCase() : '?', style: const TextStyle(color: Color(0xFF0F766E), fontWeight: FontWeight.bold)),
+                    backgroundColor: color.withOpacity(0.2),
+                    child: Text(memberId.isNotEmpty ? memberId[0].toUpperCase() : '?', style: TextStyle(color: color, fontWeight: FontWeight.bold)),
                   ),
                   title: Row(
                     children: [
@@ -1353,10 +1451,10 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF0F766E).withOpacity(0.1),
+                          color: color.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(4),
                         ),
-                        child: Text(role.toUpperCase(), style: const TextStyle(fontSize: 10, color: Color(0xFF0F766E), fontWeight: FontWeight.bold)),
+                        child: Text(role.toUpperCase(), style: TextStyle(fontSize: 10, color: color, fontWeight: FontWeight.bold)),
                       )
                     ],
                   ),
@@ -1402,10 +1500,10 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF0F766E).withOpacity(0.1),
+                        color: color.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(4),
                       ),
-                      child: Text(role.toUpperCase(), style: const TextStyle(fontSize: 10, color: Color(0xFF0F766E), fontWeight: FontWeight.bold)),
+                      child: Text(role.toUpperCase(), style: TextStyle(fontSize: 10, color: color, fontWeight: FontWeight.bold)),
                     )
                   ],
                 ),

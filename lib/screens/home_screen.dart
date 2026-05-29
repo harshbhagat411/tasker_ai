@@ -1671,6 +1671,35 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                   ),
                                 ),
                               ],
+                              if (data?['projectId'] != null) ...[
+                                const SizedBox(width: 8),
+                                StreamBuilder<Workspace?>(
+                                  stream: WorkspaceService().getWorkspace(data!['projectId'].toString()),
+                                  builder: (context, wsSnapshot) {
+                                    final wsName = wsSnapshot.data?.name ?? 'Project';
+                                    final wsColorHex = wsSnapshot.data?.color ?? '0xFF0D47A1';
+                                    final wsColor = Color(int.parse(wsColorHex));
+                                    return Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: wsColor.withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(wsSnapshot.data?.iconData ?? Icons.business_center, size: 14, color: wsColor),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            wsName,
+                                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: wsColor),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  }
+                                ),
+                              ],
                               if (memberIds.isNotEmpty) ...[
                                 const Spacer(),
                                 _buildTaskAvatars(memberIds),
@@ -2376,20 +2405,21 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                             final data = t.data() as Map<String, dynamic>? ?? {};
                             
                             bool isReceivedShare = (data['isShared'] == true && data['sharedById'] != currentUserId);
+                            bool isWorkspaceTask = (data['projectId'] != null);
                             
                             bool isOwner = false;
                             if (data['ownerId'] == currentUserId) {
                               isOwner = true;
                             } else if (data['permissions'] != null && data['permissions'][currentUserId] == 'owner') {
                               isOwner = true;
-                            } else if (!isReceivedShare) {
+                            } else if (!isReceivedShare && !isWorkspaceTask) {
                               isOwner = true;
                             }
                             
                             final members = data['members'] as List<dynamic>? ?? [];
                             bool hasMultipleMembers = members.length > 1;
                             
-                            if (isReceivedShare) {
+                            if (isReceivedShare || isWorkspaceTask) {
                               sharedWithMeTasks.add(t);
                             } else if (isOwner && hasMultipleMembers) {
                               sharedByMeTasks.add(t);
@@ -2400,24 +2430,39 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           
                           final sections = <Widget>[];
                           
+                          // Filter assignedToMe dynamically considering both String and Map types
+                          final assignedToMe = sharedWithMeTasks.where((t) {
+                            final d = t.data() as Map<String, dynamic>? ?? {};
+                            final assigned = d['assignedTo'];
+                            if (assigned is String) {
+                              return assigned == currentUserId;
+                            } else if (assigned is Map) {
+                              return assigned['uid'] == currentUserId;
+                            }
+                            return false;
+                          }).toList();
+
+                          final sharedWithMeFiltered = sharedWithMeTasks.where((t) => !assignedToMe.contains(t)).toList();
+                          
                           if (!isDeveloper) {
+                            if (assignedToMe.isNotEmpty) {
+                              sections.add(Text("Assigned To You", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyLarge?.color)));
+                              sections.add(const SizedBox(height: 16));
+                              sections.add(_buildTaskList(context, assignedToMe));
+                              sections.add(const SizedBox(height: 24));
+                            }
                             if (myTasks.isNotEmpty) {
                               sections.add(Text("My Tasks", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyLarge?.color)));
                               sections.add(const SizedBox(height: 16));
                               sections.add(_buildTaskList(context, myTasks));
-                            } else {
+                            }
+                            if (assignedToMe.isEmpty && myTasks.isEmpty) {
                               sections.add(const Text("No tasks found.", style: TextStyle(color: Colors.grey)));
                             }
                           } else {
                             // Developer Mode: Projects, Assigned Tasks, Shared
                             sections.add(_buildYourProjects(context));
                             sections.add(const SizedBox(height: 24));
-                            
-                            // Assigned to Me
-                            final assignedToMe = sharedWithMeTasks.where((t) {
-                              final d = t.data() as Map<String, dynamic>? ?? {};
-                              return d['assignedTo'] == currentUserId;
-                            }).toList();
                             
                             if (assignedToMe.isNotEmpty) {
                               sections.add(Text("Assigned To You", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyLarge?.color)));
@@ -2426,10 +2471,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                               sections.add(const SizedBox(height: 24));
                             }
                             
-                            if (sharedWithMeTasks.isNotEmpty) {
+                            if (sharedWithMeFiltered.isNotEmpty) {
                               sections.add(Text("Shared With Me", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyLarge?.color)));
                               sections.add(const SizedBox(height: 16));
-                              sections.add(_buildTaskList(context, sharedWithMeTasks));
+                              sections.add(_buildTaskList(context, sharedWithMeFiltered));
                               sections.add(const SizedBox(height: 24));
                             }
                             
@@ -2446,7 +2491,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                               sections.add(_buildTaskList(context, myTasks));
                             }
                             
-                            if (assignedToMe.isEmpty && sharedWithMeTasks.isEmpty && sharedByMeTasks.isEmpty && myTasks.isEmpty) {
+                            if (assignedToMe.isEmpty && sharedWithMeFiltered.isEmpty && sharedByMeTasks.isEmpty && myTasks.isEmpty) {
                               sections.add(const Text("No tasks found.", style: TextStyle(color: Colors.grey)));
                             }
                           }

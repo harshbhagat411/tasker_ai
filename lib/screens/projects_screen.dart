@@ -110,7 +110,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
 
   Widget _buildProjectCard(Workspace workspace) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    const accentColor = Color(0xFF0F766E);
+    final accentColor = Color(int.parse(workspace.color));
     
     return GestureDetector(
       onTap: () {
@@ -182,12 +182,31 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                         ],
                       ),
                       const SizedBox(height: 4),
-                      Text(
-                        "${workspace.members.length} collaborator${workspace.members.length == 1 ? '' : 's'}",
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: isDark ? Colors.grey[400] : Colors.grey[600],
-                        ),
+                      StreamBuilder<QuerySnapshot>(
+                        stream: FirebaseFirestore.instance
+                            .collection('users')
+                            .where(FieldPath.documentId, whereIn: workspace.members.take(30).toList())
+                            .snapshots(),
+                        builder: (context, userSnapshot) {
+                          int activeCount = 0;
+                          if (userSnapshot.hasData) {
+                            for (var doc in userSnapshot.data!.docs) {
+                              final data = doc.data() as Map<String, dynamic>?;
+                              if (data != null && data['isOnline'] == true) {
+                                activeCount++;
+                              }
+                            }
+                          }
+                          final totalCount = workspace.members.length;
+                          return Text(
+                            "$activeCount / $totalCount active",
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: isDark ? Colors.grey[400] : Colors.grey[600],
+                              fontWeight: FontWeight.w500,
+                            ),
+                          );
+                        }
                       ),
                     ],
                   ),
@@ -232,7 +251,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                         ),
                         Text(
                           "$percent%",
-                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: accentColor),
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: accentColor),
                         ),
                       ],
                     ),
@@ -243,7 +262,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                         value: progress,
                         minHeight: 6,
                         backgroundColor: isDark ? Colors.grey[800] : Colors.grey[200],
-                        valueColor: const AlwaysStoppedAnimation<Color>(accentColor),
+                        valueColor: AlwaysStoppedAnimation<Color>(accentColor),
                       ),
                     ),
                   ],

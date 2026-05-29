@@ -387,28 +387,47 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> with WidgetsBindi
                 ),
                 
                 // Focus Button
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      showFocusSetupSheet(
-                        context,
-                        taskId: widget.taskId,
-                        taskTitle: title,
-                        projectName: widget.projectId != null ? "Project Task" : null,
-                      );
-                    },
-                    icon: const Icon(Icons.center_focus_strong),
-                    label: const Text("Focus on this Task", style: TextStyle(fontWeight: FontWeight.bold)),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Theme.of(context).brightness == Brightness.dark ? Colors.white : const Color(0xFF0D47A1),
-                      foregroundColor: Theme.of(context).brightness == Brightness.dark ? Colors.black : Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                (() {
+                  final bool isWorkspaceTask = (widget.projectId != null || data['projectId'] != null);
+                  bool canFocus = true;
+                  if (isWorkspaceTask) {
+                    final isOwner = ownerId == widget.currentUserId;
+                    final isAssigned = assignedToId == widget.currentUserId;
+                    if (!isOwner && !isAssigned) {
+                      canFocus = false;
+                    }
+                  }
+                  
+                  return SizedBox(
+                    width: double.infinity,
+                    child: Tooltip(
+                      message: canFocus ? "" : "Only assigned member can focus on this task",
+                      child: ElevatedButton.icon(
+                        onPressed: canFocus ? () {
+                          showFocusSetupSheet(
+                            context,
+                            taskId: widget.taskId,
+                            taskTitle: title,
+                            projectName: (widget.projectId != null || data['projectId'] != null) ? "Project Task" : null,
+                          );
+                        } : null,
+                        icon: const Icon(Icons.center_focus_strong),
+                        label: const Text("Focus on this Task", style: TextStyle(fontWeight: FontWeight.bold)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: canFocus 
+                              ? (Theme.of(context).brightness == Brightness.dark ? Colors.white : const Color(0xFF0D47A1))
+                              : Colors.grey.shade400,
+                          foregroundColor: canFocus 
+                              ? (Theme.of(context).brightness == Brightness.dark ? Colors.black : Colors.white)
+                              : Colors.grey.shade600,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                      ),
                     ),
-                  ),
-                ),
+                  );
+                })(),
                 const SizedBox(height: 24),
                 
                 // Date & Time

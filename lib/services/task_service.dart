@@ -6,6 +6,8 @@ import '../models/notification_model.dart';
 import 'package:rxdart/rxdart.dart';
 import 'activity_service.dart';
 import 'productivity_tracking_service.dart';
+import 'workspace_service.dart';
+
 
 class TaskService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -375,7 +377,20 @@ class TaskService {
       data['assignedTo'] = assignedTo;
     }
 
-    await _firestore.collection('projects').doc(projectId).collection('tasks').add(data);
+    final docRef = await _firestore.collection('projects').doc(projectId).collection('tasks').add(data);
+    
+    // Trigger notification!
+    if (assignedTo != null) {
+      final String? assigneeId = assignedTo['uid'];
+      if (assigneeId != null) {
+        await _sendTaskAssignmentNotification(
+          assigneeId: assigneeId,
+          taskTitle: title,
+          taskId: docRef.id,
+          workspaceId: projectId,
+        );
+      }
+    }
   }
 
   Future<void> reassignProjectTask({
@@ -440,13 +455,11 @@ class TaskService {
     
     // Notify new assignee
     if (newAssigneeId != null && newAssigneeId != currentUserId) {
-      await _inAppNotificationService.createNotification(
-        receiverId: newAssigneeId,
-        type: NotificationType.task_assigned,
-        title: "New Task Assigned",
-        message: "You were assigned a task in '$projectName': '$taskTitle'",
-        projectId: projectId,
+      await _sendTaskAssignmentNotification(
+        assigneeId: newAssigneeId,
+        taskTitle: taskTitle,
         taskId: taskId,
+        workspaceId: projectId,
       );
     }
 
@@ -461,6 +474,53 @@ class TaskService {
         taskId: taskId,
       );
     }
+  }
+
+  Future<void> _sendTaskAssignmentNotification({
+    required String assigneeId,
+    required String taskTitle,
+    required String taskId,
+    required String workspaceId,
+  }) async {
+    final currentUserId = userId;
+    if (currentUserId == null) return;
+    if (assigneeId == currentUserId) return; // Don't notify self
+
+    // Fetch workspace details to get project/workspace name
+    final workspaceDoc = await _firestore.collection('workspaces').doc(workspaceId).get();
+    final String projectName = workspaceDoc.exists ? (workspaceDoc.data()?['name'] ?? 'Project') : 'Project';
+
+    // Fetch current user details to get display name
+    final currentUserDoc = await _firestore.collection('users').doc(currentUserId).get();
+    final String senderName = currentUserDoc.data()?['displayName'] ?? currentUserDoc.data()?['name'] ?? _auth.currentUser?.displayName ?? 'Someone';
+
+    final String title = "New Task Assigned";
+    final String message = "$senderName assigned you: $taskTitle";
+
+    // 1. Write to users/{userId}/notifications
+    await _firestore
+        .collection('users')
+        .doc(assigneeId)
+        .collection('notifications')
+        .add({
+      'title': title,
+      'message': message,
+      'type': 'task_assigned',
+      'workspaceId': workspaceId,
+      'taskId': taskId,
+      'createdAt': FieldValue.serverTimestamp(),
+      'isRead': false,
+    });
+
+    // 2. Also write standard root in-app notification for Updates tab and push notifications sync!
+    await _inAppNotificationService.createNotification(
+      receiverId: assigneeId,
+      type: NotificationType.task_assigned,
+      title: title,
+      message: "You were assigned a task in '$projectName': '$taskTitle'",
+      projectId: workspaceId,
+      taskId: taskId,
+    );
   }
 
   Stream<QuerySnapshot> getWorkspaceTasks(String workspaceId) {
@@ -666,20 +726,64 @@ class TaskService {
   }
 
 
+  Stream<List<QueryDocumentSnapshot>> getAssignedWorkspaceTasksStream() {
+    if (userId == null) return Stream.value([]);
+    
+    return WorkspaceService().getUserWorkspaces().switchMap((workspaces) {
+      if (workspaces.isEmpty) return Stream.value(<QueryDocumentSnapshot>[]);
+      
+      final streams = workspaces.map((ws) {
+        return _firestore
+            .collection('projects')
+            .doc(ws.id)
+            .collection('tasks')
+            .snapshots();
+      }).toList();
+      
+      return Rx.combineLatest<QuerySnapshot, List<QueryDocumentSnapshot>>(
+        streams,
+        (List<QuerySnapshot> snapshots) {
+          final List<QueryDocumentSnapshot> assignedTasks = [];
+          for (var snap in snapshots) {
+            for (var doc in snap.docs) {
+              final data = doc.data() as Map<String, dynamic>?;
+              if (data == null) continue;
+              
+              String? assignedToId;
+              if (data['assignedTo'] is String) {
+                assignedToId = data['assignedTo'];
+              } else if (data['assignedTo'] is Map) {
+                assignedToId = data['assignedTo']['uid'];
+              }
+              
+              if (assignedToId == userId) {
+                assignedTasks.add(doc);
+              }
+            }
+          }
+          return assignedTasks;
+        },
+      );
+    });
+  }
+
   Stream<List<QueryDocumentSnapshot>> getAllTasks() {
     if (userId == null) return Stream.value([]);
-    print("Combining personal and shared tasks for user: $userId");
+    print("Combining personal, shared, and assigned workspace tasks for user: $userId");
 
     final personalStream = getTasks();
     final sharedStream = getSharedTasks();
+    final assignedWorkspaceStream = getAssignedWorkspaceTasksStream();
 
-    return Rx.combineLatest2(
+    return Rx.combineLatest3(
       personalStream,
       sharedStream,
-      (QuerySnapshot personal, QuerySnapshot shared) {
+      assignedWorkspaceStream,
+      (QuerySnapshot personal, QuerySnapshot shared, List<QueryDocumentSnapshot> assignedWorkspace) {
         final List<QueryDocumentSnapshot> allDocs = [];
         allDocs.addAll(personal.docs);
         allDocs.addAll(shared.docs);
+        allDocs.addAll(assignedWorkspace);
         
         // Sort combined list by createdAt descending
         allDocs.sort((a, b) {
