@@ -165,12 +165,15 @@ class _TaskCardState extends State<TaskCard> {
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: () {
+          final tData = widget.task.data() as Map<String, dynamic>?;
+          final pId = tData?['projectId']?.toString();
           Navigator.push(
             context,
             MaterialPageRoute(
               builder: (context) => TaskDetailsScreen(
                 taskId: widget.task.id,
                 currentUserId: FirebaseAuth.instance.currentUser!.uid,
+                projectId: pId,
               ),
             ),
           );

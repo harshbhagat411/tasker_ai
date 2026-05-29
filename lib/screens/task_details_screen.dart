@@ -174,7 +174,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> with WidgetsBindi
         foregroundColor: Theme.of(context).textTheme.bodyLarge?.color,
       ),
       body: StreamBuilder<DocumentSnapshot>(
-        stream: widget.projectId != null 
+        stream: (widget.projectId != null && widget.projectId!.isNotEmpty)
           ? FirebaseFirestore.instance
               .collection('projects')
               .doc(widget.projectId)
@@ -188,11 +188,21 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> with WidgetsBindi
               .doc(widget.taskId)
               .snapshots(),
         builder: (context, snapshot) {
+          if (widget.projectId != null && widget.projectId!.isNotEmpty) {
+            print("Opening project task");
+          } else {
+            print("Opening personal task");
+          }
+
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
           if (snapshot.hasError || !snapshot.hasData || !snapshot.data!.exists) {
             return const Center(child: Text("Task not found or deleted"));
+          }
+
+          if (widget.projectId != null && widget.projectId!.isNotEmpty) {
+            print("Project loaded");
           }
 
           final data = snapshot.data!.data() as Map<String, dynamic>;
@@ -221,20 +231,39 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> with WidgetsBindi
           final permissions = data['permissions'] as Map<String, dynamic>?;
 
           Future<bool> determineCanEdit() async {
-            if (widget.projectId == null || data['projectId'] == null) return true;
-            if (ownerId == widget.currentUserId) return true;
-            if (assignedToId == widget.currentUserId) return true;
-            if (permissions != null && (permissions[widget.currentUserId] == 'owner' || permissions[widget.currentUserId] == 'admin')) return true;
+            if (widget.projectId == null || data['projectId'] == null) {
+              print("Task completion allowed");
+              return true;
+            }
+            if (ownerId == widget.currentUserId) {
+              print("Task completion allowed");
+              return true;
+            }
+            if (assignedToId == widget.currentUserId) {
+              print("Task completion allowed");
+              return true;
+            }
+            if (permissions != null && (permissions[widget.currentUserId] == 'owner' || permissions[widget.currentUserId] == 'admin')) {
+              print("Task completion allowed");
+              return true;
+            }
             
             if (widget.projectId != null) {
               final workspaceDoc = await FirebaseFirestore.instance.collection('workspaces').doc(widget.projectId).get();
               if (workspaceDoc.exists) {
                 final wsData = workspaceDoc.data()!;
-                if (wsData['ownerId'] == widget.currentUserId) return true;
+                if (wsData['ownerId'] == widget.currentUserId) {
+                  print("Task completion allowed");
+                  return true;
+                }
                 final wsRoles = wsData['memberRoles'] as Map<String, dynamic>?;
-                if (wsRoles != null && (wsRoles[widget.currentUserId] == 'owner' || wsRoles[widget.currentUserId] == 'admin')) return true;
+                if (wsRoles != null && (wsRoles[widget.currentUserId] == 'owner' || wsRoles[widget.currentUserId] == 'admin')) {
+                  print("Task completion allowed");
+                  return true;
+                }
               }
             }
+            print("Permission denied");
             return false;
           }
           
@@ -298,25 +327,23 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> with WidgetsBindi
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: Checkbox(
-                            value: isDone,
-                            activeColor: const Color(0xFF0D47A1),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                            onChanged: (val) {
-                              if (canEdit) {
+                        if (canEdit) ...[
+                          SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: Checkbox(
+                              value: isDone,
+                              activeColor: const Color(0xFF0D47A1),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                              onChanged: (val) {
                                 if (val != null) {
                                   _taskService.toggleTask(widget.taskId, val, projectId: widget.projectId);
                                 }
-                              } else {
-                                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Only assigned member can modify this task.')));
-                              }
-                            },
+                              },
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 12),
+                          const SizedBox(width: 12),
+                        ],
                         Expanded(
                           child: Text(
                             title,
@@ -398,37 +425,38 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> with WidgetsBindi
                     }
                   }
                   
-                  return SizedBox(
-                    width: double.infinity,
-                    child: Tooltip(
-                      message: canFocus ? "" : "Only assigned member can focus on this task",
-                      child: ElevatedButton.icon(
-                        onPressed: canFocus ? () {
-                          showFocusSetupSheet(
-                            context,
-                            taskId: widget.taskId,
-                            taskTitle: title,
-                            projectName: (widget.projectId != null || data['projectId'] != null) ? "Project Task" : null,
-                          );
-                        } : null,
-                        icon: const Icon(Icons.center_focus_strong),
-                        label: const Text("Focus on this Task", style: TextStyle(fontWeight: FontWeight.bold)),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: canFocus 
-                              ? (Theme.of(context).brightness == Brightness.dark ? Colors.white : const Color(0xFF0D47A1))
-                              : Colors.grey.shade400,
-                          foregroundColor: canFocus 
-                              ? (Theme.of(context).brightness == Brightness.dark ? Colors.black : Colors.white)
-                              : Colors.grey.shade600,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  if (!canFocus) {
+                    return const SizedBox.shrink();
+                  }
+                  
+                  return Column(
+                    children: [
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            showFocusSetupSheet(
+                              context,
+                              taskId: widget.taskId,
+                              taskTitle: title,
+                              projectName: (widget.projectId != null || data['projectId'] != null) ? "Project Task" : null,
+                            );
+                          },
+                          icon: const Icon(Icons.center_focus_strong),
+                          label: const Text("Focus on this Task", style: TextStyle(fontWeight: FontWeight.bold)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Theme.of(context).brightness == Brightness.dark ? Colors.white : const Color(0xFF0D47A1),
+                            foregroundColor: Theme.of(context).brightness == Brightness.dark ? Colors.black : Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
                         ),
                       ),
-                    ),
+                      const SizedBox(height: 24),
+                    ],
                   );
                 })(),
-                const SizedBox(height: 24),
                 
                 // Date & Time
                 if (dueDate != null) ...[
@@ -558,9 +586,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> with WidgetsBindi
                           List<Map<String, dynamic>> updatedSubtasks = subtasks.map((e) => Map<String, dynamic>.from(e as Map)).toList();
                           updatedSubtasks[idx]['isCompleted'] = !isSubDone;
                           _taskService.updateSubtasks(widget.taskId, updatedSubtasks, projectId: widget.projectId);
-                        } : () {
-                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('You do not have permission to modify this task.')));
-                        },
+                        } : null,
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                           decoration: BoxDecoration(

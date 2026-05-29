@@ -78,7 +78,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         if (taskId.isNotEmpty) {
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (_) => TaskDetailsScreen(taskId: taskId, currentUserId: FirebaseAuth.instance.currentUser!.uid)),
+            MaterialPageRoute(
+              builder: (_) => TaskDetailsScreen(
+                taskId: taskId,
+                currentUserId: FirebaseAuth.instance.currentUser!.uid,
+                projectId: projectId.isNotEmpty ? projectId : null,
+              ),
+            ),
           );
         } else if (projectId.isNotEmpty) {
           // Navigate to projects screen or workspace details. To be safe we navigate to collaboration requests or projects.
@@ -1534,12 +1540,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             child: InkWell(
               borderRadius: BorderRadius.circular(20),
               onTap: () {
+                final tData = task.data() as Map<String, dynamic>?;
+                final pId = tData?['projectId']?.toString();
                 Navigator.push(
                   context,
                   MaterialPageRoute(
                     builder: (context) => TaskDetailsScreen(
                       taskId: task.id,
                       currentUserId: FirebaseAuth.instance.currentUser!.uid,
+                      projectId: pId,
                     ),
                   ),
                 );
@@ -2113,8 +2122,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   },
                 ),
 
-                // SECTION 4.6: Recent Activity or Personal Widgets
-                if (isDeveloper) _buildRecentActivity() else _buildGoalsDashboard(context),
+                // SECTION 4.6: Habits & Goals and Recent Activity
+                _buildGoalsDashboard(context),
+                const SizedBox(height: 24),
+                if (isDeveloper) _buildRecentActivity(),
 
                 // Task Stream
                 StreamBuilder<List<QueryDocumentSnapshot>>(
@@ -2126,7 +2137,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     if (snapshot.hasError) {
                       return const Center(child: Text("Error loading tasks"));
                     }
-                    if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                    if (!snapshot.hasData) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    if (snapshot.data!.isEmpty && !isDeveloper) {
                       return _buildEmptyState("No tasks yet", "Tap + to add a new task");
                     }
 
@@ -2250,7 +2264,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     horizontalTasks.sort(sortTasks);
                     verticalTasks.sort(sortTasks);
 
-                    if (horizontalTasks.isEmpty && verticalTasks.isEmpty) {
+                    if (horizontalTasks.isEmpty && verticalTasks.isEmpty && !isDeveloper) {
                       return _buildEmptyState("No matching tasks", "Try changing filters");
                     }
 
@@ -2297,12 +2311,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                   child: InkWell(
                                     borderRadius: BorderRadius.circular(20),
                                     onTap: () {
+                                      final tData = task.data() as Map<String, dynamic>?;
+                                      final pId = tData?['projectId']?.toString();
                                       Navigator.push(
                                         context,
                                         MaterialPageRoute(
                                           builder: (context) => TaskDetailsScreen(
                                             taskId: task.id,
                                             currentUserId: FirebaseAuth.instance.currentUser!.uid,
+                                            projectId: pId,
                                           ),
                                         ),
                                       );
@@ -2492,7 +2509,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                             }
                             
                             if (assignedToMe.isEmpty && sharedWithMeFiltered.isEmpty && sharedByMeTasks.isEmpty && myTasks.isEmpty) {
-                              sections.add(const Text("No tasks found.", style: TextStyle(color: Colors.grey)));
+                              final text = (_searchQuery.isNotEmpty || _filter != 'All')
+                                  ? "No matching tasks found."
+                                  : "No tasks found.";
+                              sections.add(Text(text, style: const TextStyle(color: Colors.grey)));
                             }
                           }
                           

@@ -836,22 +836,36 @@ class TaskService {
 
   Future<bool> _canModifyProjectTask(String projectId, String taskId) async {
     final currentUserId = userId;
-    if (currentUserId == null) return false;
+    if (currentUserId == null) {
+      print("Permission denied: No logged in user");
+      return false;
+    }
 
     // Check workspace roles
     final workspaceDoc = await _firestore.collection('workspaces').doc(projectId).get();
-    if (!workspaceDoc.exists) return false;
+    if (!workspaceDoc.exists) {
+      print("Permission denied: Workspace not found");
+      return false;
+    }
 
     final workspaceData = workspaceDoc.data()!;
-    final String ownerId = workspaceData['ownerId']?.toString() ?? '';
+    final String workspaceOwnerId = workspaceData['ownerId']?.toString() ?? '';
     final memberRoles = workspaceData['memberRoles'] as Map<String, dynamic>?;
 
-    if (ownerId == currentUserId) return true;
-    if (memberRoles != null && (memberRoles[currentUserId] == 'owner' || memberRoles[currentUserId] == 'admin')) return true;
+    bool isWorkspaceOwnerOrAdmin = (workspaceOwnerId == currentUserId) ||
+        (memberRoles != null && (memberRoles[currentUserId] == 'owner' || memberRoles[currentUserId] == 'admin'));
 
-    // Check task assignment
+    if (isWorkspaceOwnerOrAdmin) {
+      print("Task completion allowed: User is Workspace Owner or Admin");
+      return true;
+    }
+
+    // Check task details
     final taskDoc = await _firestore.collection('projects').doc(projectId).collection('tasks').doc(taskId).get();
-    if (!taskDoc.exists) return false;
+    if (!taskDoc.exists) {
+      print("Permission denied: Task not found");
+      return false;
+    }
     
     final taskData = taskDoc.data()!;
     String? assignedToId;
@@ -861,8 +875,19 @@ class TaskService {
       assignedToId = taskData['assignedTo']['uid'];
     }
 
-    if (assignedToId == currentUserId) return true;
+    final taskCreatorId = taskData['ownerId']?.toString() ?? taskData['createdBy']?.toString() ?? '';
 
+    if (assignedToId == currentUserId) {
+      print("Task completion allowed: User is Assigned Member");
+      return true;
+    }
+
+    if (taskCreatorId == currentUserId) {
+      print("Task completion allowed: User is Task Creator");
+      return true;
+    }
+
+    print("Permission denied: User does not have completion permission");
     return false;
   }
 }
