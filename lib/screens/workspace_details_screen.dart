@@ -11,6 +11,7 @@ import 'package:timeago/timeago.dart' as timeago;
 import 'package:intl/intl.dart';
 import '../models/sprint.dart';
 import '../services/sprint_service.dart';
+import 'sprint_dashboard_screen.dart';
 
 class WorkspaceDetailsScreen extends StatefulWidget {
   final Workspace workspace;
@@ -1275,7 +1276,14 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
         }
 
         return InkWell(
-          onTap: () => _showSprintPlannerDialog(ws),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => SprintDashboardScreen(workspace: ws),
+              ),
+            );
+          },
           borderRadius: BorderRadius.circular(20),
           child: Container(
             decoration: BoxDecoration(
