@@ -713,6 +713,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
     return Scaffold(
       backgroundColor: isDark ? Theme.of(context).scaffoldBackgroundColor : const Color(0xFFF5F6FA), // LAYERED SURFACES background #F5F6FA
+      resizeToAvoidBottomInset: false,
       body: SafeArea(
         bottom: false,
         child: StreamBuilder<Map<String, ProductivityDailyData>>(

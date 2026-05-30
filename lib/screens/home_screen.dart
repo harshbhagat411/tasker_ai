@@ -978,7 +978,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   onTap: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => const GoalsScreen()),
+                      MaterialPageRoute(builder: (_) => const GoalsScreen(isStandalone: true)),
                     );
                   },
                   borderRadius: BorderRadius.circular(16),
@@ -1075,7 +1075,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 onTap: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => const GoalsScreen()),
+                    MaterialPageRoute(builder: (_) => const GoalsScreen(isStandalone: true)),
                   );
                 },
                 child: _buildMiniStatItem("🎯", "$weeklyGoalsCount goals"),

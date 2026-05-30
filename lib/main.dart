@@ -307,7 +307,7 @@ class _MainScreenState extends State<MainScreen> {
     ];
 
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E1E24) : Colors.white,
         borderRadius: BorderRadius.circular(32),
@@ -332,12 +332,13 @@ class _MainScreenState extends State<MainScreen> {
             onTap: () {
               setState(() {
                 _currentIndex = index;
+                _isMenuExpanded = false; // Auto close menu when a tab is tapped!
               });
             },
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 250),
               curve: Curves.easeInOutCubic,
-              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
               decoration: BoxDecoration(
                 color: isSelected 
                     ? Theme.of(context).primaryColor 
@@ -361,13 +362,13 @@ class _MainScreenState extends State<MainScreen> {
                         ? Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const SizedBox(width: 6),
+                              const SizedBox(width: 4),
                               Text(
                                 tab['label'] as String,
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontWeight: FontWeight.bold,
-                                  fontSize: 12,
+                                  fontSize: 11,
                                 ),
                                 maxLines: 1,
                               ),
@@ -680,12 +681,12 @@ class _MainScreenState extends State<MainScreen> {
                 child: SafeArea(
                   top: false,
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
                     child: Row(
                       children: [
                         // Left FAB placeholder (keeps space for the FAB)
                         const SizedBox(width: 56, height: 56),
-                        const SizedBox(width: 12),
+                        const SizedBox(width: 8),
                         // Floating Pill Navigation Bar
                         Expanded(
                           child: _buildFloatingNavBar(isDeveloper, isDark),
@@ -710,17 +711,18 @@ class _MainScreenState extends State<MainScreen> {
 
             // Expandable Create Menu card
             AnimatedPositioned(
-              duration: const Duration(milliseconds: 250),
-              curve: Curves.easeOutCubic,
-              bottom: _isMenuExpanded ? 88 + MediaQuery.of(context).padding.bottom : 30 + MediaQuery.of(context).padding.bottom,
-              left: 16,
+              duration: const Duration(milliseconds: 280),
+              curve: Curves.easeInOutCubic,
+              bottom: _isMenuExpanded ? 88 + MediaQuery.of(context).padding.bottom : 40 + MediaQuery.of(context).padding.bottom,
+              left: 12,
               child: AnimatedOpacity(
-                duration: const Duration(milliseconds: 220),
+                duration: const Duration(milliseconds: 260),
+                curve: Curves.easeInOutCubic,
                 opacity: _isMenuExpanded ? 1.0 : 0.0,
                 child: AnimatedScale(
-                  scale: _isMenuExpanded ? 1.0 : 0.92,
-                  duration: const Duration(milliseconds: 250),
-                  curve: Curves.easeOutCubic,
+                  scale: _isMenuExpanded ? 1.0 : 0.88,
+                  duration: const Duration(milliseconds: 280),
+                  curve: Curves.easeInOutCubic,
                   alignment: Alignment.bottomLeft,
                   child: IgnorePointer(
                     ignoring: !_isMenuExpanded,
@@ -732,7 +734,7 @@ class _MainScreenState extends State<MainScreen> {
 
             // Left FAB itself
             Positioned(
-              left: 16,
+              left: 12,
               bottom: 12 + MediaQuery.of(context).padding.bottom,
               child: _buildLeftFAB(isDark),
             ),

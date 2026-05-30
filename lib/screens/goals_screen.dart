@@ -3,7 +3,8 @@ import '../models/goal.dart';
 import '../services/goal_service.dart';
 
 class GoalsScreen extends StatefulWidget {
-  const GoalsScreen({super.key});
+  final bool isStandalone;
+  const GoalsScreen({super.key, this.isStandalone = false});
 
   @override
   State<GoalsScreen> createState() => _GoalsScreenState();
@@ -29,7 +30,7 @@ class _GoalsScreenState extends State<GoalsScreen> with SingleTickerProviderStat
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Column(
+    Widget content = Column(
       children: [
         Container(
           margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -75,6 +76,32 @@ class _GoalsScreenState extends State<GoalsScreen> with SingleTickerProviderStat
         ),
       ],
     );
+
+    if (widget.isStandalone) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text(
+            "My Target Goals",
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          elevation: 0,
+          backgroundColor: isDark ? const Color(0xFF0F0F13) : Colors.white,
+          foregroundColor: isDark ? Colors.white : Colors.black,
+        ),
+        body: SafeArea(child: content),
+        floatingActionButton: Padding(
+          padding: const EdgeInsets.only(bottom: 16),
+          child: FloatingActionButton(
+            onPressed: () => _showAddGoalSheet(context),
+            backgroundColor: Theme.of(context).primaryColor,
+            foregroundColor: Colors.white,
+            child: const Icon(Icons.add),
+          ),
+        ),
+      );
+    }
+
+    return content;
   }
 
   Widget _buildGoalsList({required bool isDaily}) {

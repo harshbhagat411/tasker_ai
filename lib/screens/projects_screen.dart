@@ -25,6 +25,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
     
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF121212) : Colors.grey[50],
+      resizeToAvoidBottomInset: false,
       appBar: AppBar(
         title: const Text(
           "Your Projects",
@@ -49,38 +50,41 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
 
           if (workspaces.isEmpty) {
             return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.folder_open, size: 64, color: Colors.grey[400]),
-                  const SizedBox(height: 16),
-                  const Text(
-                    "No projects yet",
-                    style: TextStyle(fontSize: 18, color: Colors.grey, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    "Create a workspace to collaborate with your team.",
-                    style: TextStyle(color: Colors.grey),
-                  ),
-                  const SizedBox(height: 24),
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const CreateWorkspaceScreen()),
-                      );
-                    },
-                    icon: const Icon(Icons.add),
-                    label: const Text("Create Workspace"),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF0F766E),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.folder_open, size: 64, color: Colors.grey[400]),
+                    const SizedBox(height: 16),
+                    const Text(
+                      "No projects yet",
+                      style: TextStyle(fontSize: 18, color: Colors.grey, fontWeight: FontWeight.bold),
                     ),
-                  )
-                ],
+                    const SizedBox(height: 8),
+                    const Text(
+                      "Create a workspace to collaborate with your team.",
+                      style: TextStyle(color: Colors.grey),
+                    ),
+                    const SizedBox(height: 24),
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const CreateWorkspaceScreen()),
+                        );
+                      },
+                      icon: const Icon(Icons.add),
+                      label: const Text("Create Workspace"),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF0F766E),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    )
+                  ],
+                ),
               ),
             );
           }
