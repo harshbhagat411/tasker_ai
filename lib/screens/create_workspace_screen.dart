@@ -65,13 +65,20 @@ class _CreateWorkspaceScreenState extends State<CreateWorkspaceScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: isDark ? const Color(0xFF121212) : Colors.white,
       appBar: AppBar(
-        title: const Text("New Workspace", style: TextStyle(color: Colors.black87)),
-        backgroundColor: Colors.white,
+        title: Text(
+          "New Workspace",
+          style: TextStyle(
+            color: isDark ? Colors.white : Colors.black87,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        backgroundColor: isDark ? const Color(0xFF121212) : Colors.white,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.black87),
+        iconTheme: IconThemeData(color: isDark ? Colors.white : Colors.black87),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24.0),
@@ -80,50 +87,97 @@ class _CreateWorkspaceScreenState extends State<CreateWorkspaceScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 "Let's build something great",
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
-                  color: Colors.black87,
+                  color: isDark ? Colors.white : Colors.black87,
                 ),
               ),
               const SizedBox(height: 8),
-              const Text(
+              Text(
                 "Create a dedicated workspace for your team, project, or startup.",
-                style: TextStyle(fontSize: 14, color: Colors.grey),
+                style: TextStyle(
+                  fontSize: 14,
+                  color: isDark ? Colors.grey.shade400 : Colors.grey,
+                ),
               ),
               const SizedBox(height: 32),
               
-              const Text("Workspace Name", style: TextStyle(fontWeight: FontWeight.bold)),
+              Text(
+                "Workspace Name",
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
+              ),
               const SizedBox(height: 8),
               TextFormField(
                 controller: _nameController,
+                style: TextStyle(color: isDark ? Colors.white : Colors.black87),
                 decoration: InputDecoration(
                   hintText: "e.g., Tasker AI App",
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  hintStyle: TextStyle(color: isDark ? Colors.grey.shade500 : Colors.grey),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: isDark ? Colors.grey.shade800 : Colors.grey.shade300),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: isDark ? Colors.grey.shade800 : Colors.grey.shade300),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: _colors[_selectedColorIndex], width: 2),
+                  ),
                   filled: true,
-                  fillColor: Colors.grey.shade50,
+                  fillColor: isDark ? const Color(0xFF1E1E24) : Colors.grey.shade50,
                 ),
                 validator: (val) => val == null || val.isEmpty ? "Name is required" : null,
               ),
               const SizedBox(height: 24),
               
-              const Text("Description", style: TextStyle(fontWeight: FontWeight.bold)),
+              Text(
+                "Description",
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
+              ),
               const SizedBox(height: 8),
               TextFormField(
                 controller: _descController,
                 maxLines: 3,
+                style: TextStyle(color: isDark ? Colors.white : Colors.black87),
                 decoration: InputDecoration(
                   hintText: "What is this project about?",
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  hintStyle: TextStyle(color: isDark ? Colors.grey.shade500 : Colors.grey),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: isDark ? Colors.grey.shade800 : Colors.grey.shade300),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: isDark ? Colors.grey.shade800 : Colors.grey.shade300),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: _colors[_selectedColorIndex], width: 2),
+                  ),
                   filled: true,
-                  fillColor: Colors.grey.shade50,
+                  fillColor: isDark ? const Color(0xFF1E1E24) : Colors.grey.shade50,
                 ),
               ),
               const SizedBox(height: 32),
 
-              const Text("Theme Color", style: TextStyle(fontWeight: FontWeight.bold)),
+              Text(
+                "Theme Color",
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
+              ),
               const SizedBox(height: 12),
               SizedBox(
                 height: 50,
@@ -141,7 +195,7 @@ class _CreateWorkspaceScreenState extends State<CreateWorkspaceScreen> {
                         decoration: BoxDecoration(
                           color: color,
                           shape: BoxShape.circle,
-                          border: isSelected ? Border.all(color: Colors.black, width: 3) : null,
+                          border: isSelected ? Border.all(color: isDark ? Colors.white : Colors.black, width: 3) : null,
                         ),
                         child: isSelected ? const Icon(Icons.check, color: Colors.white) : null,
                       ),
@@ -151,7 +205,13 @@ class _CreateWorkspaceScreenState extends State<CreateWorkspaceScreen> {
               ),
               const SizedBox(height: 32),
 
-              const Text("Workspace Icon", style: TextStyle(fontWeight: FontWeight.bold)),
+              Text(
+                "Workspace Icon",
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
+              ),
               const SizedBox(height: 12),
               SizedBox(
                 height: 60,
@@ -167,11 +227,20 @@ class _CreateWorkspaceScreenState extends State<CreateWorkspaceScreen> {
                         width: 60,
                         margin: const EdgeInsets.only(right: 12),
                         decoration: BoxDecoration(
-                          color: isSelected ? _colors[_selectedColorIndex].withOpacity(0.1) : Colors.grey.shade100,
+                          color: isSelected
+                              ? _colors[_selectedColorIndex].withOpacity(isDark ? 0.2 : 0.1)
+                              : (isDark ? const Color(0xFF1E1E24) : Colors.grey.shade100),
                           borderRadius: BorderRadius.circular(12),
-                          border: isSelected ? Border.all(color: _colors[_selectedColorIndex], width: 2) : Border.all(color: Colors.transparent, width: 2),
+                          border: isSelected
+                              ? Border.all(color: _colors[_selectedColorIndex], width: 2)
+                              : Border.all(color: isDark ? Colors.transparent : Colors.grey.shade200, width: 2),
                         ),
-                        child: Icon(icon, color: isSelected ? _colors[_selectedColorIndex] : Colors.grey.shade600),
+                        child: Icon(
+                          icon,
+                          color: isSelected
+                              ? _colors[_selectedColorIndex]
+                              : (isDark ? Colors.grey.shade400 : Colors.grey.shade600),
+                        ),
                       ),
                     );
                   },
