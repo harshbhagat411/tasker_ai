@@ -149,9 +149,15 @@ class _SprintDashboardScreenState extends State<SprintDashboardScreen> {
                   _buildSectionHeader("Active Sprint", themeColor, isDark),
                   const SizedBox(height: 12),
                   _buildActiveSprintCard(context, activeSprint, themeColor, isDark, isAllowed),
+                  const SizedBox(height: 24),
+                  _buildSprintTasksList(context, activeSprint, themeColor, isDark, isAllowed),
+                  const SizedBox(height: 24),
+                  _buildBacklogTasksList(context, activeSprint, themeColor, isDark, isAllowed),
                   const SizedBox(height: 28),
                 ] else ...[
                   _buildNoActiveSprintBanner(themeColor, isDark),
+                  const SizedBox(height: 24),
+                  _buildBacklogTasksList(context, null, themeColor, isDark, isAllowed),
                   const SizedBox(height: 28),
                 ],
 
@@ -747,6 +753,233 @@ class _SprintDashboardScreenState extends State<SprintDashboardScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildSprintTasksList(BuildContext context, Sprint sprint, Color themeColor, bool isDark, bool isAllowed) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: _taskService.getWorkspaceTasks(widget.workspace.id),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const SizedBox.shrink();
+        }
+
+        final docs = snapshot.data?.docs ?? [];
+        final sprintTasks = docs.where((doc) {
+          final data = doc.data() as Map<String, dynamic>?;
+          return data?['sprintId'] == sprint.id;
+        }).toList();
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildSectionHeader("Sprint Tasks (${sprintTasks.length})", themeColor, isDark),
+            const SizedBox(height: 12),
+            if (sprintTasks.isEmpty)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF1E1E24) : Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: isDark ? Colors.white10 : Colors.grey.shade200),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  "No tasks linked to this active sprint.\nUse the Backlog action or the list below to assign tasks.",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: isDark ? Colors.white30 : Colors.grey,
+                    height: 1.5,
+                  ),
+                ),
+              )
+            else
+              ...sprintTasks.map((taskDoc) {
+                final data = taskDoc.data() as Map<String, dynamic>?;
+                final isDone = data?['isDone'] as bool? ?? false;
+                final title = data?['title'] as String? ?? 'Untitled';
+                
+                final String ownerId = data?['ownerId']?.toString() ?? '';
+                final Map<String, dynamic>? assignedTo = data?['assignedTo'] as Map<String, dynamic>?;
+                final String? assignedUid = assignedTo?['uid'];
+                final bool isAssignee = _currentUserId == assignedUid;
+                final bool isProjectAdminOrOwner = widget.workspace.memberRoles[_currentUserId] == 'admin' || widget.workspace.memberRoles[_currentUserId] == 'owner' || _currentUserId == widget.workspace.ownerId;
+                final bool canEdit = isAssignee || isProjectAdminOrOwner || _currentUserId == ownerId;
+
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF1E1E24) : Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: isDark ? Colors.white10 : Colors.grey.shade200),
+                  ),
+                  child: ListTile(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                    leading: SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: Checkbox(
+                        value: isDone,
+                        activeColor: themeColor,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                        onChanged: (value) async {
+                          if (canEdit) {
+                            if (value != null) {
+                              await _taskService.toggleTask(taskDoc.id, value, projectId: widget.workspace.id);
+                              await _sprintService.calculateSprintProgress(widget.workspace.id, sprint.id);
+                            }
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Only assigned member or admin can toggle task.')));
+                          }
+                        },
+                      ),
+                    ),
+                    title: Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        decoration: isDone ? TextDecoration.lineThrough : null,
+                        color: isDone 
+                            ? Colors.grey 
+                            : (isDark ? Colors.white : Colors.black87),
+                      ),
+                    ),
+                    trailing: isAllowed
+                        ? IconButton(
+                            icon: const Icon(Icons.arrow_downward, color: Colors.redAccent, size: 20),
+                            tooltip: "Move to Backlog",
+                            onPressed: () async {
+                              await _taskService.linkTaskToSprint(
+                                projectId: widget.workspace.id,
+                                taskId: taskDoc.id,
+                                sprintId: null,
+                              );
+                              await _sprintService.calculateSprintProgress(widget.workspace.id, sprint.id);
+                            },
+                          )
+                        : null,
+                  ),
+                );
+              }),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildBacklogTasksList(BuildContext context, Sprint? activeSprint, Color themeColor, bool isDark, bool isAllowed) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: _taskService.getWorkspaceTasks(widget.workspace.id),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const SizedBox.shrink();
+        }
+
+        final docs = snapshot.data?.docs ?? [];
+        final backlogTasks = docs.where((doc) {
+          final data = doc.data() as Map<String, dynamic>?;
+          return data?['sprintId'] == null || data?['sprintId'] == '';
+        }).toList();
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildSectionHeader("Backlog Tasks (${backlogTasks.length})", themeColor, isDark),
+            const SizedBox(height: 12),
+            if (backlogTasks.isEmpty)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF1E1E24) : Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: isDark ? Colors.white10 : Colors.grey.shade200),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  "Product backlog is empty.\nCreate project tasks in the workspace to see them here.",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: isDark ? Colors.white30 : Colors.grey,
+                    height: 1.5,
+                  ),
+                ),
+              )
+            else
+              ...backlogTasks.map((taskDoc) {
+                final data = taskDoc.data() as Map<String, dynamic>?;
+                final isDone = data?['isDone'] as bool? ?? false;
+                final title = data?['title'] as String? ?? 'Untitled';
+                
+                final String ownerId = data?['ownerId']?.toString() ?? '';
+                final Map<String, dynamic>? assignedTo = data?['assignedTo'] as Map<String, dynamic>?;
+                final String? assignedUid = assignedTo?['uid'];
+                final bool isAssignee = _currentUserId == assignedUid;
+                final bool isProjectAdminOrOwner = widget.workspace.memberRoles[_currentUserId] == 'admin' || widget.workspace.memberRoles[_currentUserId] == 'owner' || _currentUserId == widget.workspace.ownerId;
+                final bool canEdit = isAssignee || isProjectAdminOrOwner || _currentUserId == ownerId;
+
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF1E1E24) : Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: isDark ? Colors.white10 : Colors.grey.shade200),
+                  ),
+                  child: ListTile(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                    leading: SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: Checkbox(
+                        value: isDone,
+                        activeColor: themeColor,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                        onChanged: (value) async {
+                          if (canEdit) {
+                            if (value != null) {
+                              await _taskService.toggleTask(taskDoc.id, value, projectId: widget.workspace.id);
+                            }
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Only assigned member or admin can toggle task.')));
+                          }
+                        },
+                      ),
+                    ),
+                    title: Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        decoration: isDone ? TextDecoration.lineThrough : null,
+                        color: isDone 
+                            ? Colors.grey 
+                            : (isDark ? Colors.white : Colors.black87),
+                      ),
+                    ),
+                    trailing: (isAllowed && activeSprint != null)
+                        ? IconButton(
+                            icon: Icon(Icons.arrow_upward, color: themeColor, size: 20),
+                            tooltip: "Link to Active Sprint",
+                            onPressed: () async {
+                              await _taskService.linkTaskToSprint(
+                                projectId: widget.workspace.id,
+                                taskId: taskDoc.id,
+                                sprintId: activeSprint.id,
+                              );
+                              await _sprintService.calculateSprintProgress(widget.workspace.id, activeSprint.id);
+                            },
+                          )
+                        : null,
+                  ),
+                );
+              }),
+          ],
+        );
+      },
     );
   }
 }

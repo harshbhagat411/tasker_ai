@@ -314,9 +314,15 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
     );
   }
 
-  void _showCreateTaskModal() {
+  void _showCreateTaskModal() async {
     final titleController = TextEditingController();
     String? selectedAssigneeUid;
+    String selectedSprintOption = 'backlog'; // 'backlog' or 'active'
+
+    // Fetch the active sprint asynchronously
+    final activeSprint = await SprintService().getActiveSprint(widget.workspace.id);
+
+    if (!mounted) return;
 
     showModalBottomSheet(
       context: context,
@@ -379,18 +385,51 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
                     }).toList(),
                     onChanged: (val) => setModalState(() => selectedAssigneeUid = val),
                   ),
+                  const SizedBox(height: 16),
+                  const Text("Sprint:", style: TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  DropdownButtonFormField<String>(
+                    value: selectedSprintOption,
+                    decoration: InputDecoration(
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    ),
+                    items: [
+                      const DropdownMenuItem(
+                        value: 'backlog',
+                        child: Text("Backlog"),
+                      ),
+                      if (activeSprint != null)
+                        DropdownMenuItem(
+                          value: 'active',
+                          child: Text("Active Sprint (${activeSprint.title})"),
+                        ),
+                    ],
+                    onChanged: (val) {
+                      if (val != null) {
+                        setModalState(() => selectedSprintOption = val);
+                      }
+                    },
+                  ),
                   const SizedBox(height: 24),
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: () {
+                      onPressed: () async {
                         if (titleController.text.trim().isNotEmpty) {
-                          _taskService.createProjectTask(
+                          final sprintId = (selectedSprintOption == 'active' && activeSprint != null) ? activeSprint.id : null;
+                          await _taskService.createProjectTask(
                             projectId: widget.workspace.id,
                             title: titleController.text.trim(),
                             assignedTo: selectedAssigneeUid != null ? _memberDetails[selectedAssigneeUid] : null,
+                            sprintId: sprintId,
                           );
-                          Navigator.pop(context);
+
+                          if (sprintId != null) {
+                            await SprintService().calculateSprintProgress(widget.workspace.id, sprintId);
+                          }
+
+                          if (context.mounted) Navigator.pop(context);
                         }
                       },
                       style: ElevatedButton.styleFrom(
@@ -408,7 +447,7 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
             );
           }
         );
-      },
+      }
     );
   }
 
