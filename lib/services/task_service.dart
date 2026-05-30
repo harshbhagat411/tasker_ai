@@ -7,6 +7,7 @@ import 'package:rxdart/rxdart.dart';
 import 'activity_service.dart';
 import 'productivity_tracking_service.dart';
 import 'workspace_service.dart';
+import 'sprint_service.dart';
 
 
 class TaskService {
@@ -82,12 +83,27 @@ class TaskService {
       if (!await _canModifyProjectTask(projectId, id)) {
         throw Exception('Unauthorized: Only assigned members or project admins can modify this task.');
       }
+      
+      // Get sprintId before deleting to recalculate progress
+      final taskDoc = await _firestore
+          .collection('projects')
+          .doc(projectId)
+          .collection('tasks')
+          .doc(id)
+          .get();
+      final sprintId = taskDoc.data()?['sprintId'] as String?;
+
       await _firestore
           .collection('projects')
           .doc(projectId)
           .collection('tasks')
           .doc(id)
           .delete();
+
+      if (sprintId != null) {
+        // Recalculate sprint metrics
+        SprintService().calculateSprintProgress(projectId, sprintId);
+      }
     } else {
       await _firestore
           .collection('users')
@@ -120,10 +136,22 @@ class TaskService {
           .update({
         'isDone': isDone,
       });
-      // optionally log activity
+
+      // Recalculate sprint progress if task is linked to a sprint
+      final taskDoc = await _firestore
+          .collection('projects')
+          .doc(projectId)
+          .collection('tasks')
+          .doc(id)
+          .get();
+      if (taskDoc.exists) {
+        final sprintId = taskDoc.data()?['sprintId'] as String?;
+        if (sprintId != null) {
+          SprintService().calculateSprintProgress(projectId, sprintId);
+        }
+      }
       
       if (isDone) {
-        final taskDoc = await _firestore.collection('projects').doc(projectId).collection('tasks').doc(id).get();
         if (taskDoc.exists) {
            final title = taskDoc.data()!['title'] ?? 'Task';
            final projectDoc = await _firestore.collection('workspaces').doc(projectId).get();
@@ -352,6 +380,7 @@ class TaskService {
     DateTime? dueDate,
     List<Map<String, dynamic>>? subtasks,
     Map<String, dynamic>? assignedTo,
+    String? sprintId, // nullable
   }) async {
     if (userId == null) return;
 
@@ -363,6 +392,7 @@ class TaskService {
       'createdAt': FieldValue.serverTimestamp(),
       'ownerId': userId,
       'projectId': projectId,
+      'sprintId': sprintId, // nullable
     };
 
     if (subtasks != null && subtasks.isNotEmpty) {
@@ -889,5 +919,41 @@ class TaskService {
 
     print("Permission denied: User does not have completion permission");
     return false;
+  }
+
+  // Link task to a sprint
+  Future<void> linkTaskToSprint({
+    required String projectId,
+    required String taskId,
+    required String? sprintId,
+  }) async {
+    if (userId == null) return;
+
+    // 1. Get task details to find old sprintId
+    final taskDoc = await _firestore
+        .collection('projects')
+        .doc(projectId)
+        .collection('tasks')
+        .doc(taskId)
+        .get();
+    if (!taskDoc.exists) throw Exception("Task not found");
+    final oldSprintId = taskDoc.data()?['sprintId'] as String?;
+
+    // 2. Update task
+    await _firestore
+        .collection('projects')
+        .doc(projectId)
+        .collection('tasks')
+        .doc(taskId)
+        .update({'sprintId': sprintId});
+
+    // 3. Recalculate progress for new sprint
+    if (sprintId != null) {
+      await SprintService().calculateSprintProgress(projectId, sprintId);
+    }
+    // 4. Recalculate progress for old sprint
+    if (oldSprintId != null && oldSprintId != sprintId) {
+      await SprintService().calculateSprintProgress(projectId, oldSprintId);
+    }
   }
 }

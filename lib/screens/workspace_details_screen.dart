@@ -9,6 +9,8 @@ import '../services/activity_service.dart';
 import '../widgets/project_task_card.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import 'package:intl/intl.dart';
+import '../models/sprint.dart';
+import '../services/sprint_service.dart';
 
 class WorkspaceDetailsScreen extends StatefulWidget {
   final Workspace workspace;
@@ -37,6 +39,8 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
       setState(() {});
     });
     _fetchMemberDetails();
+    // Auto status checks and progress re-calculation on load
+    SprintService().runAutoRulesAndMaintenance(widget.workspace.id);
   }
 
   Future<void> _fetchMemberDetails() async {
@@ -1195,83 +1199,870 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
 
   Widget _buildSprintPlaceholderCard(Workspace ws, bool isDark) {
     final color = Color(int.parse(ws.color));
-    
-    return Container(
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E1E24) : Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: color.withOpacity(0.3),
-          style: BorderStyle.solid,
-          width: 1.5,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: color.withOpacity(isDark ? 0.1 : 0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  Icon(Icons.rocket_launch_outlined, color: color, size: 20),
-                  const SizedBox(width: 8),
+
+    return StreamBuilder<List<Sprint>>(
+      stream: SprintService().getProjectSprints(ws.id),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Container(
+            height: 140,
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1E1E24) : Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: color.withOpacity(0.3), width: 1.5),
+            ),
+            child: const Center(
+              child: SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
+          );
+        }
+
+        final sprints = snapshot.data ?? [];
+        final nonArchived = sprints.where((s) => s.status != 'archived').toList();
+        final activeSprints = nonArchived.where((s) => s.status == 'active').toList();
+        final completedSprints = nonArchived.where((s) => s.status == 'completed').toList();
+        final plannedSprints = nonArchived.where((s) => s.status == 'planned').toList();
+
+        Sprint? displaySprint;
+        String badgeText = "SPRINT PLANNER";
+        String mainTitle = "Agile Sprint Cycles";
+        String description = "Break backlog items down into dynamic, time-boxed milestones and track achievements.";
+        double progress = 0.0;
+        String? footerText;
+
+        if (activeSprints.isNotEmpty) {
+          displaySprint = activeSprints.first;
+          badgeText = "ACTIVE SPRINT";
+          mainTitle = displaySprint.title;
+          description = displaySprint.goal.isNotEmpty ? displaySprint.goal : displaySprint.description;
+          progress = displaySprint.progressPercentage / 100.0;
+
+          final now = DateTime.now();
+          final todayDateOnly = DateTime(now.year, now.month, now.day);
+          final endDateOnly = DateTime(displaySprint.endDate.year, displaySprint.endDate.month, displaySprint.endDate.day);
+          final diff = endDateOnly.difference(todayDateOnly).inDays;
+
+          if (diff < 0) {
+            footerText = "Ended";
+          } else if (diff == 0) {
+            footerText = "Ends today";
+          } else if (diff == 1) {
+            footerText = "1 day left";
+          } else {
+            footerText = "$diff days left";
+          }
+        } else if (completedSprints.isNotEmpty) {
+          displaySprint = completedSprints.first;
+          badgeText = "LAST COMPLETED";
+          mainTitle = "Last Sprint Completed";
+          description = "Deliverable '${displaySprint.title}' completed! Archive this sprint to launch the next agile cycle.";
+          progress = displaySprint.progressPercentage / 100.0;
+          footerText = "100% Achieved";
+        } else if (plannedSprints.isNotEmpty) {
+          displaySprint = plannedSprints.first;
+          badgeText = "UPCOMING SPRINT";
+          mainTitle = displaySprint.title;
+          description = "Planned to start on ${DateFormat('MMM d').format(displaySprint.startDate)}. Goal: ${displaySprint.goal.isNotEmpty ? displaySprint.goal : displaySprint.description}";
+          footerText = "Planned";
+        } else {
+          badgeText = "STEP 1 FOUNDATION";
+          mainTitle = "Create Your First Sprint";
+          description = "Establish planned bi-weekly team iterations, set sprint goals, and link backlog tasks to verify auto-analytics calculations live.";
+        }
+
+        return InkWell(
+          onTap: () => _showSprintPlannerDialog(ws),
+          borderRadius: BorderRadius.circular(20),
+          child: Container(
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1E1E24) : Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: color.withOpacity(0.3),
+                style: BorderStyle.solid,
+                width: 1.5,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: color.withOpacity(isDark ? 0.1 : 0.03),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.rocket_launch_outlined, color: color, size: 20),
+                        const SizedBox(width: 8),
+                        Text(
+                          "Agile Sprints",
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? color.withOpacity(0.9) : color,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: color.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        badgeText,
+                        style: TextStyle(
+                          fontSize: 8,
+                          fontWeight: FontWeight.bold,
+                          color: color,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  mainTitle,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white : Colors.grey[800],
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  description,
+                  style: TextStyle(
+                    fontSize: 12,
+                    height: 1.4,
+                    color: isDark ? Colors.grey[400] : Colors.grey[600],
+                  ),
+                ),
+                if (displaySprint != null && displaySprint.status != 'planned') ...[
+                  const SizedBox(height: 14),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(4),
+                          child: LinearProgressIndicator(
+                            value: progress,
+                            minHeight: 6,
+                            backgroundColor: isDark ? Colors.white12 : Colors.grey.shade100,
+                            color: color,
+                          ),
+                        ),
+                      ),
+                      if (footerText != null) ...[
+                        const SizedBox(width: 16),
+                        Text(
+                          footerText,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: color,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 6),
                   Text(
-                    "Agile Sprints",
+                    "${displaySprint.completedTasks} of ${displaySprint.totalTasks} tasks completed (${displaySprint.progressPercentage.toStringAsFixed(0)}%)",
                     style: TextStyle(
-                      fontSize: 15, 
-                      fontWeight: FontWeight.bold, 
-                      color: isDark ? color.withOpacity(0.9) : color,
+                      fontSize: 11,
+                      color: isDark ? Colors.grey[500] : Colors.grey[600],
+                    ),
+                  ),
+                ] else if (footerText != null) ...[
+                  const SizedBox(height: 10),
+                  Text(
+                    footerText,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: color,
                     ),
                   ),
                 ],
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  "PHASE 9 COMING SOON",
-                  style: TextStyle(
-                    fontSize: 8,
-                    fontWeight: FontWeight.bold,
-                    color: color,
-                    letterSpacing: 0.5,
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // Modern interactive Planner popup dialog overlay to verify Agile Sprints backend CRUD, linking and auto calculations
+  void _showSprintPlannerDialog(Workspace ws) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final color = Color(int.parse(ws.color));
+
+    final titleController = TextEditingController();
+    final descController = TextEditingController();
+    final goalController = TextEditingController();
+    DateTime startDate = DateTime.now();
+    DateTime endDate = DateTime.now().add(const Duration(days: 14));
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.9,
+          minChildSize: 0.6,
+          maxChildSize: 0.95,
+          builder: (context, scrollController) {
+            return StatefulBuilder(
+              builder: (context, setModalState) {
+                int activeTab = 0; // 0: Sprints, 1: Create Sprint, 2: Link Tasks
+
+                return Container(
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF15151A) : Colors.grey.shade50,
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
                   ),
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Column(
+                    children: [
+                      const SizedBox(height: 12),
+                      // Drag indicator
+                      Center(
+                        child: Container(
+                          width: 40,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: isDark ? Colors.white24 : Colors.grey.shade300,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      // Title
+                      Text(
+                        "Agile Sprint Planner",
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.white : Colors.black87,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        "Phase 9 Step 1 Foundation Panel",
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: isDark ? Colors.white38 : Colors.grey.shade500,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      // Tabs selector
+                      Row(
+                        children: [
+                          _buildTabHeader(setModalState, "Sprints", 0, activeTab, color, isDark),
+                          const SizedBox(width: 8),
+                          _buildTabHeader(setModalState, "Plan Sprint", 1, activeTab, color, isDark),
+                          const SizedBox(width: 8),
+                          _buildTabHeader(setModalState, "Link Backlog", 2, activeTab, color, isDark),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      // Divider
+                      Divider(color: isDark ? Colors.white10 : Colors.grey.shade200, height: 1),
+                      const SizedBox(height: 16),
+                      // Tab contents
+                      Expanded(
+                        child: activeTab == 0
+                            ? _buildSprintsTabContent(ws, color, isDark, scrollController, setModalState)
+                            : activeTab == 1
+                                ? _buildCreateSprintTabContent(ws, color, isDark, titleController, descController, goalController, startDate, endDate, setModalState)
+                                : _buildLinkTasksTabContent(ws, color, isDark, scrollController, setModalState),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildTabHeader(void Function(void Function()) setModalState, String title, int index, int activeIndex, Color color, bool isDark) {
+    final isSelected = index == activeIndex;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () {
+          setModalState(() {
+            // update tab state
+          });
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: isSelected ? color : (isDark ? Colors.white.withOpacity(0.04) : Colors.white),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isSelected ? color : (isDark ? Colors.white10 : Colors.grey.shade200),
+            ),
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            title,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: isSelected ? Colors.white : (isDark ? Colors.grey[400] : Colors.grey[700]),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSprintsTabContent(Workspace ws, Color color, bool isDark, ScrollController scrollController, void Function(void Function()) setModalState) {
+    return StreamBuilder<List<Sprint>>(
+      stream: SprintService().getProjectSprints(ws.id),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        final sprints = snapshot.data ?? [];
+        final nonArchived = sprints.where((s) => s.status != 'archived').toList();
+
+        if (nonArchived.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.rocket_launch_outlined, size: 54, color: isDark ? Colors.white10 : Colors.grey[300]),
+                const SizedBox(height: 12),
+                Text(
+                  "No active or planned sprints",
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: isDark ? Colors.white60 : Colors.grey[700]),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  "Switch to the 'Plan Sprint' tab to get started.",
+                  style: TextStyle(fontSize: 12, color: isDark ? Colors.white30 : Colors.grey),
+                ),
+              ],
+            ),
+          );
+        }
+
+        return ListView.builder(
+          controller: scrollController,
+          itemCount: nonArchived.length,
+          itemBuilder: (context, index) {
+            final sprint = nonArchived[index];
+            final displayProgress = sprint.progressPercentage / 100.0;
+
+            Color statusColor;
+            switch (sprint.status) {
+              case 'active': statusColor = Colors.green; break;
+              case 'completed': statusColor = Colors.blue; break;
+              case 'planned': statusColor = Colors.orange; break;
+              default: statusColor = Colors.grey; break;
+            }
+
+            return Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1E1E24) : Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: isDark ? Colors.white10 : Colors.grey.shade200),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          sprint.title,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? Colors.white : Colors.black87,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: statusColor.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          sprint.status.toUpperCase(),
+                          style: TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold,
+                            color: statusColor,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  if (sprint.goal.isNotEmpty) ...[
+                    Text(
+                      "Goal: ${sprint.goal}",
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: isDark ? Colors.white60 : Colors.grey[700],
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                  ],
+                  Text(
+                    "Dates: ${DateFormat('MMM dd').format(sprint.startDate)} - ${DateFormat('MMM dd, yyyy').format(sprint.endDate)}",
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: isDark ? Colors.white30 : Colors.grey,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(4),
+                          child: LinearProgressIndicator(
+                            value: displayProgress,
+                            minHeight: 6,
+                            backgroundColor: isDark ? Colors.white12 : Colors.grey.shade100,
+                            color: color,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        "${sprint.progressPercentage.toStringAsFixed(0)}%",
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: color,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    "${sprint.completedTasks} of ${sprint.totalTasks} linked tasks completed",
+                    style: TextStyle(fontSize: 11, color: isDark ? Colors.white38 : Colors.grey),
+                  ),
+                  const SizedBox(height: 12),
+                  // Sprint management actions
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      if (sprint.status == 'planned')
+                        TextButton(
+                          onPressed: () async {
+                            await SprintService().updateSprintStatus(ws.id, sprint.id, 'active');
+                            await SprintService().calculateSprintProgress(ws.id, sprint.id);
+                            setModalState(() {});
+                          },
+                          child: const Text("Start Sprint", style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 12)),
+                        ),
+                      if (sprint.status == 'active')
+                        TextButton(
+                          onPressed: () async {
+                            await SprintService().updateSprintStatus(ws.id, sprint.id, 'completed');
+                            await SprintService().calculateSprintProgress(ws.id, sprint.id);
+                            setModalState(() {});
+                          },
+                          child: const Text("Complete Sprint", style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold, fontSize: 12)),
+                        ),
+                      if (sprint.status == 'completed')
+                        TextButton(
+                          onPressed: () async {
+                            await SprintService().archiveCompletedSprint(ws.id, sprint.id);
+                            setModalState(() {});
+                          },
+                          child: const Text("Archive Sprint", style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold, fontSize: 12)),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildCreateSprintTabContent(
+    Workspace ws, 
+    Color color, 
+    bool isDark,
+    TextEditingController titleCtrl,
+    TextEditingController descCtrl,
+    TextEditingController goalCtrl,
+    DateTime startDate,
+    DateTime endDate,
+    void Function(void Function()) setModalState
+  ) {
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            "Plan a New Agile Iteration",
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: isDark ? Colors.white70 : Colors.black87),
+          ),
+          const SizedBox(height: 12),
+          // Title Field
+          TextField(
+            controller: titleCtrl,
+            style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+            decoration: InputDecoration(
+              labelText: "Sprint Title",
+              hintText: "e.g. Sprint 1: Foundation Setup",
+              labelStyle: TextStyle(color: isDark ? Colors.white60 : Colors.grey),
+            ),
+          ),
+          const SizedBox(height: 12),
+          // Description Field
+          TextField(
+            controller: descCtrl,
+            style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+            decoration: InputDecoration(
+              labelText: "Description",
+              hintText: "Sprint deliverables scope...",
+              labelStyle: TextStyle(color: isDark ? Colors.white60 : Colors.grey),
+            ),
+          ),
+          const SizedBox(height: 12),
+          // Goal Field
+          TextField(
+            controller: goalCtrl,
+            style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+            decoration: InputDecoration(
+              labelText: "Sprint Goal",
+              hintText: "e.g. Set up dynamic metrics and Firestore pathing",
+              labelStyle: TextStyle(color: isDark ? Colors.white60 : Colors.grey),
+            ),
+          ),
+          const SizedBox(height: 16),
+          // Date selection Row
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text("Start Date", style: TextStyle(fontSize: 11, color: Colors.grey)),
+                    const SizedBox(height: 4),
+                    OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(color: isDark ? Colors.white10 : Colors.grey.shade300),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      onPressed: () async {
+                        final picked = await showDatePicker(
+                          context: context,
+                          initialDate: startDate,
+                          firstDate: DateTime.now().subtract(const Duration(days: 30)),
+                          lastDate: DateTime.now().add(const Duration(days: 365)),
+                        );
+                        if (picked != null) {
+                          setModalState(() {
+                            // Update local startDate state
+                          });
+                        }
+                      },
+                      child: Text(
+                        DateFormat('MMM dd, yyyy').format(startDate),
+                        style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 13),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text("End Date", style: TextStyle(fontSize: 11, color: Colors.grey)),
+                    const SizedBox(height: 4),
+                    OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(color: isDark ? Colors.white10 : Colors.grey.shade300),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      onPressed: () async {
+                        final picked = await showDatePicker(
+                          context: context,
+                          initialDate: endDate,
+                          firstDate: startDate,
+                          lastDate: DateTime.now().add(const Duration(days: 365)),
+                        );
+                        if (picked != null) {
+                          setModalState(() {
+                            // Update local endDate state
+                          });
+                        }
+                      },
+                      child: Text(
+                        DateFormat('MMM dd, yyyy').format(endDate),
+                        style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 13),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          Text(
-            "Sprint Planning & Burndowns",
-            style: TextStyle(
-              fontSize: 16, 
-              fontWeight: FontWeight.bold,
-              color: isDark ? Colors.white : Colors.grey[800],
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            "Track team velocity, establish bi-weekly milestones, analyze scope creep, and orchestrate sprint retrospectives right inside your developer workspace.",
-            style: TextStyle(
-              fontSize: 12, 
-              height: 1.4,
-              color: isDark ? Colors.grey[400] : Colors.grey[600],
+          const SizedBox(height: 24),
+          // Plan Sprint submit button
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: color,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              ),
+              onPressed: () async {
+                final title = titleCtrl.text.trim();
+                final goal = goalCtrl.text.trim();
+                final desc = descCtrl.text.trim();
+
+                if (title.isNotEmpty) {
+                  await SprintService().createSprint(
+                    projectId: ws.id,
+                    title: title,
+                    description: desc,
+                    goal: goal,
+                    startDate: startDate,
+                    endDate: endDate,
+                  );
+                  // Reset form fields
+                  titleCtrl.clear();
+                  descCtrl.clear();
+                  goalCtrl.clear();
+
+                  // Automatically return back to overview Sprints list
+                  setModalState(() {
+                    // Update tab state to Sprints List (index 0)
+                  });
+                }
+              },
+              child: const Text("Plan Sprint Cycle", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
             ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildLinkTasksTabContent(Workspace ws, Color color, bool isDark, ScrollController scrollController, void Function(void Function()) setModalState) {
+    String? selectedSprintId;
+    String? selectedTaskId;
+
+    return StreamBuilder<List<Sprint>>(
+      stream: SprintService().getProjectSprints(ws.id),
+      builder: (context, sprintsSnapshot) {
+        if (sprintsSnapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        final sprints = sprintsSnapshot.data ?? [];
+        final eligibleSprints = sprints.where((s) => s.status != 'archived').toList();
+
+        if (eligibleSprints.isEmpty) {
+          return Center(
+            child: Text(
+              "No non-archived sprints planned or active. Create a sprint first.",
+              style: TextStyle(fontSize: 12, color: isDark ? Colors.white30 : Colors.grey),
+            ),
+          );
+        }
+
+        return StreamBuilder<QuerySnapshot>(
+          stream: _taskService.getWorkspaceTasks(ws.id),
+          builder: (context, tasksSnapshot) {
+            if (tasksSnapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
+            final tasksDocs = tasksSnapshot.data?.docs ?? [];
+
+            if (tasksDocs.isEmpty) {
+              return Center(
+                child: Text(
+                  "No tasks found in this project's backlog. Add a task to backlog first.",
+                  style: TextStyle(fontSize: 12, color: isDark ? Colors.white30 : Colors.grey),
+                ),
+              );
+            }
+
+            return StatefulBuilder(
+              builder: (context, setSubState) {
+                // Initialize default selections safely
+                if (selectedSprintId == null && eligibleSprints.isNotEmpty) {
+                  selectedSprintId = eligibleSprints.first.id;
+                }
+                if (selectedTaskId == null && tasksDocs.isNotEmpty) {
+                  selectedTaskId = tasksDocs.first.id;
+                }
+
+                return SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "Orchestrate Task Assignments",
+                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: isDark ? Colors.white70 : Colors.black87),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        "Assign backlog items directly to sprints or send them back to backlog.",
+                        style: TextStyle(fontSize: 11, color: isDark ? Colors.white38 : Colors.grey),
+                      ),
+                      const SizedBox(height: 16),
+                      // Target Sprint dropdown
+                      const Text("1. Select Sprint Destination", style: TextStyle(fontSize: 12, color: Colors.grey)),
+                      const SizedBox(height: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF1E1E24) : Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: isDark ? Colors.white10 : Colors.grey.shade200),
+                        ),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            value: selectedSprintId,
+                            isExpanded: true,
+                            dropdownColor: isDark ? const Color(0xFF1E1E24) : Colors.white,
+                            style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 14),
+                            onChanged: (val) {
+                              setSubState(() {
+                                selectedSprintId = val;
+                              });
+                            },
+                            items: [
+                              const DropdownMenuItem<String>(
+                                value: '',
+                                child: Text("None (Back to Backlog)", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.redAccent)),
+                              ),
+                              ...eligibleSprints.map((s) {
+                                return DropdownMenuItem<String>(
+                                  value: s.id,
+                                  child: Text("${s.title} (${s.status})"),
+                                );
+                              }).toList(),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      // Target Task dropdown
+                      const Text("2. Select Backlog Task to Link", style: TextStyle(fontSize: 12, color: Colors.grey)),
+                      const SizedBox(height: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF1E1E24) : Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: isDark ? Colors.white10 : Colors.grey.shade200),
+                        ),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            value: selectedTaskId,
+                            isExpanded: true,
+                            dropdownColor: isDark ? const Color(0xFF1E1E24) : Colors.white,
+                            style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 14),
+                            onChanged: (val) {
+                              setSubState(() {
+                                selectedTaskId = val;
+                              });
+                            },
+                            items: tasksDocs.map((doc) {
+                              final data = doc.data() as Map<String, dynamic>;
+                              final title = data['title'] ?? 'Untitled';
+                              final currentSprintId = data['sprintId'] as String?;
+
+                              String locationLabel = "(Backlog)";
+                              if (currentSprintId != null) {
+                                final matchingSprint = eligibleSprints.where((s) => s.id == currentSprintId);
+                                if (matchingSprint.isNotEmpty) {
+                                  locationLabel = "(${matchingSprint.first.title})";
+                                }
+                              }
+
+                              return DropdownMenuItem<String>(
+                                value: doc.id,
+                                child: Text("$title $locationLabel", overflow: TextOverflow.ellipsis),
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      // Link Task Submit button
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: color,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          ),
+                          onPressed: () async {
+                            if (selectedTaskId != null) {
+                              final targetSprintId = selectedSprintId == '' ? null : selectedSprintId;
+                              await _taskService.linkTaskToSprint(
+                                projectId: ws.id,
+                                taskId: selectedTaskId!,
+                                sprintId: targetSprintId,
+                              );
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text("Task sprint linkage updated successfully!")),
+                              );
+                            }
+                          },
+                          child: const Text("Update Sprint Assignment", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            );
+          },
+        );
+      },
     );
   }
 
