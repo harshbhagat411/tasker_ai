@@ -2612,6 +2612,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Widget _buildYourProjects(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -2642,16 +2643,23 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   width: double.infinity,
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade50,
+                    color: isDark ? const Color(0xFF1E1E24) : Colors.grey.shade50,
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.grey.shade200, width: 2, style: BorderStyle.solid),
+                    border: Border.all(
+                      color: isDark ? Colors.white10 : Colors.grey.shade200, 
+                      width: 2, 
+                      style: BorderStyle.solid
+                    ),
                   ),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
-                    children: const [
-                      Icon(Icons.business_center_outlined, color: Colors.grey),
-                      SizedBox(height: 8),
-                      Text("No projects yet. Create one from the Projects tab.", style: TextStyle(color: Colors.grey, fontSize: 12)),
+                    children: [
+                      Icon(Icons.business_center_outlined, color: isDark ? Colors.white30 : Colors.grey),
+                      const SizedBox(height: 8),
+                      Text(
+                        "No projects yet. Create one from the Projects tab.", 
+                        style: TextStyle(color: isDark ? Colors.white54 : Colors.grey, fontSize: 12)
+                      ),
                     ],
                   ),
                 );
@@ -2676,16 +2684,20 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       margin: const EdgeInsets.only(right: 16),
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: isDark ? const Color(0xFF1E1E24) : Colors.white,
                         borderRadius: BorderRadius.circular(20),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.04),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          )
-                        ],
-                        border: Border.all(color: Colors.grey.shade100),
+                        boxShadow: isDark
+                            ? []
+                            : [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.04),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 4),
+                                )
+                              ],
+                        border: Border.all(
+                          color: isDark ? Colors.white10 : Colors.grey.shade100,
+                        ),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2699,9 +2711,24 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                             child: Icon(ws.iconData, color: color, size: 20),
                           ),
                           const Spacer(),
-                          Text(ws.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16), maxLines: 1, overflow: TextOverflow.ellipsis),
+                          Text(
+                            ws.name, 
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold, 
+                              fontSize: 16,
+                              color: isDark ? Colors.white.withOpacity(0.9) : const Color(0xFF1C1C1E),
+                            ), 
+                            maxLines: 1, 
+                            overflow: TextOverflow.ellipsis
+                          ),
                           const SizedBox(height: 4),
-                          Text("${ws.members.length} members", style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                          Text(
+                            "${ws.members.length} members", 
+                            style: TextStyle(
+                              color: isDark ? Colors.white54 : Colors.grey, 
+                              fontSize: 12
+                            )
+                          ),
                         ],
                       ),
                     ),

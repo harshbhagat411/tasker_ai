@@ -678,21 +678,18 @@ class _MainScreenState extends State<MainScreen> {
                 data: Theme.of(context).copyWith(
                   canvasColor: Colors.transparent,
                 ),
-                child: SafeArea(
-                  top: false,
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-                    child: Row(
-                      children: [
-                        // Left FAB placeholder (keeps space for the FAB)
-                        const SizedBox(width: 56, height: 56),
-                        const SizedBox(width: 8),
-                        // Floating Pill Navigation Bar
-                        Expanded(
-                          child: _buildFloatingNavBar(isDeveloper, isDark),
-                        ),
-                      ],
-                    ),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                  child: Row(
+                    children: [
+                      // Left FAB placeholder (keeps space for the FAB)
+                      const SizedBox(width: 56, height: 56),
+                      const SizedBox(width: 8),
+                      // Floating Pill Navigation Bar
+                      Expanded(
+                        child: _buildFloatingNavBar(isDeveloper, isDark),
+                      ),
+                    ],
                   ),
                 ),
               ),
