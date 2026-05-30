@@ -1864,6 +1864,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
+        bottom: false,
         child: StreamBuilder<DocumentSnapshot>(
           stream: user != null ? FirebaseFirestore.instance.collection('users').doc(user.uid).snapshots() : null,
           builder: (context, userSnapshot) {
@@ -2522,6 +2523,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     );
                   },
                 ),
+                SizedBox(height: 56.0 + 12.0 + MediaQuery.of(context).padding.bottom + 16.0),
               ],
             ),
           ),
@@ -2530,13 +2532,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     },
   ),
 ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showTaskDialog(),
-        backgroundColor: const Color(0xFF0D47A1),
-        icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text("Add Task", style: TextStyle(color: Colors.white)),
-      ),
     );
   }
 

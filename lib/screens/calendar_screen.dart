@@ -714,6 +714,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     return Scaffold(
       backgroundColor: isDark ? Theme.of(context).scaffoldBackgroundColor : const Color(0xFFF5F6FA), // LAYERED SURFACES background #F5F6FA
       body: SafeArea(
+        bottom: false,
         child: StreamBuilder<Map<String, ProductivityDailyData>>(
           stream: _getMonthlyProductivityStream(_focusedDay),
           builder: (context, productivitySnapshot) {
@@ -723,8 +724,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
             final selectedStr = "${activeSelectedDay.year}-${activeSelectedDay.month.toString().padLeft(2, '0')}-${activeSelectedDay.day.toString().padLeft(2, '0')}";
             final selectedData = dataMap[selectedStr];
 
-            return Column(
-              children: [
+            return SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              child: Column(
+                children: [
                 // 1. PREMIUM HEADER
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
@@ -867,12 +870,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   ),
                   
                   // 4. DAY PRODUCTIVITY DETAILS CARD & TASKS LIST
-                  Expanded(
-                    child: SingleChildScrollView(
-                      physics: const BouncingScrollPhysics(),
-                      child: Column(
-                        children: [
-                        _buildDayDetailsCard(selectedData),
+                  _buildDayDetailsCard(selectedData),
                         
                         // Database Empty State Tip
                         if (dataMap.isEmpty)
@@ -1035,12 +1033,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
                             );
                           },
                         ),
+                        SizedBox(height: 56.0 + 12.0 + MediaQuery.of(context).padding.bottom + 16.0),
                       ],
                     ),
-                  ),
-                ),
-              ],
-            );
+                  );
           },
         ),
       ),

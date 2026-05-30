@@ -86,7 +86,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
           }
 
           return ListView.builder(
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.fromLTRB(16, 16, 16, 56.0 + 12.0 + MediaQuery.of(context).padding.bottom + 16.0),
             itemCount: workspaces.length,
             itemBuilder: (context, index) {
               final workspace = workspaces[index];
@@ -94,16 +94,6 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
             },
           );
         },
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const CreateWorkspaceScreen()),
-          );
-        },
-        backgroundColor: const Color(0xFF0F766E),
-        child: const Icon(Icons.add, color: Colors.white),
       ),
     );
   }

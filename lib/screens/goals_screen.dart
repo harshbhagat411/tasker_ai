@@ -29,67 +29,51 @@ class _GoalsScreenState extends State<GoalsScreen> with SingleTickerProviderStat
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Scaffold(
-      backgroundColor: isDark ? Theme.of(context).scaffoldBackgroundColor : const Color(0xFFF5F6FA),
-      appBar: AppBar(
-        title: const Text(
-          "Goals",
-          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 24, letterSpacing: -0.5),
-        ),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        centerTitle: false,
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(60),
-          child: Container(
-            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF1E1E24) : Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: isDark
-                  ? []
-                  : [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.04),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
+    return Column(
+      children: [
+        Container(
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1E1E24) : Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: isDark
+                ? []
+                : [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.04),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+          ),
+          padding: const EdgeInsets.all(4),
+          child: TabBar(
+            controller: _tabController,
+            indicator: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              color: Theme.of(context).primaryColor,
             ),
-            padding: const EdgeInsets.all(4),
-            child: TabBar(
-              controller: _tabController,
-              indicator: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
-                color: Theme.of(context).primaryColor,
-              ),
-              labelColor: Colors.white,
-              unselectedLabelColor: isDark ? Colors.white54 : const Color(0xFF6B7280),
-              labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-              unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
-              indicatorSize: TabBarIndicatorSize.tab,
-              tabs: const [
-                Tab(text: "Today's Goal"),
-                Tab(text: "Weekly Goals"),
-              ],
-            ),
+            labelColor: Colors.white,
+            unselectedLabelColor: isDark ? Colors.white54 : const Color(0xFF6B7280),
+            labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+            unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
+            indicatorSize: TabBarIndicatorSize.tab,
+            tabs: const [
+              Tab(text: "Today's Goal"),
+              Tab(text: "Weekly Goals"),
+            ],
           ),
         ),
-      ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _buildGoalsList(isDaily: true),
-          _buildGoalsList(isDaily: false),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showAddGoalSheet(context),
-        backgroundColor: Theme.of(context).primaryColor,
-        icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text("New Goal", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      ),
+        Expanded(
+          child: TabBarView(
+            controller: _tabController,
+            children: [
+              _buildGoalsList(isDaily: true),
+              _buildGoalsList(isDaily: false),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -164,8 +148,9 @@ class _GoalsScreenState extends State<GoalsScreen> with SingleTickerProviderStat
           );
         }
 
+        final double bottomPadding = 56.0 + 12.0 + MediaQuery.of(context).padding.bottom + 16.0;
         return ListView.builder(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 96),
+          padding: EdgeInsets.fromLTRB(16, 12, 16, bottomPadding),
           itemCount: goals.length,
           itemBuilder: (context, index) {
             final goal = goals[index];
@@ -291,19 +276,19 @@ class _GoalsScreenState extends State<GoalsScreen> with SingleTickerProviderStat
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => const _AddGoalSheet(),
+      builder: (context) => const AddGoalSheet(),
     );
   }
 }
 
-class _AddGoalSheet extends StatefulWidget {
-  const _AddGoalSheet();
+class AddGoalSheet extends StatefulWidget {
+  const AddGoalSheet({super.key});
 
   @override
-  State<_AddGoalSheet> createState() => _AddGoalSheetState();
+  State<AddGoalSheet> createState() => _AddGoalSheetState();
 }
 
-class _AddGoalSheetState extends State<_AddGoalSheet> {
+class _AddGoalSheetState extends State<AddGoalSheet> {
   final TextEditingController _titleController = TextEditingController();
   final GoalService _goalService = GoalService();
   String _selectedType = 'daily';

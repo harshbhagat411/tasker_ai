@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/habit.dart';
 import '../services/habit_service.dart';
+import 'goals_screen.dart';
 
 class HabitsScreen extends StatefulWidget {
   const HabitsScreen({super.key});
@@ -11,6 +12,81 @@ class HabitsScreen extends StatefulWidget {
 
 class _HabitsScreenState extends State<HabitsScreen> {
   final HabitService _habitService = HabitService();
+  int _selectedTab = 0; // 0 for Habits, 1 for Goals
+
+  @override
+  Widget _buildSegmentedSwitch(bool isDark) {
+    final primaryColor = Theme.of(context).primaryColor;
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E1E24) : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: isDark
+            ? []
+            : [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.04),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: GestureDetector(
+              onTap: () => setState(() => _selectedTab = 0),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  color: _selectedTab == 0 ? primaryColor : Colors.transparent,
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  "Habits",
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                    color: _selectedTab == 0
+                        ? Colors.white
+                        : (isDark ? Colors.white70 : const Color(0xFF6B7280)),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Expanded(
+            child: GestureDetector(
+              onTap: () => setState(() => _selectedTab = 1),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  color: _selectedTab == 1 ? primaryColor : Colors.transparent,
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  "Goals",
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                    color: _selectedTab == 1
+                        ? Colors.white
+                        : (isDark ? Colors.white70 : const Color(0xFF6B7280)),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -19,9 +95,9 @@ class _HabitsScreenState extends State<HabitsScreen> {
     return Scaffold(
       backgroundColor: isDark ? Theme.of(context).scaffoldBackgroundColor : const Color(0xFFF5F6FA),
       appBar: AppBar(
-        title: const Text(
-          "Habits",
-          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 24, letterSpacing: -0.5),
+        title: Text(
+          _selectedTab == 0 ? "Habits" : "Goals",
+          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 24, letterSpacing: -0.5),
         ),
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -32,100 +108,105 @@ class _HabitsScreenState extends State<HabitsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Padding(
-              padding: EdgeInsets.only(left: 4.0, bottom: 8.0, top: 4.0),
-              child: Text(
-                "Today's Habits",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: -0.5),
-              ),
-            ),
+            _buildSegmentedSwitch(isDark),
+            const SizedBox(height: 12),
             Expanded(
-              child: StreamBuilder<List<Habit>>(
-                stream: _habitService.getHabits(),
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(
-                      child: SizedBox(
-                        width: 32,
-                        height: 32,
-                        child: CircularProgressIndicator(strokeWidth: 2.5),
-                      ),
-                    );
-                  }
-                  
-                  if (snapshot.hasError) {
-                    return const Center(child: Text("Error loading habits"));
-                  }
-                  
-                  final habits = snapshot.data ?? [];
-                  
-                  if (habits.isEmpty) {
-                    return Center(
-                      child: Container(
-                        margin: const EdgeInsets.all(24),
-                        padding: const EdgeInsets.all(24),
-                        decoration: BoxDecoration(
-                          color: isDark ? const Color(0xFF1E1E24) : Colors.white,
-                          borderRadius: BorderRadius.circular(32),
-                          boxShadow: isDark
-                              ? []
-                              : [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.04),
-                                    blurRadius: 16,
-                                    offset: const Offset(0, 8),
+              child: _selectedTab == 0
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Padding(
+                          padding: EdgeInsets.only(left: 4.0, bottom: 8.0, top: 4.0),
+                          child: Text(
+                            "Today's Habits",
+                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: -0.5),
+                          ),
+                        ),
+                        Expanded(
+                          child: StreamBuilder<List<Habit>>(
+                            stream: _habitService.getHabits(),
+                            builder: (context, snapshot) {
+                              if (snapshot.connectionState == ConnectionState.waiting) {
+                                return const Center(
+                                  child: SizedBox(
+                                    width: 32,
+                                    height: 32,
+                                    child: CircularProgressIndicator(strokeWidth: 2.5),
                                   ),
-                                ],
+                                );
+                              }
+                              
+                              if (snapshot.hasError) {
+                                return const Center(child: Text("Error loading habits"));
+                              }
+                              
+                              final habits = snapshot.data ?? [];
+                              
+                              if (habits.isEmpty) {
+                                return Center(
+                                  child: Container(
+                                    margin: const EdgeInsets.all(24),
+                                    padding: const EdgeInsets.all(24),
+                                    decoration: BoxDecoration(
+                                      color: isDark ? const Color(0xFF1E1E24) : Colors.white,
+                                      borderRadius: BorderRadius.circular(32),
+                                      boxShadow: isDark
+                                          ? []
+                                          : [
+                                              BoxShadow(
+                                                color: Colors.black.withOpacity(0.04),
+                                                blurRadius: 16,
+                                                offset: const Offset(0, 8),
+                                              ),
+                                            ],
+                                    ),
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          Icons.repeat,
+                                          size: 54,
+                                          color: isDark ? Colors.white24 : Colors.black12,
+                                        ),
+                                        const SizedBox(height: 16),
+                                        const Text(
+                                          "Build Healthy Habits",
+                                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          "Create daily consistency loops. Repeat, track streaks, and transform your routine!",
+                                          textAlign: TextAlign.center,
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: isDark ? Colors.white38 : Colors.black45,
+                                            height: 1.4,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              }
+                              
+                              final double bottomPadding = 56.0 + 12.0 + MediaQuery.of(context).padding.bottom + 16.0;
+                              return ListView.builder(
+                                padding: EdgeInsets.only(top: 8, bottom: bottomPadding),
+                                itemCount: habits.length,
+                                itemBuilder: (context, index) {
+                                  final habit = habits[index];
+                                  return _buildHabitCard(habit, isDark);
+                                },
+                              );
+                            },
+                          ),
                         ),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.repeat,
-                              size: 54,
-                              color: isDark ? Colors.white24 : Colors.black12,
-                            ),
-                            const SizedBox(height: 16),
-                            const Text(
-                              "Build Healthy Habits",
-                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              "Create daily consistency loops. Repeat, track streaks, and transform your routine!",
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: isDark ? Colors.white38 : Colors.black45,
-                                height: 1.4,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  }
-                  
-                  return ListView.builder(
-                    padding: const EdgeInsets.only(top: 8, bottom: 96),
-                    itemCount: habits.length,
-                    itemBuilder: (context, index) {
-                      final habit = habits[index];
-                      return _buildHabitCard(habit, isDark);
-                    },
-                  );
-                },
-              ),
+                      ],
+                    )
+                  : const GoalsScreen(),
             ),
           ],
         ),
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showAddHabitSheet(context),
-        backgroundColor: Theme.of(context).primaryColor,
-        icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text("New Habit", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
     );
   }
@@ -300,19 +381,19 @@ class _HabitsScreenState extends State<HabitsScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => const _AddHabitSheet(),
+      builder: (context) => const AddHabitSheet(),
     );
   }
 }
 
-class _AddHabitSheet extends StatefulWidget {
-  const _AddHabitSheet();
+class AddHabitSheet extends StatefulWidget {
+  const AddHabitSheet({super.key});
 
   @override
-  State<_AddHabitSheet> createState() => _AddHabitSheetState();
+  State<AddHabitSheet> createState() => _AddHabitSheetState();
 }
 
-class _AddHabitSheetState extends State<_AddHabitSheet> {
+class _AddHabitSheetState extends State<AddHabitSheet> {
   final TextEditingController _titleController = TextEditingController();
   final HabitService _habitService = HabitService();
   String _selectedType = 'daily';
