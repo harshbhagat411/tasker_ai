@@ -135,6 +135,7 @@ class TaskService {
           .doc(id)
           .update({
         'isDone': isDone,
+        'taskStatus': isDone ? 'done' : 'todo',
       });
 
       // Recalculate sprint progress if task is linked to a sprint
@@ -954,6 +955,72 @@ class TaskService {
     // 4. Recalculate progress for old sprint
     if (oldSprintId != null && oldSprintId != sprintId) {
       await SprintService().calculateSprintProgress(projectId, oldSprintId);
+    }
+  }
+
+  // Update task status on the Agile Sprint Kanban Board
+  Future<void> updateTaskStatus({
+    required String projectId,
+    required String taskId,
+    required String status, // 'todo', 'in_progress', 'review', 'done'
+  }) async {
+    if (userId == null) return;
+
+    // 1. Get task details
+    final taskDoc = await _firestore
+        .collection('projects')
+        .doc(projectId)
+        .collection('tasks')
+        .doc(taskId)
+        .get();
+
+    if (!taskDoc.exists) throw Exception("Task not found");
+    final data = taskDoc.data();
+    final sprintId = data?['sprintId'] as String?;
+    final taskTitle = data?['title'] as String? ?? 'Task';
+
+    // 2. Synchronize isDone boolean with done status
+    final bool isDone = (status == 'done');
+
+    // 3. Update task
+    await _firestore
+        .collection('projects')
+        .doc(projectId)
+        .collection('tasks')
+        .doc(taskId)
+        .update({
+      'taskStatus': status,
+      'isDone': isDone,
+    });
+
+    // 4. Log activity automatically
+    final user = _auth.currentUser;
+    if (user != null) {
+      final userDoc = await _firestore.collection('users').doc(user.uid).get();
+      final userName = userDoc.data()?['displayName'] ?? userDoc.data()?['name'] ?? 'Someone';
+
+      String logMsg = "";
+      if (status == 'in_progress') {
+        logMsg = "$userName started working on $taskTitle";
+      } else if (status == 'review') {
+        logMsg = "$userName submitted $taskTitle for review";
+      } else if (status == 'done') {
+        logMsg = "$userName completed $taskTitle";
+      }
+
+      if (logMsg.isNotEmpty) {
+        await ActivityService().logProjectActivity(
+          projectId: projectId,
+          type: 'sprint_task_status',
+          taskTitle: taskTitle,
+          message: logMsg,
+        );
+      }
+    }
+
+    // 5. Recalculate sprint progress in real-time
+    if (sprintId != null) {
+      await SprintService().calculateSprintProgress(projectId, sprintId);
     }
   }
 }

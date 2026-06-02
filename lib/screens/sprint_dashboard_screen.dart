@@ -150,7 +150,7 @@ class _SprintDashboardScreenState extends State<SprintDashboardScreen> {
                   const SizedBox(height: 12),
                   _buildActiveSprintCard(context, activeSprint, themeColor, isDark, isAllowed),
                   const SizedBox(height: 24),
-                  _buildSprintTasksList(context, activeSprint, themeColor, isDark, isAllowed),
+                  _buildSprintKanbanBoard(context, activeSprint, themeColor, isDark, isAllowed),
                   const SizedBox(height: 24),
                   _buildBacklogTasksList(context, activeSprint, themeColor, isDark, isAllowed),
                   const SizedBox(height: 28),
@@ -756,12 +756,12 @@ class _SprintDashboardScreenState extends State<SprintDashboardScreen> {
     );
   }
 
-  Widget _buildSprintTasksList(BuildContext context, Sprint sprint, Color themeColor, bool isDark, bool isAllowed) {
+  Widget _buildSprintKanbanBoard(BuildContext context, Sprint sprint, Color themeColor, bool isDark, bool isAllowed) {
     return StreamBuilder<QuerySnapshot>(
       stream: _taskService.getWorkspaceTasks(widget.workspace.id),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const SizedBox.shrink();
+          return const Center(child: CircularProgressIndicator());
         }
 
         final docs = snapshot.data?.docs ?? [];
@@ -770,103 +770,481 @@ class _SprintDashboardScreenState extends State<SprintDashboardScreen> {
           return data?['sprintId'] == sprint.id;
         }).toList();
 
+        // Group tasks by status (default is 'todo')
+        final todoTasks = sprintTasks.where((doc) {
+          final data = doc.data() as Map<String, dynamic>?;
+          final status = data?['taskStatus'] ?? 'todo';
+          return status == 'todo';
+        }).toList();
+
+        final inProgressTasks = sprintTasks.where((doc) {
+          final data = doc.data() as Map<String, dynamic>?;
+          final status = data?['taskStatus'] ?? 'todo';
+          return status == 'in_progress';
+        }).toList();
+
+        final reviewTasks = sprintTasks.where((doc) {
+          final data = doc.data() as Map<String, dynamic>?;
+          final status = data?['taskStatus'] ?? 'todo';
+          return status == 'review';
+        }).toList();
+
+        final doneTasks = sprintTasks.where((doc) {
+          final data = doc.data() as Map<String, dynamic>?;
+          final status = data?['taskStatus'] ?? 'todo';
+          return status == 'done';
+        }).toList();
+
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildSectionHeader("Sprint Tasks (${sprintTasks.length})", themeColor, isDark),
+            _buildSectionHeader("Sprint Board", themeColor, isDark),
             const SizedBox(height: 12),
-            if (sprintTasks.isEmpty)
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
-                decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF1E1E24) : Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: isDark ? Colors.white10 : Colors.grey.shade200),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  "No tasks linked to this active sprint.\nUse the Backlog action or the list below to assign tasks.",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: isDark ? Colors.white30 : Colors.grey,
-                    height: 1.5,
-                  ),
-                ),
-              )
-            else
-              ...sprintTasks.map((taskDoc) {
-                final data = taskDoc.data() as Map<String, dynamic>?;
-                final isDone = data?['isDone'] as bool? ?? false;
-                final title = data?['title'] as String? ?? 'Untitled';
-                
-                final String ownerId = data?['ownerId']?.toString() ?? '';
-                final Map<String, dynamic>? assignedTo = data?['assignedTo'] as Map<String, dynamic>?;
-                final String? assignedUid = assignedTo?['uid'];
-                final bool isAssignee = _currentUserId == assignedUid;
-                final bool isProjectAdminOrOwner = widget.workspace.memberRoles[_currentUserId] == 'admin' || widget.workspace.memberRoles[_currentUserId] == 'owner' || _currentUserId == widget.workspace.ownerId;
-                final bool canEdit = isAssignee || isProjectAdminOrOwner || _currentUserId == ownerId;
-
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF1E1E24) : Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: isDark ? Colors.white10 : Colors.grey.shade200),
-                  ),
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                    leading: SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: Checkbox(
-                        value: isDone,
-                        activeColor: themeColor,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                        onChanged: (value) async {
-                          if (canEdit) {
-                            if (value != null) {
-                              await _taskService.toggleTask(taskDoc.id, value, projectId: widget.workspace.id);
-                              await _sprintService.calculateSprintProgress(widget.workspace.id, sprint.id);
-                            }
-                          } else {
-                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Only assigned member or admin can toggle task.')));
-                          }
-                        },
-                      ),
-                    ),
-                    title: Text(
-                      title,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        decoration: isDone ? TextDecoration.lineThrough : null,
-                        color: isDone 
-                            ? Colors.grey 
-                            : (isDark ? Colors.white : Colors.black87),
-                      ),
-                    ),
-                    trailing: isAllowed
-                        ? IconButton(
-                            icon: const Icon(Icons.arrow_downward, color: Colors.redAccent, size: 20),
-                            tooltip: "Move to Backlog",
-                            onPressed: () async {
-                              await _taskService.linkTaskToSprint(
-                                projectId: widget.workspace.id,
-                                taskId: taskDoc.id,
-                                sprintId: null,
-                              );
-                              await _sprintService.calculateSprintProgress(widget.workspace.id, sprint.id);
-                            },
-                          )
-                        : null,
-                  ),
-                );
-              }),
+            SizedBox(
+              height: 220, // Mobile-friendly compact height for cards
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                children: [
+                  _buildKanbanColumn("To Do", todoTasks, 'todo', themeColor, isDark, isAllowed, sprint),
+                  _buildKanbanColumn("In Progress", inProgressTasks, 'in_progress', themeColor, isDark, isAllowed, sprint),
+                  _buildKanbanColumn("Review", reviewTasks, 'review', themeColor, isDark, isAllowed, sprint),
+                  _buildKanbanColumn("Done", doneTasks, 'done', themeColor, isDark, isAllowed, sprint),
+                ],
+              ),
+            ),
           ],
         );
       },
+    );
+  }
+
+  Widget _buildKanbanColumn(
+    String title,
+    List<DocumentSnapshot> tasks,
+    String columnStatus,
+    Color themeColor,
+    bool isDark,
+    bool isAllowed,
+    Sprint sprint,
+  ) {
+    Color headerColor;
+    switch (columnStatus) {
+      case 'todo': headerColor = Colors.grey.shade500; break;
+      case 'in_progress': headerColor = Colors.orangeAccent; break;
+      case 'review': headerColor = Colors.blueAccent; break;
+      case 'done': headerColor = Colors.green; break;
+      default: headerColor = themeColor; break;
+    }
+
+    return Container(
+      width: 250,
+      margin: const EdgeInsets.only(right: 12),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF16161C) : Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: isDark ? Colors.white10 : Colors.grey.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Column Header
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 10, 14, 6),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: headerColor,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white70 : Colors.grey.shade800,
+                      ),
+                    ),
+                  ],
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: headerColor.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    "${tasks.length}",
+                    style: TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.bold,
+                      color: headerColor,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Divider(color: isDark ? Colors.white10 : Colors.grey.shade200, height: 1),
+          // Tasks List
+          Expanded(
+            child: tasks.isEmpty
+                ? Center(
+                    child: Text(
+                      "No tasks",
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: isDark ? Colors.white24 : Colors.grey.shade400,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                    itemCount: tasks.length,
+                    itemBuilder: (context, index) {
+                      return _buildKanbanTaskCard(context, tasks[index], themeColor, isDark, isAllowed, sprint);
+                    },
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildKanbanTaskCard(
+    BuildContext context,
+    DocumentSnapshot taskDoc,
+    Color themeColor,
+    bool isDark,
+    bool isAllowed,
+    Sprint sprint,
+  ) {
+    final data = taskDoc.data() as Map<String, dynamic>?;
+    if (data == null) return const SizedBox.shrink();
+
+    final title = data['title'] as String? ?? 'Untitled';
+    final priority = data['priority'] as String? ?? 'low';
+    final String ownerId = data['ownerId']?.toString() ?? '';
+    
+    DateTime? dueDate;
+    if (data['dueDate'] is Timestamp) {
+      dueDate = (data['dueDate'] as Timestamp).toDate();
+    }
+
+    final Map<String, dynamic>? assignedTo = data['assignedTo'] as Map<String, dynamic>?;
+    final String? assignedUid = assignedTo?['uid'];
+    final String name = assignedTo?['name'] ?? 'Unassigned';
+    final String initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
+
+    // Permissions check: Member can move ONLY tasks assigned to them
+    final bool isAssignee = _currentUserId == assignedUid;
+    final bool isProjectAdminOrOwner = widget.workspace.memberRoles[_currentUserId] == 'admin' || widget.workspace.memberRoles[_currentUserId] == 'owner' || _currentUserId == widget.workspace.ownerId;
+    final bool canMove = isAssignee || isProjectAdminOrOwner || _currentUserId == ownerId;
+
+    // Color code based on priority
+    Color priorityColor;
+    switch (priority.toLowerCase()) {
+      case 'high': priorityColor = Colors.redAccent; break;
+      case 'medium': priorityColor = Colors.orangeAccent; break;
+      case 'low': default: priorityColor = Colors.green; break;
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E1E24) : Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: isDark ? Colors.white10 : Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(isDark ? 0.2 : 0.03),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          decoration: BoxDecoration(
+            border: Border(left: BorderSide(color: priorityColor, width: 4)),
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () => _showTaskMovementOptions(context, taskDoc, canMove, themeColor, isDark, sprint),
+              child: Padding(
+                padding: const EdgeInsets.all(10.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white : Colors.black87,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        // Assignee circle avatar & name
+                        Row(
+                          children: [
+                            CircleAvatar(
+                              radius: 8,
+                              backgroundColor: themeColor.withOpacity(0.15),
+                              child: Text(
+                                initial,
+                                style: TextStyle(fontSize: 7, color: themeColor, fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            SizedBox(
+                              width: 65,
+                              child: Text(
+                                name,
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  color: isDark ? Colors.white60 : Colors.grey.shade700,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                        // Due date
+                        if (dueDate != null)
+                          Row(
+                            children: [
+                              Icon(Icons.access_time, size: 9, color: Colors.grey.shade500),
+                              const SizedBox(width: 2),
+                              Text(
+                                DateFormat('MMM dd').format(dueDate),
+                                style: TextStyle(fontSize: 8, color: Colors.grey.shade500, fontWeight: FontWeight.bold),
+                              ),
+                            ],
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showTaskMovementOptions(
+    BuildContext context,
+    DocumentSnapshot taskDoc,
+    bool canMove,
+    Color themeColor,
+    bool isDark,
+    Sprint sprint,
+  ) {
+    final data = taskDoc.data() as Map<String, dynamic>?;
+    final title = data?['title'] as String? ?? 'Task';
+    final currentStatus = data?['taskStatus'] ?? 'todo';
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return Container(
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF16161C) : Colors.white,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.white24 : Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                "Sprint Task Workflow",
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                "Task: $title",
+                style: TextStyle(
+                  fontSize: 13,
+                  color: isDark ? Colors.white38 : Colors.grey,
+                ),
+              ),
+              const SizedBox(height: 20),
+              if (!canMove) ...[
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.redAccent.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.redAccent.withOpacity(0.2)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.lock_outline, color: Colors.redAccent, size: 20),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          "🔒 Permission Denied: Members can only progress tasks assigned to them.",
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? Colors.redAccent.shade100 : Colors.redAccent.shade700,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+              ],
+              _buildMovementOptionButton(
+                context, "Move to To Do", Icons.playlist_add, 'todo', currentStatus, canMove, themeColor, isDark, taskDoc.id, sprint
+              ),
+              const SizedBox(height: 10),
+              _buildMovementOptionButton(
+                context, "Start Working (In Progress)", Icons.play_arrow_rounded, 'in_progress', currentStatus, canMove, themeColor, isDark, taskDoc.id, sprint
+              ),
+              const SizedBox(height: 10),
+              _buildMovementOptionButton(
+                context, "Submit for Review", Icons.rate_review_rounded, 'review', currentStatus, canMove, themeColor, isDark, taskDoc.id, sprint
+              ),
+              const SizedBox(height: 10),
+              _buildMovementOptionButton(
+                context, "Mark as Done", Icons.check_circle_outline, 'done', currentStatus, canMove, themeColor, isDark, taskDoc.id, sprint
+              ),
+              const SizedBox(height: 12),
+              if (_isAllowedToManage()) ...[
+                const Divider(),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: Colors.redAccent),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    ),
+                    onPressed: () async {
+                      Navigator.pop(context);
+                      await _taskService.linkTaskToSprint(
+                        projectId: widget.workspace.id,
+                        taskId: taskDoc.id,
+                        sprintId: null,
+                      );
+                      await _sprintService.calculateSprintProgress(widget.workspace.id, sprint.id);
+                    },
+                    icon: const Icon(Icons.link_off, color: Colors.redAccent, size: 18),
+                    label: const Text("Remove from Sprint", style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildMovementOptionButton(
+    BuildContext context,
+    String label,
+    IconData icon,
+    String targetStatus,
+    String currentStatus,
+    bool canMove,
+    Color themeColor,
+    bool isDark,
+    String taskId,
+    Sprint sprint,
+  ) {
+    final isCurrent = currentStatus == targetStatus;
+    final bool enabled = canMove && !isCurrent;
+
+    Color buttonColor;
+    if (isCurrent) {
+      buttonColor = themeColor;
+    } else {
+      buttonColor = isDark ? Colors.white60 : Colors.grey.shade700;
+    }
+
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton.icon(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: isCurrent 
+              ? themeColor.withOpacity(0.1) 
+              : (isDark ? const Color(0xFF22222B) : Colors.grey.shade50),
+          foregroundColor: buttonColor,
+          elevation: 0,
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          alignment: Alignment.centerLeft,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(
+              color: isCurrent 
+                  ? themeColor 
+                  : (isDark ? Colors.white10 : Colors.grey.shade200),
+            ),
+          ),
+        ),
+        onPressed: !enabled
+            ? null
+            : () async {
+                Navigator.pop(context);
+                await _taskService.updateTaskStatus(
+                  projectId: widget.workspace.id,
+                  taskId: taskId,
+                  status: targetStatus,
+                );
+              },
+        icon: Padding(
+          padding: const EdgeInsets.only(left: 16.0),
+          child: Icon(icon, size: 20, color: enabled ? buttonColor : Colors.grey.shade400),
+        ),
+        label: Text(
+          label + (isCurrent ? " (Current Status)" : ""),
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+            color: enabled ? buttonColor : Colors.grey.shade400,
+          ),
+        ),
+      ),
     );
   }
 
