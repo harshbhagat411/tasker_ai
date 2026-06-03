@@ -14,6 +14,7 @@ class InAppNotificationService {
     required String message,
     String? taskId,
     String? projectId,
+    String? senderPhoto,
   }) async {
     try {
       final currentUser = _auth.currentUser;
@@ -29,6 +30,7 @@ class InAppNotificationService {
         receiverId: receiverId,
         senderId: currentUser.uid,
         senderName: currentUser.displayName ?? 'Someone',
+        senderPhoto: senderPhoto,
         type: type,
         title: title,
         message: message,

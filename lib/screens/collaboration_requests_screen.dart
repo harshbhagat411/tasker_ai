@@ -497,6 +497,10 @@ class _CollaborationRequestsScreenState extends State<CollaborationRequestsScree
         icon = Icons.cancel;
         color = Colors.red;
         break;
+      case NotificationType.friend_request:
+        icon = Icons.person_add;
+        color = Colors.indigo;
+        break;
       default:
         icon = Icons.notifications;
         color = Colors.grey;

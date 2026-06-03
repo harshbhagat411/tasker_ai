@@ -9,6 +9,7 @@ enum NotificationType {
   workspace_invite_accepted,
   workspace_invite_rejected,
   task_assigned,
+  friend_request,
   unknown
 }
 
@@ -17,6 +18,7 @@ class NotificationModel {
   final String receiverId;
   final String senderId;
   final String senderName;
+  final String? senderPhoto;
   final NotificationType type;
   final String title;
   final String message;
@@ -30,6 +32,7 @@ class NotificationModel {
     required this.receiverId,
     required this.senderId,
     required this.senderName,
+    this.senderPhoto,
     required this.type,
     required this.title,
     required this.message,
@@ -43,7 +46,9 @@ class NotificationModel {
     return {
       'receiverId': receiverId,
       'senderId': senderId,
+      'senderUid': senderId,
       'senderName': senderName,
+      if (senderPhoto != null) 'senderPhoto': senderPhoto,
       'type': type.name,
       'title': title,
       'message': message,
@@ -65,8 +70,9 @@ class NotificationModel {
     return NotificationModel(
       id: doc.id,
       receiverId: data['receiverId'] ?? '',
-      senderId: data['senderId'] ?? '',
+      senderId: data['senderId'] ?? data['senderUid'] ?? '',
       senderName: data['senderName'] ?? '',
+      senderPhoto: data['senderPhoto'],
       type: parsedType,
       title: data['title'] ?? '',
       message: data['message'] ?? '',
