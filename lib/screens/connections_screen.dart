@@ -19,6 +19,9 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> with SingleTicker
   List<Map<String, dynamic>> _searchResults = [];
   bool _hasSearched = false;
 
+  // Request handling state
+  final Set<String> _processingUids = {};
+
   @override
   void initState() {
     super.initState();
@@ -108,6 +111,72 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> with SingleTicker
             backgroundColor: Colors.redAccent,
           ),
         );
+      }
+    }
+  }
+
+  Future<void> _onAcceptRequest(String senderUid) async {
+    setState(() {
+      _processingUids.add(senderUid);
+    });
+
+    try {
+      await _friendService.acceptFriendRequest(senderUid);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Friend added"),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Something went wrong"),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _processingUids.remove(senderUid);
+        });
+      }
+    }
+  }
+
+  Future<void> _onDeclineRequest(String senderUid) async {
+    setState(() {
+      _processingUids.add(senderUid);
+    });
+
+    try {
+      await _friendService.declineFriendRequest(senderUid);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Request declined"),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Something went wrong"),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _processingUids.remove(senderUid);
+        });
       }
     }
   }
@@ -482,14 +551,49 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> with SingleTicker
                     final name = data['senderName'] ?? 'User';
                     final taskerId = data['senderTaskerId'] ?? '';
                     final photoUrl = data['senderPhoto'] ?? '';
+                    final senderUid = data['senderId'] ?? doc.id;
+                    final isProcessing = _processingUids.contains(senderUid);
+
+                    final actionButtons = Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        TextButton(
+                          onPressed: isProcessing ? null : () => _onDeclineRequest(senderUid),
+                          style: TextButton.styleFrom(
+                            foregroundColor: Colors.redAccent,
+                            disabledForegroundColor: Colors.redAccent.withOpacity(0.3),
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          child: const Text("Decline"),
+                        ),
+                        const SizedBox(width: 8),
+                        ElevatedButton(
+                          onPressed: isProcessing ? null : () => _onAcceptRequest(senderUid),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Theme.of(context).primaryColor,
+                            foregroundColor: Colors.white,
+                            disabledBackgroundColor: Theme.of(context).primaryColor.withOpacity(0.3),
+                            disabledForegroundColor: Colors.white70,
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            elevation: 0,
+                          ),
+                          child: const Text("Accept"),
+                        ),
+                      ],
+                    );
 
                     return _buildUserCard(
                       name: name,
                       taskerId: taskerId,
                       photoUrl: photoUrl,
                       isDark: isDark,
-                      statusText: "Pending",
-                      statusColor: Colors.orange,
+                      statusText: "",
+                      statusColor: Colors.transparent,
+                      actionWidget: actionButtons,
                     );
                   }),
                   const SizedBox(height: 24),

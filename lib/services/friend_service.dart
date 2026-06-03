@@ -212,6 +212,134 @@ class FriendService {
     return "Friend request sent successfully";
   }
 
+  // Accept Friend Request
+  Future<void> acceptFriendRequest(String senderUid) async {
+    final currentUserId = userId;
+    if (currentUserId == null) throw Exception("User not authenticated");
+
+    // Fetch details for both users
+    final currentUserDoc = await _firestore.collection('users').doc(currentUserId).get();
+    final senderDoc = await _firestore.collection('users').doc(senderUid).get();
+
+    if (!currentUserDoc.exists || !senderDoc.exists) {
+      throw Exception("User data not found");
+    }
+
+    final currentUserData = currentUserDoc.data()!;
+    final senderData = senderDoc.data()!;
+
+    final String currentName = currentUserData['displayName'] ?? currentUserData['name'] ?? 'User';
+    final String currentPhoto = currentUserData['photoURL'] ?? currentUserData['profileImage'] ?? currentUserData['avatar'] ?? '';
+    final String currentTaskerId = currentUserData['taskerId'] ?? '';
+    final String currentEmail = currentUserData['email'] ?? '';
+
+    final String senderName = senderData['displayName'] ?? senderData['name'] ?? 'User';
+    final String senderPhoto = senderData['photoURL'] ?? senderData['profileImage'] ?? senderData['avatar'] ?? '';
+    final String senderTaskerId = senderData['taskerId'] ?? '';
+    final String senderEmail = senderData['email'] ?? '';
+
+    final batch = _firestore.batch();
+    final now = FieldValue.serverTimestamp();
+
+    // Friend doc 1: users/{currentUid}/friends/{senderUid}
+    final friend1Ref = _firestore
+        .collection('users')
+        .doc(currentUserId)
+        .collection('friends')
+        .doc(senderUid);
+
+    batch.set(friend1Ref, {
+      'uid': senderUid,
+      'friendId': senderUid,
+      'displayName': senderName,
+      'taskerId': senderTaskerId,
+      'photoURL': senderPhoto,
+      'email': senderEmail,
+      'addedAt': now,
+      'acceptedAt': now,
+      'status': 'accepted',
+    });
+
+    // Friend doc 2: users/{senderUid}/friends/{currentUid}
+    final friend2Ref = _firestore
+        .collection('users')
+        .doc(senderUid)
+        .collection('friends')
+        .doc(currentUserId);
+
+    batch.set(friend2Ref, {
+      'uid': currentUserId,
+      'friendId': currentUserId,
+      'displayName': currentName,
+      'taskerId': currentTaskerId,
+      'photoURL': currentPhoto,
+      'email': currentEmail,
+      'addedAt': now,
+      'acceptedAt': now,
+      'status': 'accepted',
+    });
+
+    // Delete pending request docs:
+    // 1. Users/{currentUid}/friend_requests_received/{senderUid}
+    final receivedRef = _firestore
+        .collection('users')
+        .doc(currentUserId)
+        .collection('friend_requests_received')
+        .doc(senderUid);
+    batch.delete(receivedRef);
+
+    // 2. Users/{senderUid}/friend_requests_sent/{currentUid}
+    final sentRef = _firestore
+        .collection('users')
+        .doc(senderUid)
+        .collection('friend_requests_sent')
+        .doc(currentUserId);
+    batch.delete(sentRef);
+
+    await batch.commit();
+
+    // Dispatch notification
+    try {
+      await InAppNotificationService().createNotification(
+        receiverId: senderUid,
+        type: NotificationType.friend_request,
+        title: "Friend Request Accepted",
+        message: "$currentName accepted your friend request.",
+        senderPhoto: currentPhoto,
+      );
+    } catch (e) {
+      print("Error creating notification: $e");
+    }
+  }
+
+  // Decline Friend Request
+  Future<void> declineFriendRequest(String senderUid) async {
+    final currentUserId = userId;
+    if (currentUserId == null) throw Exception("User not authenticated");
+
+    final batch = _firestore.batch();
+
+    // Delete pending request docs:
+    // 1. Users/{currentUid}/friend_requests_received/{senderUid}
+    final receivedRef = _firestore
+        .collection('users')
+        .doc(currentUserId)
+        .collection('friend_requests_received')
+        .doc(senderUid);
+    batch.delete(receivedRef);
+
+    // 2. Users/{senderUid}/friend_requests_sent/{currentUid}
+    final sentRef = _firestore
+        .collection('users')
+        .doc(senderUid)
+        .collection('friend_requests_sent')
+        .doc(currentUserId);
+    batch.delete(sentRef);
+
+    await batch.commit();
+  }
+
+
   // Stream accepted friends
   Stream<QuerySnapshot> getFriendsStream() {
     final currentUserId = userId;
