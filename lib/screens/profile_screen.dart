@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../services/task_service.dart';
 import '../providers/theme_provider.dart';
 import '../main.dart';
+import 'connections_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -464,6 +465,45 @@ class ProfileScreen extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 20),
+
+                      // 🔹 Connections Button
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 16),
+                        child: InkWell(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => const ConnectionsScreen()),
+                            );
+                          },
+                          borderRadius: BorderRadius.circular(12),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).cardColor,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.grey[300]!),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(Icons.people_outline, color: Theme.of(context).iconTheme.color ?? Colors.grey),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: Text(
+                                    "Connections",
+                                    style: TextStyle(
+                                      fontSize: 16, 
+                                      fontWeight: FontWeight.w500,
+                                      color: Theme.of(context).textTheme.bodyLarge?.color,
+                                    ),
+                                  ),
+                                ),
+                                Icon(Icons.chevron_right, color: Colors.grey[400]),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
 
                       // Logout Button
                       SizedBox(

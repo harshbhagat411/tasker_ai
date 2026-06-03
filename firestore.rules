@@ -1,0 +1,76 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // User documents
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
+      
+      // Default rule for user subcollections (tasks, habits, etc.)
+      match /{allSubcollections=**} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+      
+      // Override for friend requests sent (owner only can read/write)
+      match /friend_requests_sent/{receiverId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+      
+      // Override for friend requests received
+      match /friend_requests_received/{senderId} {
+        // Owner of the user doc can fully manage their received requests
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+        
+        // The sender can write a request document inside the receiver's subcollection
+        allow create: if request.auth != null && 
+                      request.auth.uid == senderId && 
+                      request.resource.data.senderId == request.auth.uid &&
+                      request.resource.data.receiverId == userId &&
+                      request.resource.data.status == 'pending';
+      }
+    }
+    
+    // Workspaces
+    match /workspaces/{workspaceId} {
+      allow create: if request.auth != null && request.resource.data.ownerId == request.auth.uid;
+      allow read, update, delete: if request.auth != null && 
+        (request.auth.uid == resource.data.ownerId || request.auth.uid in resource.data.members);
+    }
+    
+    // Projects subcollections (tasks, sprints, activity)
+    match /projects/{projectId} {
+      allow read, write: if request.auth != null && 
+        (request.auth.uid in get(/databases/$(database)/documents/workspaces/$(projectId)).data.members);
+        
+      match /{allSubpaths=**} {
+        allow read, write: if request.auth != null && 
+          (request.auth.uid in get(/databases/$(database)/documents/workspaces/$(projectId)).data.members);
+      }
+    }
+    
+    // Project Invites
+    match /project_invites/{inviteId} {
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.inviterId;
+      allow read, update, delete: if request.auth != null && 
+        (request.auth.uid == resource.data.inviterId || request.auth.token.email == resource.data.inviteeEmail);
+    }
+    
+    // Focus Sessions
+    match /focus_sessions/{sessionId} {
+      allow read, write: if request.auth != null && (resource == null || resource.data.userId == request.auth.uid);
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+    }
+    
+    // Focus Stats
+    match /user_focus_stats/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Notifications
+    match /notifications/{notificationId} {
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.senderId;
+      allow read, update, delete: if request.auth != null && request.auth.uid == resource.data.receiverId;
+    }
+  }
+}

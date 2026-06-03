@@ -138,10 +138,16 @@ class FriendService {
     final senderData = senderDoc.data()!;
     final String senderName = senderData['displayName'] ?? senderData['name'] ?? 'Someone';
     final String senderPhoto = senderData['photoURL'] ?? senderData['profileImage'] ?? senderData['avatar'] ?? '';
+    final String senderTaskerId = senderData['taskerId'] ?? '';
 
     // Fetch Receiver (Target User) info
     final receiverDoc = await _firestore.collection('users').doc(targetUid).get();
     if (!receiverDoc.exists) return "Target user not found";
+    
+    final receiverData = receiverDoc.data()!;
+    final String receiverName = receiverData['displayName'] ?? receiverData['name'] ?? 'User';
+    final String receiverPhoto = receiverData['photoURL'] ?? receiverData['profileImage'] ?? receiverData['avatar'] ?? '';
+    final String receiverTaskerId = receiverData['taskerId'] ?? '';
 
     final now = FieldValue.serverTimestamp();
 
@@ -160,6 +166,10 @@ class FriendService {
       'receiverId': targetUid,
       'senderName': senderName,
       'senderPhoto': senderPhoto,
+      'senderTaskerId': senderTaskerId,
+      'receiverName': receiverName,
+      'receiverPhoto': receiverPhoto,
+      'receiverTaskerId': receiverTaskerId,
       'createdAt': now,
       'status': 'pending',
     });
@@ -176,6 +186,10 @@ class FriendService {
       'receiverId': targetUid,
       'senderName': senderName,
       'senderPhoto': senderPhoto,
+      'senderTaskerId': senderTaskerId,
+      'receiverName': receiverName,
+      'receiverPhoto': receiverPhoto,
+      'receiverTaskerId': receiverTaskerId,
       'createdAt': now,
       'status': 'pending',
     });
@@ -197,4 +211,76 @@ class FriendService {
 
     return "Friend request sent successfully";
   }
+
+  // Stream accepted friends
+  Stream<QuerySnapshot> getFriendsStream() {
+    final currentUserId = userId;
+    if (currentUserId == null) return const Stream.empty();
+    return _firestore
+        .collection('users')
+        .doc(currentUserId)
+        .collection('friends')
+        .where('status', isEqualTo: 'accepted')
+        .snapshots();
+  }
+
+  // Stream friend requests received (Incoming)
+  Stream<QuerySnapshot> getIncomingRequestsStream() {
+    final currentUserId = userId;
+    if (currentUserId == null) return const Stream.empty();
+    return _firestore
+        .collection('users')
+        .doc(currentUserId)
+        .collection('friend_requests_received')
+        .snapshots();
+  }
+
+  // Stream friend requests sent (Sent)
+  Stream<QuerySnapshot> getSentRequestsStream() {
+    final currentUserId = userId;
+    if (currentUserId == null) return const Stream.empty();
+    return _firestore
+        .collection('users')
+        .doc(currentUserId)
+        .collection('friend_requests_sent')
+        .snapshots();
+  }
+
+  // Stream of list of friend UIDs
+  Stream<List<String>> getFriendIdsStream() {
+    final currentUserId = userId;
+    if (currentUserId == null) return Stream.value([]);
+    return _firestore
+        .collection('users')
+        .doc(currentUserId)
+        .collection('friends')
+        .where('status', isEqualTo: 'accepted')
+        .snapshots()
+        .map((snapshot) => snapshot.docs.map((doc) => doc.id).toList());
+  }
+
+  // Stream of list of sent request receiver UIDs
+  Stream<List<String>> getSentRequestIdsStream() {
+    final currentUserId = userId;
+    if (currentUserId == null) return Stream.value([]);
+    return _firestore
+        .collection('users')
+        .doc(currentUserId)
+        .collection('friend_requests_sent')
+        .snapshots()
+        .map((snapshot) => snapshot.docs.map((doc) => doc.id).toList());
+  }
+
+  // Stream of list of received request sender UIDs
+  Stream<List<String>> getReceivedRequestIdsStream() {
+    final currentUserId = userId;
+    if (currentUserId == null) return Stream.value([]);
+    return _firestore
+        .collection('users')
+        .doc(currentUserId)
+        .collection('friend_requests_received')
+        .snapshots()
+        .map((snapshot) => snapshot.docs.map((doc) => doc.id).toList());
+  }
 }
+
