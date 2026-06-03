@@ -118,7 +118,7 @@ class _ProjectTaskCardState extends State<ProjectTaskCard> {
                       onChanged: (value) {
                         if (canEdit) {
                           if (value != null) {
-                            _taskService.toggleTask(widget.task.id, value, projectId: widget.projectId);
+                            _taskService.toggleTask(context, widget.task.id, value, projectId: widget.projectId);
                           }
                         } else {
                           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Only assigned member can modify this task.')));

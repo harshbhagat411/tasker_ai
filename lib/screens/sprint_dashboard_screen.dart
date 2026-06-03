@@ -1319,7 +1319,7 @@ class _SprintDashboardScreenState extends State<SprintDashboardScreen> {
                         onChanged: (value) async {
                           if (canEdit) {
                             if (value != null) {
-                              await _taskService.toggleTask(taskDoc.id, value, projectId: widget.workspace.id);
+                              await _taskService.toggleTask(context, taskDoc.id, value, projectId: widget.workspace.id);
                             }
                           } else {
                             ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Only assigned member or admin can toggle task.')));

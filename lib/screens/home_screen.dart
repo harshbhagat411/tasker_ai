@@ -1527,7 +1527,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 return false;
               }
               if (direction == DismissDirection.startToEnd) {
-                _taskService.toggleTask(task.id, true);
+                final tData = task.data() as Map<String, dynamic>?;
+                final pId = tData?['projectId']?.toString();
+                _taskService.toggleTask(context, task.id, true, projectId: pId);
                 return false;
               }
               return true;
@@ -1575,7 +1577,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                             ),
                             onChanged: canEdit ? (val) {
                               if (val != null) {
-                                _taskService.toggleTask(task.id, val);
+                                final tData = task.data() as Map<String, dynamic>?;
+                                final pId = tData?['projectId']?.toString();
+                                _taskService.toggleTask(context, task.id, val, projectId: pId);
                               }
                             } : null,
                           ),

@@ -993,7 +993,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
                                     leading: GestureDetector(
                                       onTap: () {
-                                        _taskService.toggleTask(task.id, !isDone);
+                                        final tData = task.data() as Map<String, dynamic>?;
+                                        final pId = tData?['projectId']?.toString();
+                                        _taskService.toggleTask(context, task.id, !isDone, projectId: pId);
                                         // Trigger a local productivity score recalculation if today
                                         if (isSameDay(DateTime.now(), activeSelectedDay)) {
                                           _productivityEngine.generateAndSaveTodaySnapshot();

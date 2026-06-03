@@ -337,7 +337,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> with WidgetsBindi
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
                               onChanged: (val) {
                                 if (val != null) {
-                                  _taskService.toggleTask(widget.taskId, val, projectId: widget.projectId);
+                                  _taskService.toggleTask(context, widget.taskId, val, projectId: widget.projectId);
                                 }
                               },
                             ),

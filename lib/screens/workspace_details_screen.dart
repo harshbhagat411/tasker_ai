@@ -35,7 +35,7 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 5, vsync: this);
     _tabController.addListener(() {
       setState(() {});
     });
@@ -652,6 +652,7 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
               tabs: const [
                 Tab(text: "Overview"),
                 Tab(text: "Tasks"),
+                Tab(text: "Backlog"),
                 Tab(text: "Members"),
                 Tab(text: "Activity"),
               ],
@@ -662,6 +663,7 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
             children: [
               _buildOverviewTab(ws),
               _buildTasksTab(ws),
+              _buildBacklogTab(ws),
               _buildMembersTab(ws),
               _buildActivityTab(ws),
             ],
@@ -677,14 +679,14 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
     if (currentUserRole == 'member') {
       return null;
     }
-    if (_tabController.index == 1) {
+    if (_tabController.index == 1 || _tabController.index == 2) {
       return FloatingActionButton.extended(
         onPressed: _showCreateTaskModal,
         backgroundColor: color,
         icon: const Icon(Icons.add, color: Colors.white),
         label: const Text("Task", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
       );
-    } else if (_tabController.index == 2) {
+    } else if (_tabController.index == 3) {
       return FloatingActionButton.extended(
         onPressed: _showInviteMemberModal,
         backgroundColor: color,
@@ -2114,8 +2116,23 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
   }
 
   Widget _buildTasksTab(Workspace ws) {
-    return StreamBuilder<QuerySnapshot>(
-      stream: _taskService.getWorkspaceTasks(ws.id),
+    final tasksStream = _taskService.getWorkspaceTasks(ws.id);
+    final sprintsStream = SprintService().getProjectSprints(ws.id);
+
+    return StreamBuilder<List<QueryDocumentSnapshot>>(
+      stream: Rx.combineLatest2<QuerySnapshot, List<Sprint>, List<QueryDocumentSnapshot>>(
+        tasksStream,
+        sprintsStream,
+        (tasksSnap, sprints) {
+          final activeSprintIds = sprints.where((s) => s.status == 'active').map((s) => s.id).toSet();
+          return tasksSnap.docs.where((doc) {
+            final data = doc.data() as Map<String, dynamic>?;
+            if (data == null) return false;
+            final sprintId = data['sprintId'] as String?;
+            return sprintId != null && activeSprintIds.contains(sprintId);
+          }).toList();
+        },
+      ),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -2143,16 +2160,17 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
           );
         }
         
-        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+        final tasks = snapshot.data ?? [];
+        if (tasks.isEmpty) {
           return Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(Icons.assignment_outlined, size: 64, color: Colors.grey[300]),
                 const SizedBox(height: 16),
-                Text("No tasks yet", style: TextStyle(fontSize: 18, color: Colors.grey[600], fontWeight: FontWeight.bold)),
+                Text("No active tasks", style: TextStyle(fontSize: 18, color: Colors.grey[600], fontWeight: FontWeight.bold)),
                 const SizedBox(height: 8),
-                Text("Create the first task for this project.", style: TextStyle(color: Colors.grey[500])),
+                Text("Active sprint tasks will appear here.", style: TextStyle(color: Colors.grey[500])),
               ],
             ),
           );
@@ -2160,9 +2178,92 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
 
         return ListView.builder(
           padding: const EdgeInsets.all(16),
-          itemCount: snapshot.data!.docs.length,
+          itemCount: tasks.length,
           itemBuilder: (context, index) {
-            final doc = snapshot.data!.docs[index];
+            final doc = tasks[index];
+            return ProjectTaskCard(
+              task: doc,
+              projectId: ws.id,
+              workspace: ws,
+              onEdit: () {
+                // Not fully implemented yet, navigate or show dialog
+              },
+              onShare: () {
+                _showReassignModal(doc);
+              },
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildBacklogTab(Workspace ws) {
+    final tasksStream = _taskService.getWorkspaceTasks(ws.id);
+    final sprintsStream = SprintService().getProjectSprints(ws.id);
+
+    return StreamBuilder<List<QueryDocumentSnapshot>>(
+      stream: Rx.combineLatest2<QuerySnapshot, List<Sprint>, List<QueryDocumentSnapshot>>(
+        tasksStream,
+        sprintsStream,
+        (tasksSnap, sprints) {
+          final activeSprintIds = sprints.where((s) => s.status == 'active').map((s) => s.id).toSet();
+          return tasksSnap.docs.where((doc) {
+            final data = doc.data() as Map<String, dynamic>?;
+            if (data == null) return false;
+            final sprintId = data['sprintId'] as String?;
+            return sprintId == null || !activeSprintIds.contains(sprintId);
+          }).toList();
+        },
+      ),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        
+        if (snapshot.hasError) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.error_outline_rounded, size: 54, color: Colors.redAccent),
+                  const SizedBox(height: 16),
+                  const Text("Error Loading Backlog", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  Text(
+                    "Error details: ${snapshot.error}",
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 12, color: Colors.grey, height: 1.4),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+        
+        final tasks = snapshot.data ?? [];
+        if (tasks.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.backpack_outlined, size: 64, color: Colors.grey[300]),
+                const SizedBox(height: 16),
+                Text("Backlog is empty", style: TextStyle(fontSize: 18, color: Colors.grey[600], fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                Text("No backlog or planned tasks found in this project.", style: TextStyle(color: Colors.grey[500])),
+              ],
+            ),
+          );
+        }
+
+        return ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: tasks.length,
+          itemBuilder: (context, index) {
+            final doc = tasks[index];
             return ProjectTaskCard(
               task: doc,
               projectId: ws.id,

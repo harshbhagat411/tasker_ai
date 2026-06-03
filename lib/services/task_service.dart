@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
 import 'notification_service.dart';
 import 'in_app_notification_service.dart';
 import '../models/notification_model.dart';
@@ -8,6 +9,7 @@ import 'activity_service.dart';
 import 'productivity_tracking_service.dart';
 import 'workspace_service.dart';
 import 'sprint_service.dart';
+import '../widgets/sprint_selector_sheet.dart';
 
 
 class TaskService {
@@ -121,13 +123,116 @@ class TaskService {
     print("Calling productivity update");
     await ProductivityTrackingService.updateDailyProductivity(userId!);
   }
-  Future<void> toggleTask(String id, bool isDone, {String? projectId}) async {
+  Future<bool> _isProjectOwnerOrAdmin(String projectId) async {
+    final currentUserId = userId;
+    if (currentUserId == null) return false;
+    final workspaceDoc = await _firestore.collection('workspaces').doc(projectId).get();
+    if (!workspaceDoc.exists) return false;
+    final workspaceData = workspaceDoc.data()!;
+    final String workspaceOwnerId = workspaceData['ownerId']?.toString() ?? '';
+    final memberRoles = workspaceData['memberRoles'] as Map<String, dynamic>?;
+    return (workspaceOwnerId == currentUserId) ||
+        (memberRoles != null && (memberRoles[currentUserId] == 'owner' || memberRoles[currentUserId] == 'admin'));
+  }
+
+  Future<void> toggleTask(BuildContext context, String id, bool isDone, {String? projectId}) async {
     if (userId == null) return;
 
     if (projectId != null) {
       if (!await _canModifyProjectTask(projectId, id)) {
         throw Exception('Unauthorized: Only assigned members or project admins can modify this task.');
       }
+
+      // Check if task is in Backlog or Inactive Sprint
+      final taskDoc = await _firestore
+          .collection('projects')
+          .doc(projectId)
+          .collection('tasks')
+          .doc(id)
+          .get();
+
+      if (taskDoc.exists) {
+        final taskData = taskDoc.data()!;
+        final sprintId = taskData['sprintId'] as String?;
+        bool isBlocked = false;
+
+        if (sprintId == null) {
+          isBlocked = true;
+        } else {
+          final sprintDoc = await _firestore
+              .collection('projects')
+              .doc(projectId)
+              .collection('sprints')
+              .doc(sprintId)
+              .get();
+          if (!sprintDoc.exists || sprintDoc.data()?['status'] != 'active') {
+            isBlocked = true;
+          }
+        }
+
+        if (isBlocked) {
+          final isOwnerOrAdmin = await _isProjectOwnerOrAdmin(projectId);
+          if (!context.mounted) return;
+          final isDark = Theme.of(context).brightness == Brightness.dark;
+          final title = taskData['title'] ?? 'Task';
+
+          final scaffoldMessenger = ScaffoldMessenger.of(context);
+          scaffoldMessenger.clearSnackBars();
+          scaffoldMessenger.showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.warning_amber_rounded, color: Colors.amber, size: 24),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          "This task is in Backlog",
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.white),
+                        ),
+                        Text(
+                          "Move it to an Active Sprint to start working on it.",
+                          style: TextStyle(fontSize: 11, color: Colors.white.withValues(alpha: 0.8)),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              backgroundColor: isDark ? const Color(0xFF1E1E24) : const Color(0xFF323232),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              action: isOwnerOrAdmin
+                  ? SnackBarAction(
+                      label: "Move to Sprint",
+                      textColor: Colors.amber,
+                      onPressed: () {
+                        showModalBottomSheet(
+                          context: context,
+                          isScrollControlled: true,
+                          backgroundColor: Colors.transparent,
+                          builder: (context) => SprintSelectorSheet(
+                            projectId: projectId,
+                            taskId: id,
+                            taskTitle: title,
+                          ),
+                        );
+                      },
+                    )
+                  : SnackBarAction(
+                      label: "Got it",
+                      textColor: Colors.amber,
+                      onPressed: () {},
+                    ),
+            ),
+          );
+          return;
+        }
+      }
+
       await _firestore
           .collection('projects')
           .doc(projectId)
@@ -139,12 +244,6 @@ class TaskService {
       });
 
       // Recalculate sprint progress if task is linked to a sprint
-      final taskDoc = await _firestore
-          .collection('projects')
-          .doc(projectId)
-          .collection('tasks')
-          .doc(id)
-          .get();
       if (taskDoc.exists) {
         final sprintId = taskDoc.data()?['sprintId'] as String?;
         if (sprintId != null) {
@@ -764,33 +863,54 @@ class TaskService {
       if (workspaces.isEmpty) return Stream.value(<QueryDocumentSnapshot>[]);
       
       final streams = workspaces.map((ws) {
-        return _firestore
+        final tasksStream = _firestore
             .collection('projects')
             .doc(ws.id)
             .collection('tasks')
             .snapshots();
+        final sprintsStream = _firestore
+            .collection('projects')
+            .doc(ws.id)
+            .collection('sprints')
+            .snapshots();
+            
+        return Rx.combineLatest2<QuerySnapshot, QuerySnapshot, List<QueryDocumentSnapshot>>(
+          tasksStream,
+          sprintsStream,
+          (tasksSnap, sprintsSnap) {
+            final sprintsMap = {
+              for (var doc in sprintsSnap.docs) doc.id: doc.data() as Map<String, dynamic>?
+            };
+            return tasksSnap.docs.where((taskDoc) {
+              final taskData = taskDoc.data() as Map<String, dynamic>?;
+              if (taskData == null) return false;
+              
+              // Filter by assigned user
+              String? assignedToId;
+              if (taskData['assignedTo'] is String) {
+                assignedToId = taskData['assignedTo'];
+              } else if (taskData['assignedTo'] is Map) {
+                assignedToId = taskData['assignedTo']['uid'];
+              }
+              if (assignedToId != userId) return false;
+
+              // Active Task Rule: sprintId != null and linked sprint.status == active
+              final sprintId = taskData['sprintId'] as String?;
+              if (sprintId == null) return false;
+              final sprintData = sprintsMap[sprintId];
+              if (sprintData == null) return false;
+              return sprintData['status'] == 'active';
+            }).toList();
+          },
+        );
       }).toList();
       
-      return Rx.combineLatest<QuerySnapshot, List<QueryDocumentSnapshot>>(
+      return Rx.combineLatest<List<QueryDocumentSnapshot>, List<QueryDocumentSnapshot>>(
         streams,
-        (List<QuerySnapshot> snapshots) {
+        (List<List<QueryDocumentSnapshot>> lists) {
           final List<QueryDocumentSnapshot> assignedTasks = [];
-          for (var snap in snapshots) {
-            for (var doc in snap.docs) {
-              final data = doc.data() as Map<String, dynamic>?;
-              if (data == null) continue;
-              
-              String? assignedToId;
-              if (data['assignedTo'] is String) {
-                assignedToId = data['assignedTo'];
-              } else if (data['assignedTo'] is Map) {
-                assignedToId = data['assignedTo']['uid'];
-              }
-              
-              if (assignedToId == userId) {
-                assignedTasks.add(doc);
-              }
-            }
+          for (var list in lists) {
+            assignedTasks.addAll(list);
           }
           return assignedTasks;
         },

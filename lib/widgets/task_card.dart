@@ -206,7 +206,9 @@ class _TaskCardState extends State<TaskCard> {
                           ),
                           onChanged: (value) {
                             if (value != null) {
-                              _taskService.toggleTask(widget.task.id, value);
+                              final tData = widget.task.data() as Map<String, dynamic>?;
+                              final pId = tData?['projectId']?.toString();
+                              _taskService.toggleTask(context, widget.task.id, value, projectId: pId);
                             }
                           },
                         ),
