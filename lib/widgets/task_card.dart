@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/task_service.dart';
 import '../screens/task_details_screen.dart';
+import '../screens/user_profile_screen.dart';
 
 class TaskCard extends StatefulWidget {
   final DocumentSnapshot task;
@@ -94,28 +95,38 @@ class _TaskCardState extends State<TaskCard> {
 
             return Padding(
               padding: const EdgeInsets.only(right: 6),
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  CircleAvatar(
-                    radius: 14,
-                    backgroundColor: Colors.blue.shade100,
-                    child: Text(initial, style: const TextStyle(fontSize: 12, color: Colors.blue, fontWeight: FontWeight.bold)),
-                  ),
-                  Positioned(
-                    bottom: -2,
-                    right: -2,
-                    child: Container(
-                      width: 10,
-                      height: 10,
-                      decoration: BoxDecoration(
-                        color: isOnline ? Colors.green : Colors.grey,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Theme.of(context).cardColor, width: 2),
+              child: GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => UserProfileScreen(userId: mId),
+                    ),
+                  );
+                },
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    CircleAvatar(
+                      radius: 14,
+                      backgroundColor: Colors.blue.shade100,
+                      child: Text(initial, style: const TextStyle(fontSize: 12, color: Colors.blue, fontWeight: FontWeight.bold)),
+                    ),
+                    Positioned(
+                      bottom: -2,
+                      right: -2,
+                      child: Container(
+                        width: 10,
+                        height: 10,
+                        decoration: BoxDecoration(
+                          color: isOnline ? Colors.green : Colors.grey,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Theme.of(context).cardColor, width: 2),
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             );
           },
@@ -141,10 +152,20 @@ class _TaskCardState extends State<TaskCard> {
        avatarWidgets.add(
           Padding(
             padding: const EdgeInsets.only(right: 6),
-            child: CircleAvatar(
-              radius: 14,
-              backgroundColor: Colors.blue.shade100,
-              child: Text(initial, style: const TextStyle(fontSize: 12, color: Colors.blue, fontWeight: FontWeight.bold)),
+            child: GestureDetector(
+              onTap: sharedById != null ? () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => UserProfileScreen(userId: sharedById),
+                  ),
+                );
+              } : null,
+              child: CircleAvatar(
+                radius: 14,
+                backgroundColor: Colors.blue.shade100,
+                child: Text(initial, style: const TextStyle(fontSize: 12, color: Colors.blue, fontWeight: FontWeight.bold)),
+              ),
             ),
           )
        );

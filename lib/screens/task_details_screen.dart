@@ -4,6 +4,7 @@ import '../services/task_service.dart';
 import '../services/presence_service.dart';
 import '../services/activity_service.dart';
 import '../widgets/focus_setup_sheet.dart';
+import 'user_profile_screen.dart';
 
 class TaskDetailsScreen extends StatefulWidget {
   final String taskId;
@@ -98,61 +99,75 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> with WidgetsBindi
             
             return Padding(
               padding: const EdgeInsets.only(bottom: 16.0),
-              child: Row(
-                children: [
-                  Opacity(
-                    opacity: isOnline ? 1.0 : 0.6,
-                    child: CircleAvatar(
-                      radius: 18,
-                      backgroundColor: isOnline ? Colors.blue : Colors.grey.shade300,
-                      child: Text(initial, style: TextStyle(color: isOnline ? Colors.white : Colors.grey.shade600, fontSize: 14, fontWeight: FontWeight.bold)),
+              child: InkWell(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => UserProfileScreen(userId: doc.id),
                     ),
+                  );
+                },
+                borderRadius: BorderRadius.circular(8),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4.0),
+                  child: Row(
+                    children: [
+                      Opacity(
+                        opacity: isOnline ? 1.0 : 0.6,
+                        child: CircleAvatar(
+                          radius: 18,
+                          backgroundColor: isOnline ? Colors.blue : Colors.grey.shade300,
+                          child: Text(initial, style: TextStyle(color: isOnline ? Colors.white : Colors.grey.shade600, fontSize: 14, fontWeight: FontWeight.bold)),
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Row(
+                          children: [
+                            Text(
+                              name,
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                                color: isOnline ? Theme.of(context).textTheme.bodyLarge?.color : Colors.grey.shade600,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: isOwner ? Colors.blue.withOpacity(0.1) : Colors.grey.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                role,
+                                style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: isOwner ? Colors.blue : Colors.grey),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (isOnline)
+                        Row(
+                          children: [
+                            Container(
+                              width: 8,
+                              height: 8,
+                              decoration: const BoxDecoration(
+                                color: Colors.green,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            const Text("Online", style: TextStyle(fontSize: 12, color: Colors.green, fontWeight: FontWeight.w600)),
+                          ],
+                        )
+                      else
+                        const Text("Offline", style: TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.w500)),
+                    ],
                   ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Row(
-                      children: [
-                        Text(
-                          name,
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                            color: isOnline ? Theme.of(context).textTheme.bodyLarge?.color : Colors.grey.shade600,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: isOwner ? Colors.blue.withOpacity(0.1) : Colors.grey.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            role,
-                            style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: isOwner ? Colors.blue : Colors.grey),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (isOnline)
-                    Row(
-                      children: [
-                        Container(
-                          width: 8,
-                          height: 8,
-                          decoration: const BoxDecoration(
-                            color: Colors.green,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        const Text("Online", style: TextStyle(fontSize: 12, color: Colors.green, fontWeight: FontWeight.w600)),
-                      ],
-                    )
-                  else
-                    const Text("Offline", style: TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.w500)),
-                ],
+                ),
               ),
             );
           }).toList(),

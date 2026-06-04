@@ -19,6 +19,7 @@ service cloud.firestore {
                       request.auth.uid == friendId && 
                       (exists(/databases/$(database)/documents/users/$(userId)/friend_requests_sent/$(friendId)) ||
                        exists(/databases/$(database)/documents/users/$(friendId)/friend_requests_sent/$(userId)));
+        allow delete: if request.auth != null && request.auth.uid == friendId;
       }
       
       // Override for friend requests sent

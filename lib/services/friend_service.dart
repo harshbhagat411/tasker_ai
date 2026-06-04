@@ -1,7 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:rxdart/rxdart.dart';
 import '../models/notification_model.dart';
 import 'in_app_notification_service.dart';
+
+enum FriendshipStatus { notFriend, requestSent, requestReceived, friend }
 
 class FriendService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -410,6 +413,80 @@ class FriendService {
         .collection('friend_requests_received')
         .snapshots()
         .map((snapshot) => snapshot.docs.map((doc) => doc.id).toList());
+  }
+
+  // Stream relationship status in real-time
+  Stream<FriendshipStatus> getFriendshipStatusStream(String targetUid) {
+    final currentUserId = userId;
+    if (currentUserId == null) return Stream.value(FriendshipStatus.notFriend);
+
+    final friendStream = _firestore
+        .collection('users')
+        .doc(currentUserId)
+        .collection('friends')
+        .doc(targetUid)
+        .snapshots();
+
+    final sentStream = _firestore
+        .collection('users')
+        .doc(currentUserId)
+        .collection('friend_requests_sent')
+        .doc(targetUid)
+        .snapshots();
+
+    final receivedStream = _firestore
+        .collection('users')
+        .doc(currentUserId)
+        .collection('friend_requests_received')
+        .doc(targetUid)
+        .snapshots();
+
+    return Rx.combineLatest3<
+        DocumentSnapshot,
+        DocumentSnapshot,
+        DocumentSnapshot,
+        FriendshipStatus>(
+      friendStream,
+      sentStream,
+      receivedStream,
+      (friendSnap, sentSnap, receivedSnap) {
+        if (friendSnap.exists) {
+          return FriendshipStatus.friend;
+        } else if (sentSnap.exists) {
+          return FriendshipStatus.requestSent;
+        } else if (receivedSnap.exists) {
+          return FriendshipStatus.requestReceived;
+        } else {
+          return FriendshipStatus.notFriend;
+        }
+      },
+    );
+  }
+
+  // Remove friendship from both users
+  Future<void> removeFriend(String friendUid) async {
+    final currentUserId = userId;
+    if (currentUserId == null) throw Exception("User not authenticated");
+
+    final batch = _firestore.batch();
+
+    // 1. Delete users/{currentUid}/friends/{friendUid}
+    final friend1Ref = _firestore
+        .collection('users')
+        .doc(currentUserId)
+        .collection('friends')
+        .doc(friendUid);
+    batch.delete(friend1Ref);
+
+    // 2. Delete users/{friendUid}/friends/{currentUid}
+    final friend2Ref = _firestore
+        .collection('users')
+        .doc(friendUid)
+        .collection('friends')
+        .doc(currentUserId);
+    batch.delete(friend2Ref);
+
+    await batch.commit();
   }
 }
 

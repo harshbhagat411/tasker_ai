@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/friend_service.dart';
+import 'user_profile_screen.dart';
 
 class ConnectionsScreen extends StatefulWidget {
   const ConnectionsScreen({super.key});
@@ -450,6 +451,16 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> with SingleTicker
     );
   }
 
+  String _formatFriendSinceDate(Timestamp? timestamp) {
+    if (timestamp == null) return "recently";
+    final date = timestamp.toDate();
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    ];
+    return "${months[date.month - 1]} ${date.day}, ${date.year}";
+  }
+
   Widget _buildFriendsTab(bool isDark) {
     return StreamBuilder<QuerySnapshot>(
       stream: _friendService.getFriendsStream(),
@@ -468,7 +479,7 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> with SingleTicker
             context,
             icon: Icons.people_outline,
             title: "No friends yet",
-            subtitle: "Search and add friends using their email or Tasker ID.",
+            subtitle: "Add friends to quickly share tasks.",
           );
         }
 
@@ -479,8 +490,8 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> with SingleTicker
             final friendDoc = docs[index];
             final friendId = friendDoc.id;
 
-            return FutureBuilder<DocumentSnapshot>(
-              future: FirebaseFirestore.instance.collection('users').doc(friendId).get(),
+            return StreamBuilder<DocumentSnapshot>(
+              stream: FirebaseFirestore.instance.collection('users').doc(friendId).snapshots(),
               builder: (context, userSnapshot) {
                 if (userSnapshot.connectionState == ConnectionState.waiting) {
                   return _buildShimmerTile(isDark);
@@ -490,20 +501,126 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> with SingleTicker
                   return const SizedBox.shrink();
                 }
 
-                final data = userSnapshot.data!.data() as Map<String, dynamic>?;
-                if (data == null) return const SizedBox.shrink();
+                final userData = userSnapshot.data!.data() as Map<String, dynamic>?;
+                if (userData == null) return const SizedBox.shrink();
 
-                final name = data['displayName'] ?? data['name'] ?? 'User';
-                final taskerId = data['taskerId'] ?? '';
-                final photoUrl = data['photoURL'] ?? data['profileImage'] ?? data['avatar'] ?? '';
+                final name = userData['displayName'] ?? userData['name'] ?? 'User';
+                final taskerId = userData['taskerId'] ?? '';
+                final photoUrl = userData['photoURL'] ?? userData['profileImage'] ?? userData['avatar'] ?? '';
+                final isOnline = userData['isOnline'] ?? false;
 
-                return _buildUserCard(
-                  name: name,
-                  taskerId: taskerId,
-                  photoUrl: photoUrl,
-                  isDark: isDark,
-                  statusText: "Connected",
-                  statusColor: Colors.green,
+                // Extract friend since date from friendDoc
+                final friendData = friendDoc.data() as Map<String, dynamic>?;
+                final addedAt = friendData?['acceptedAt'] as Timestamp? ?? friendData?['addedAt'] as Timestamp?;
+                final friendSince = _formatFriendSinceDate(addedAt);
+
+                return Card(
+                  elevation: 2,
+                  shadowColor: Colors.black12,
+                  color: isDark ? const Color(0xFF1E1E24) : Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    side: BorderSide(
+                      color: isDark ? Colors.white10 : Colors.grey[200]!,
+                      width: 1,
+                    ),
+                  ),
+                  margin: const EdgeInsets.only(bottom: 12),
+                  child: InkWell(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => UserProfileScreen(userId: friendId),
+                        ),
+                      );
+                    },
+                    borderRadius: BorderRadius.circular(16),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      child: Row(
+                        children: [
+                          // Profile Photo with Hero and Online Indicator
+                          Stack(
+                            children: [
+                              Hero(
+                                tag: 'avatar-$friendId',
+                                child: _buildAvatar(name, photoUrl, radius: 24),
+                              ),
+                              Positioned(
+                                bottom: 0,
+                                right: 0,
+                                child: Container(
+                                  width: 12,
+                                  height: 12,
+                                  decoration: BoxDecoration(
+                                    color: isOnline ? Colors.green : Colors.grey,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: isDark ? const Color(0xFF1E1E24) : Colors.white,
+                                      width: 2,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  name,
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: isDark ? Colors.white : Colors.black87,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  taskerId.startsWith('@') ? taskerId : '@$taskerId',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: isDark ? Colors.white54 : Colors.grey[600],
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          // Friend since date
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                "Friend since",
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: isDark ? Colors.white38 : Colors.grey[400],
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                friendSince,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: isDark ? Colors.white70 : Colors.grey[700],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 );
               },
             );
@@ -592,14 +709,24 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> with SingleTicker
                       ],
                     );
 
-                    return _buildUserCard(
-                      name: name,
-                      taskerId: taskerId,
-                      photoUrl: photoUrl,
-                      isDark: isDark,
-                      statusText: "",
-                      statusColor: Colors.transparent,
-                      actionWidget: actionButtons,
+                    return InkWell(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => UserProfileScreen(userId: senderUid),
+                          ),
+                        );
+                      },
+                      child: _buildUserCard(
+                        name: name,
+                        taskerId: taskerId,
+                        photoUrl: photoUrl,
+                        isDark: isDark,
+                        statusText: "",
+                        statusColor: Colors.transparent,
+                        actionWidget: actionButtons,
+                      ),
                     );
                   }),
                   const SizedBox(height: 24),
@@ -621,14 +748,25 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> with SingleTicker
                     final name = data['receiverName'] ?? 'User';
                     final taskerId = data['receiverTaskerId'] ?? '';
                     final photoUrl = data['receiverPhoto'] ?? '';
+                    final receiverUid = data['receiverId'] ?? doc.id;
 
-                    return _buildUserCard(
-                      name: name,
-                      taskerId: taskerId,
-                      photoUrl: photoUrl,
-                      isDark: isDark,
-                      statusText: "Pending",
-                      statusColor: Colors.blueGrey,
+                    return InkWell(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => UserProfileScreen(userId: receiverUid),
+                          ),
+                        );
+                      },
+                      child: _buildUserCard(
+                        name: name,
+                        taskerId: taskerId,
+                        photoUrl: photoUrl,
+                        isDark: isDark,
+                        statusText: "Pending",
+                        statusColor: Colors.blueGrey,
+                      ),
                     );
                   }),
                 ],
@@ -796,14 +934,24 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> with SingleTicker
                                           );
                                         }
 
-                                        return _buildUserCard(
-                                          name: name,
-                                          taskerId: taskerId,
-                                          photoUrl: photoUrl,
-                                          isDark: isDark,
-                                          statusText: "",
-                                          statusColor: Colors.transparent,
-                                          actionWidget: actionButton,
+                                        return InkWell(
+                                          onTap: () {
+                                            Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder: (_) => UserProfileScreen(userId: uid),
+                                              ),
+                                            );
+                                          },
+                                          child: _buildUserCard(
+                                            name: name,
+                                            taskerId: taskerId,
+                                            photoUrl: photoUrl,
+                                            isDark: isDark,
+                                            statusText: "",
+                                            statusColor: Colors.transparent,
+                                            actionWidget: actionButton,
+                                          ),
                                         );
                                       },
                                     );
