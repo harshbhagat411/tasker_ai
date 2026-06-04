@@ -99,9 +99,7 @@ class _TaskCardState extends State<TaskCard> {
                 onTap: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(
-                      builder: (_) => UserProfileScreen(userId: mId),
-                    ),
+                    UserProfileScreen.route(mId),
                   );
                 },
                 child: Stack(
@@ -156,9 +154,7 @@ class _TaskCardState extends State<TaskCard> {
               onTap: sharedById != null ? () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(
-                    builder: (_) => UserProfileScreen(userId: sharedById),
-                  ),
+                  UserProfileScreen.route(sharedById),
                 );
               } : null,
               child: CircleAvatar(

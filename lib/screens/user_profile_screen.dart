@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/friend_service.dart';
+import 'package:timeago/timeago.dart' as timeago;
 
 class UserProfileScreen extends StatefulWidget {
   final String userId;
@@ -9,6 +10,30 @@ class UserProfileScreen extends StatefulWidget {
     super.key,
     required this.userId,
   });
+
+  static Route route(String userId) {
+    return PageRouteBuilder(
+      pageBuilder: (context, animation, secondaryAnimation) => UserProfileScreen(userId: userId),
+      transitionsBuilder: (context, animation, secondaryAnimation, child) {
+        const begin = Offset(0.0, 0.08);
+        const end = Offset.zero;
+        const curve = Curves.easeOutCubic;
+
+        var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+        var offsetAnimation = animation.drive(tween);
+        var fadeAnimation = animation.drive(Tween(begin: 0.0, end: 1.0));
+
+        return FadeTransition(
+          opacity: fadeAnimation,
+          child: SlideTransition(
+            position: offsetAnimation,
+            child: child,
+          ),
+        );
+      },
+      transitionDuration: const Duration(milliseconds: 300),
+    );
+  }
 
   @override
   State<UserProfileScreen> createState() => _UserProfileScreenState();
@@ -434,7 +459,11 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                     ),
                     const SizedBox(width: 6),
                     Text(
-                      isOnline ? "Online" : "Offline",
+                      isOnline 
+                          ? "Online" 
+                          : (userData['lastSeen'] != null 
+                              ? "Last seen: ${timeago.format((userData['lastSeen'] as Timestamp).toDate())}" 
+                              : "Offline"),
                       style: TextStyle(
                         fontSize: 14,
                         color: isOnline ? Colors.green : Colors.grey,

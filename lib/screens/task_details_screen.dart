@@ -103,9 +103,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> with WidgetsBindi
                 onTap: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(
-                      builder: (_) => UserProfileScreen(userId: doc.id),
-                    ),
+                    UserProfileScreen.route(doc.id),
                   );
                 },
                 borderRadius: BorderRadius.circular(8),
@@ -518,19 +516,24 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> with WidgetsBindi
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Text("Shared by", style: TextStyle(fontSize: 12, color: Colors.grey)),
-                          Row(
-                            children: [
-                              CircleAvatar(
-                                radius: 10,
-                                backgroundColor: Colors.blue.shade100,
-                                child: Text(sharedBy != null && sharedBy.isNotEmpty ? sharedBy[0].toUpperCase() : '?', style: const TextStyle(fontSize: 10, color: Colors.blue)),
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                sharedBy ?? 'Unknown',
-                                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Theme.of(context).textTheme.bodyLarge?.color),
-                              ),
-                            ],
+                          GestureDetector(
+                            onTap: data['sharedById'] != null
+                                ? () => Navigator.push(context, UserProfileScreen.route(data['sharedById'].toString()))
+                                : null,
+                            child: Row(
+                              children: [
+                                CircleAvatar(
+                                  radius: 10,
+                                  backgroundColor: Colors.blue.shade100,
+                                  child: Text(sharedBy != null && sharedBy.isNotEmpty ? sharedBy[0].toUpperCase() : '?', style: const TextStyle(fontSize: 10, color: Colors.blue)),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  sharedBy ?? 'Unknown',
+                                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Theme.of(context).textTheme.bodyLarge?.color),
+                                ),
+                              ],
+                            ),
                           ),
                         ],
                       ),

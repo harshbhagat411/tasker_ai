@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/friend_service.dart';
+import '../services/task_service.dart';
 import 'user_profile_screen.dart';
+import 'package:timeago/timeago.dart' as timeago;
 
 class ConnectionsScreen extends StatefulWidget {
   const ConnectionsScreen({super.key});
@@ -13,6 +15,7 @@ class ConnectionsScreen extends StatefulWidget {
 class _ConnectionsScreenState extends State<ConnectionsScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final FriendService _friendService = FriendService();
+  final TaskService _taskService = TaskService();
   
   // Search state
   final TextEditingController _searchController = TextEditingController();
@@ -22,6 +25,7 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> with SingleTicker
 
   // Request handling state
   final Set<String> _processingUids = {};
+  final Set<String> _removingFriendIds = {};
 
   @override
   void initState() {
@@ -178,6 +182,195 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> with SingleTicker
         setState(() {
           _processingUids.remove(senderUid);
         });
+      }
+    }
+  }
+
+  void _showTaskPickerDialog(BuildContext context, String friendEmail, String friendName) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        return Container(
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1E1E24) : Colors.white,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+            top: 24,
+            left: 24,
+            right: 24,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    "Share Task with $friendName",
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(context),
+                  )
+                ],
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                "Select a task to share:",
+                style: TextStyle(color: Colors.grey, fontSize: 14),
+              ),
+              const SizedBox(height: 16),
+              Flexible(
+                child: StreamBuilder<QuerySnapshot>(
+                  stream: _taskService.getTasks(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    if (snapshot.hasError) {
+                      return Center(child: Text("Error: ${snapshot.error}", style: const TextStyle(color: Colors.red)));
+                    }
+                    final tasks = snapshot.data?.docs ?? [];
+                    if (tasks.isEmpty) {
+                      return const Center(
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(vertical: 24.0),
+                          child: Text("No tasks found. Create a task first."),
+                        ),
+                      );
+                    }
+                    return ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: tasks.length,
+                      itemBuilder: (context, index) {
+                        final taskDoc = tasks[index];
+                        final data = taskDoc.data() as Map<String, dynamic>;
+                        final title = data['title'] ?? 'Task';
+                        final isDone = data['isDone'] ?? false;
+                        
+                        return ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: Icon(
+                            isDone ? Icons.check_circle : Icons.circle_outlined,
+                            color: isDone ? Colors.green : Colors.blueGrey,
+                          ),
+                          title: Text(
+                            title,
+                            style: TextStyle(
+                              decoration: isDone ? TextDecoration.lineThrough : null,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          onTap: () async {
+                            Navigator.pop(context); // close bottom sheet
+                            
+                            // Show loading snackbar
+                            final scaffoldMessenger = ScaffoldMessenger.of(context);
+                            scaffoldMessenger.showSnackBar(
+                              const SnackBar(
+                                content: Text("Sharing task..."),
+                                duration: Duration(seconds: 1),
+                              ),
+                            );
+
+                            try {
+                              await _taskService.shareTask(taskDoc.id, friendEmail);
+                              scaffoldMessenger.showSnackBar(
+                                SnackBar(
+                                  content: Text("Task shared with $friendName"),
+                                  backgroundColor: Colors.green,
+                                ),
+                              );
+                            } catch (e) {
+                              scaffoldMessenger.showSnackBar(
+                                SnackBar(
+                                  content: Text(e.toString().replaceAll("Exception: ", "")),
+                                  backgroundColor: Colors.redAccent,
+                                ),
+                              );
+                            }
+                          },
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 24),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _confirmRemoveFriend(BuildContext context, String friendId, String friendName) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text("Remove $friendName?"),
+          content: const Text("You will no longer be connected as friends."),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text("Cancel", style: TextStyle(color: Colors.grey, fontWeight: FontWeight.w600)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.redAccent,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text("Remove", style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirm == true) {
+      setState(() {
+        _removingFriendIds.add(friendId);
+      });
+      
+      // Wait for collapse animation (300ms) before executing removal
+      await Future.delayed(const Duration(milliseconds: 300));
+
+      try {
+        await _friendService.removeFriend(friendId);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text("$friendName removed from friends"),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text("Failed to remove friend: $e"),
+              backgroundColor: Colors.redAccent,
+            ),
+          );
+        }
+      } finally {
+        if (mounted) {
+          setState(() {
+            _removingFriendIds.remove(friendId);
+          });
+        }
       }
     }
   }
@@ -475,11 +668,53 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> with SingleTicker
 
         final docs = snapshot.data?.docs ?? [];
         if (docs.isEmpty) {
-          return _buildEmptyState(
-            context,
-            icon: Icons.people_outline,
-            title: "No friends yet",
-            subtitle: "Add friends to quickly share tasks.",
+          return Center(
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.all(32.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.people_outline,
+                      size: 64,
+                      color: Colors.grey.withOpacity(0.5),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      "No friends yet 👋",
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white70 : Colors.black87,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      "Add friends to quickly share tasks and collaborate.",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: isDark ? Colors.white54 : Colors.grey[500],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: () {
+                        _tabController.animateTo(2); // Go to "Add Friend" tab
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Theme.of(context).primaryColor,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                      ),
+                      child: const Text("Add Friends"),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           );
         }
 
@@ -508,118 +743,201 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> with SingleTicker
                 final taskerId = userData['taskerId'] ?? '';
                 final photoUrl = userData['photoURL'] ?? userData['profileImage'] ?? userData['avatar'] ?? '';
                 final isOnline = userData['isOnline'] ?? false;
+                final lastSeen = userData['lastSeen'] as Timestamp?;
+                final email = userData['email'] ?? '';
 
                 // Extract friend since date from friendDoc
                 final friendData = friendDoc.data() as Map<String, dynamic>?;
                 final addedAt = friendData?['acceptedAt'] as Timestamp? ?? friendData?['addedAt'] as Timestamp?;
                 final friendSince = _formatFriendSinceDate(addedAt);
 
-                return Card(
-                  elevation: 2,
-                  shadowColor: Colors.black12,
-                  color: isDark ? const Color(0xFF1E1E24) : Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    side: BorderSide(
-                      color: isDark ? Colors.white10 : Colors.grey[200]!,
-                      width: 1,
-                    ),
-                  ),
-                  margin: const EdgeInsets.only(bottom: 12),
-                  child: InkWell(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => UserProfileScreen(userId: friendId),
-                        ),
-                      );
-                    },
-                    borderRadius: BorderRadius.circular(16),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      child: Row(
-                        children: [
-                          // Profile Photo with Hero and Online Indicator
-                          Stack(
-                            children: [
-                              Hero(
-                                tag: 'avatar-$friendId',
-                                child: _buildAvatar(name, photoUrl, radius: 24),
+                final isRemoving = _removingFriendIds.contains(friendId);
+
+                return AnimatedOpacity(
+                  duration: const Duration(milliseconds: 250),
+                  opacity: isRemoving ? 0.0 : 1.0,
+                  child: AnimatedSize(
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeInOut,
+                    child: isRemoving
+                        ? const SizedBox.shrink()
+                        : Card(
+                            elevation: 2,
+                            shadowColor: Colors.black12,
+                            color: isDark ? const Color(0xFF1E1E24) : Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              side: BorderSide(
+                                color: isDark ? Colors.white10 : Colors.grey[200]!,
+                                width: 1,
                               ),
-                              Positioned(
-                                bottom: 0,
-                                right: 0,
-                                child: Container(
-                                  width: 12,
-                                  height: 12,
-                                  decoration: BoxDecoration(
-                                    color: isOnline ? Colors.green : Colors.grey,
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                      color: isDark ? const Color(0xFF1E1E24) : Colors.white,
-                                      width: 2,
+                            ),
+                            margin: const EdgeInsets.only(bottom: 12),
+                            child: InkWell(
+                              onTap: () {
+                                Navigator.push(context, UserProfileScreen.route(friendId));
+                              },
+                              borderRadius: BorderRadius.circular(16),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                child: Row(
+                                  children: [
+                                    // Profile Photo with Hero and Online Indicator
+                                    Stack(
+                                      children: [
+                                        Hero(
+                                          tag: 'avatar-$friendId',
+                                          child: _buildAvatar(name, photoUrl, radius: 24),
+                                        ),
+                                        Positioned(
+                                          bottom: 0,
+                                          right: 0,
+                                          child: Container(
+                                            width: 12,
+                                            height: 12,
+                                            decoration: BoxDecoration(
+                                              color: isOnline ? Colors.green : Colors.grey,
+                                              shape: BoxShape.circle,
+                                              border: Border.all(
+                                                color: isDark ? const Color(0xFF1E1E24) : Colors.white,
+                                                width: 2,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
                                     ),
-                                  ),
+                                    const SizedBox(width: 16),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            name,
+                                            style: TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.bold,
+                                              color: isDark ? Colors.white : Colors.black87,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            taskerId.startsWith('@') ? taskerId : '@$taskerId',
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              color: isDark ? Colors.white54 : Colors.grey[600],
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Row(
+                                            children: [
+                                              if (isOnline) ...[
+                                                Container(
+                                                  width: 6,
+                                                  height: 6,
+                                                  decoration: const BoxDecoration(
+                                                    color: Colors.green,
+                                                    shape: BoxShape.circle,
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 4),
+                                                const Text(
+                                                  "Online",
+                                                  style: TextStyle(
+                                                    fontSize: 11,
+                                                    color: Colors.green,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                              ] else ...[
+                                                Text(
+                                                  "Last seen: ${lastSeen != null ? timeago.format(lastSeen.toDate()) : 'recently'}",
+                                                  style: TextStyle(
+                                                    fontSize: 11,
+                                                    color: isDark ? Colors.white38 : Colors.grey[500],
+                                                  ),
+                                                ),
+                                              ],
+                                              const SizedBox(width: 6),
+                                              Text(
+                                                "•",
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  color: isDark ? Colors.white24 : Colors.grey[400],
+                                                ),
+                                              ),
+                                              const SizedBox(width: 6),
+                                              Text(
+                                                "Friend since $friendSince",
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  color: isDark ? Colors.white38 : Colors.grey[500],
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    // Overflow Menu (⋮)
+                                    PopupMenuButton<String>(
+                                      icon: Icon(
+                                        Icons.more_vert,
+                                        color: isDark ? Colors.white54 : Colors.grey[600],
+                                      ),
+                                      onSelected: (value) {
+                                        if (value == 'view_profile') {
+                                          Navigator.push(context, UserProfileScreen.route(friendId));
+                                        } else if (value == 'share_task') {
+                                          _showTaskPickerDialog(context, email, name);
+                                        } else if (value == 'remove_friend') {
+                                          _confirmRemoveFriend(context, friendId, name);
+                                        }
+                                      },
+                                      itemBuilder: (context) => [
+                                        const PopupMenuItem(
+                                          value: 'view_profile',
+                                          child: Row(
+                                            children: [
+                                              Icon(Icons.person_outline, size: 20),
+                                              SizedBox(width: 8),
+                                              Text("View Profile"),
+                                            ],
+                                          ),
+                                        ),
+                                        const PopupMenuItem(
+                                          value: 'share_task',
+                                          child: Row(
+                                            children: [
+                                              Icon(Icons.share_outlined, size: 20),
+                                              SizedBox(width: 8),
+                                              Text("Share Task"),
+                                            ],
+                                          ),
+                                        ),
+                                        const PopupMenuItem(
+                                          value: 'remove_friend',
+                                          child: Row(
+                                            children: [
+                                              Icon(Icons.person_remove_outlined, color: Colors.redAccent, size: 20),
+                                              SizedBox(width: 8),
+                                              Text("Remove Friend", style: TextStyle(color: Colors.redAccent)),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
                                 ),
                               ),
-                            ],
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  name,
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    color: isDark ? Colors.white : Colors.black87,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  taskerId.startsWith('@') ? taskerId : '@$taskerId',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: isDark ? Colors.white54 : Colors.grey[600],
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ],
                             ),
                           ),
-                          const SizedBox(width: 8),
-                          // Friend since date
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text(
-                                "Friend since",
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  color: isDark ? Colors.white38 : Colors.grey[400],
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                friendSince,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                  color: isDark ? Colors.white70 : Colors.grey[700],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
                   ),
                 );
               },
@@ -649,8 +967,8 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> with SingleTicker
               return _buildEmptyState(
                 context,
                 icon: Icons.mark_email_unread_outlined,
-                title: "No pending requests",
-                subtitle: "Your incoming and outgoing friend requests will show up here.",
+                title: "No pending friend requests",
+                subtitle: "",
               );
             }
 
@@ -709,23 +1027,28 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> with SingleTicker
                       ],
                     );
 
-                    return InkWell(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => UserProfileScreen(userId: senderUid),
-                          ),
-                        );
-                      },
-                      child: _buildUserCard(
-                        name: name,
-                        taskerId: taskerId,
-                        photoUrl: photoUrl,
-                        isDark: isDark,
-                        statusText: "",
-                        statusColor: Colors.transparent,
-                        actionWidget: actionButtons,
+                    return AnimatedOpacity(
+                      duration: const Duration(milliseconds: 250),
+                      opacity: isProcessing ? 0.0 : 1.0,
+                      child: AnimatedSize(
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeInOut,
+                        child: isProcessing
+                            ? const SizedBox.shrink()
+                            : InkWell(
+                                onTap: () {
+                                  Navigator.push(context, UserProfileScreen.route(senderUid));
+                                },
+                                child: _buildUserCard(
+                                  name: name,
+                                  taskerId: taskerId,
+                                  photoUrl: photoUrl,
+                                  isDark: isDark,
+                                  statusText: "",
+                                  statusColor: Colors.transparent,
+                                  actionWidget: actionButtons,
+                                ),
+                              ),
                       ),
                     );
                   }),
@@ -752,12 +1075,7 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> with SingleTicker
 
                     return InkWell(
                       onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => UserProfileScreen(userId: receiverUid),
-                          ),
-                        );
+                        Navigator.push(context, UserProfileScreen.route(receiverUid));
                       },
                       child: _buildUserCard(
                         name: name,
@@ -848,8 +1166,8 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> with SingleTicker
                       ? _buildEmptyState(
                           context,
                           icon: Icons.search_off_outlined,
-                          title: "No users found",
-                          subtitle: "Check the spelling or try searching by exact email or @taskerId.",
+                          title: "No user found",
+                          subtitle: "",
                         )
                       : StreamBuilder<List<String>>(
                           stream: _friendService.getFriendIdsStream(),
@@ -880,18 +1198,9 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> with SingleTicker
 
                                         Widget actionButton;
                                         if (isFriend) {
-                                          actionButton = const Text(
-                                            "Connected",
-                                            style: TextStyle(
-                                              color: Colors.green,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          );
-                                        } else if (hasSentRequest) {
                                           actionButton = ElevatedButton(
                                             onPressed: null,
                                             style: ElevatedButton.styleFrom(
-                                              backgroundColor: Colors.grey,
                                               disabledBackgroundColor: isDark
                                                   ? Colors.white10
                                                   : Colors.grey[200],
@@ -902,7 +1211,23 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> with SingleTicker
                                                 borderRadius: BorderRadius.circular(20),
                                               ),
                                             ),
-                                            child: const Text("Pending"),
+                                            child: const Text("Already Friends"),
+                                          );
+                                        } else if (hasSentRequest) {
+                                          actionButton = ElevatedButton(
+                                            onPressed: null,
+                                            style: ElevatedButton.styleFrom(
+                                              disabledBackgroundColor: isDark
+                                                  ? Colors.white10
+                                                  : Colors.grey[200],
+                                              disabledForegroundColor: isDark
+                                                  ? Colors.white30
+                                                  : Colors.grey[500],
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius: BorderRadius.circular(20),
+                                              ),
+                                            ),
+                                            child: const Text("Request Sent"),
                                           );
                                         } else if (hasReceivedRequest) {
                                           actionButton = Container(
@@ -936,12 +1261,7 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> with SingleTicker
 
                                         return InkWell(
                                           onTap: () {
-                                            Navigator.push(
-                                              context,
-                                              MaterialPageRoute(
-                                                builder: (_) => UserProfileScreen(userId: uid),
-                                              ),
-                                            );
+                                            Navigator.push(context, UserProfileScreen.route(uid));
                                           },
                                           child: _buildUserCard(
                                             name: name,

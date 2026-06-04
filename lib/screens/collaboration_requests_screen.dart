@@ -9,6 +9,7 @@ import 'package:timeago/timeago.dart' as timeago;
 import 'task_details_screen.dart';
 import 'workspace_details_screen.dart';
 import '../models/workspace_model.dart';
+import 'user_profile_screen.dart';
 
 class CollaborationRequestsScreen extends StatefulWidget {
   const CollaborationRequestsScreen({super.key});
@@ -496,6 +497,50 @@ class _CollaborationRequestsScreenState extends State<CollaborationRequestsScree
     );
   }
 
+  Widget _buildAvatar(String name, String photoUrl, {required double radius}) {
+    final cleanPhoto = photoUrl.trim();
+    final String initial = name.isNotEmpty ? name[0].toUpperCase() : "?";
+
+    if (cleanPhoto.isNotEmpty) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(radius),
+        child: Image.network(
+          cleanPhoto,
+          width: radius * 2,
+          height: radius * 2,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) {
+            return CircleAvatar(
+              radius: radius,
+              backgroundColor: Theme.of(context).primaryColor.withOpacity(0.15),
+              child: Text(
+                initial,
+                style: TextStyle(
+                  fontSize: radius * 0.8,
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).primaryColor,
+                ),
+              ),
+            );
+          },
+        ),
+      );
+    }
+
+    return CircleAvatar(
+      radius: radius,
+      backgroundColor: Theme.of(context).primaryColor.withOpacity(0.15),
+      child: Text(
+        initial,
+        style: TextStyle(
+          fontSize: radius * 0.8,
+          fontWeight: FontWeight.bold,
+          color: Theme.of(context).primaryColor,
+        ),
+      ),
+    );
+  }
+
   Widget _buildNotificationCard(NotificationModel notification) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     IconData icon;
@@ -580,14 +625,48 @@ class _CollaborationRequestsScreenState extends State<CollaborationRequestsScree
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
-                  shape: BoxShape.circle,
+              GestureDetector(
+                onTap: notification.senderId.isNotEmpty
+                    ? () => Navigator.push(context, UserProfileScreen.route(notification.senderId))
+                    : null,
+                child: Stack(
+                  children: [
+                    _buildAvatar(
+                      notification.senderName.isNotEmpty ? notification.senderName : "U",
+                      notification.senderPhoto ?? "",
+                      radius: 24,
+                    ),
+                    Positioned(
+                      bottom: 0,
+                      right: 0,
+                      child: Container(
+                        padding: const EdgeInsets.all(2),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF1E1E24) : Colors.white,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.1),
+                              blurRadius: 4,
+                            ),
+                          ],
+                        ),
+                        child: Container(
+                          padding: const EdgeInsets.all(2),
+                          decoration: BoxDecoration(
+                            color: color,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            icon,
+                            color: Colors.white,
+                            size: 10,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                child: Icon(icon, color: color, size: 24),
               ),
               const SizedBox(width: 16),
               Expanded(
