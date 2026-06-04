@@ -188,35 +188,38 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> with SingleTicker
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              icon,
-              size: 64,
-              color: Colors.grey.withOpacity(0.5),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: isDark ? Colors.white70 : Colors.black87,
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(32.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                size: 64,
+                color: Colors.grey.withOpacity(0.5),
               ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              subtitle,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 14,
-                color: isDark ? Colors.white54 : Colors.grey[500],
+              const SizedBox(height: 16),
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white70 : Colors.black87,
+                ),
               ),
-            ),
-          ],
+              const SizedBox(height: 8),
+              Text(
+                subtitle,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: isDark ? Colors.white54 : Colors.grey[500],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -224,35 +227,38 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> with SingleTicker
 
   Widget _buildSearchInstruction(bool isDark) {
     return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.person_search_outlined,
-              size: 80,
-              color: Theme.of(context).primaryColor.withOpacity(0.3),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              "Find your friends",
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: isDark ? Colors.white : Colors.black87,
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(32.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.person_search_outlined,
+                size: 80,
+                color: Theme.of(context).primaryColor.withOpacity(0.3),
               ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              "Search using their exact email address or @taskerId to send a connection request.",
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 14,
-                color: isDark ? Colors.white54 : Colors.grey[600],
+              const SizedBox(height: 24),
+              Text(
+                "Find your friends",
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
               ),
-            ),
-          ],
+              const SizedBox(height: 8),
+              Text(
+                "Search using their exact email address or @taskerId to send a connection request.",
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: isDark ? Colors.white54 : Colors.grey[600],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
