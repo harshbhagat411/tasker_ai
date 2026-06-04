@@ -24,6 +24,8 @@ import '../services/goal_service.dart';
 import '../services/habit_service.dart';
 import 'habits_screen.dart';
 import 'goals_screen.dart';
+import 'connections_screen.dart';
+import '../services/friend_service.dart';
 
 enum SortType {
   priority,
@@ -519,62 +521,413 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   void _showShareDialog(String taskId) {
     final TextEditingController emailController = TextEditingController();
+    final TextEditingController searchController = TextEditingController();
+    String searchQuery = "";
+    bool isSharing = false;
+
+    // Capture ScaffoldMessengerState before building/popping the dialog
+    final messenger = ScaffoldMessenger.of(context);
 
     showDialog(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text("Share Task"),
-          content: TextField(
-            controller: emailController,
-            decoration: InputDecoration(
-              hintText: "Enter email",
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              filled: true,
-              fillColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF2A2A2A) : Colors.grey[100],
-            ),
-            keyboardType: TextInputType.emailAddress,
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Cancel", style: TextStyle(color: Colors.grey)),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+        // Capture dialog NavigatorState while context is active
+        final navigator = Navigator.of(context);
+
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            final isDark = Theme.of(context).brightness == Brightness.dark;
+            final primaryColor = const Color(0xFF0D47A1);
+
+            Widget buildFriendAvatar(String name, String photoUrl) {
+              final cleanPhoto = photoUrl.trim();
+              final String initial = name.isNotEmpty ? name[0].toUpperCase() : "?";
+              
+              if (cleanPhoto.isNotEmpty) {
+                return ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: Image.network(
+                    cleanPhoto,
+                    width: 40,
+                    height: 40,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return CircleAvatar(
+                        radius: 20,
+                        backgroundColor: primaryColor.withOpacity(0.15),
+                        child: Text(
+                          initial,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: primaryColor,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                );
+              }
+              
+              return CircleAvatar(
+                radius: 20,
+                backgroundColor: primaryColor.withOpacity(0.15),
+                child: Text(
+                  initial,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: primaryColor,
+                  ),
                 ),
-                backgroundColor: const Color(0xFF0D47A1),
-                foregroundColor: Colors.white,
+              );
+            }
+
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              title: const Text(
+                "Share Task",
+                style: TextStyle(fontWeight: FontWeight.bold),
               ),
-              onPressed: () async {
-                final email = emailController.text.trim();
-                if (email.isEmpty) return;
+              content: Container(
+                width: MediaQuery.of(context).size.width * 0.9,
+                constraints: const BoxConstraints(maxWidth: 400),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Email Share Input
+                      TextField(
+                        controller: emailController,
+                        decoration: InputDecoration(
+                          hintText: "Enter email",
+                          prefixIcon: const Icon(Icons.email_outlined, size: 20),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          filled: true,
+                          fillColor: isDark ? const Color(0xFF2A2A2A) : Colors.grey[100],
+                        ),
+                        keyboardType: TextInputType.emailAddress,
+                      ),
+                      const SizedBox(height: 12),
+                      
+                      // Share Button (Email)
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          backgroundColor: primaryColor,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                        ),
+                        onPressed: isSharing
+                            ? null
+                            : () async {
+                                final email = emailController.text.trim();
+                                if (email.isEmpty) return;
 
-                Navigator.pop(context); // Close dialog
+                                setDialogState(() => isSharing = true);
 
-                try {
-                  await _taskService.shareTask(taskId, email);
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text("Task shared successfully"), backgroundColor: Colors.green),
-                    );
-                  }
-                } catch (e) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text("User not found"), backgroundColor: Colors.red),
-                    );
-                  }
-                }
-              },
-              child: const Text("Share"),
-            ),
-          ],
+                                try {
+                                  await _taskService.shareTask(taskId, email);
+                                  if (mounted) {
+                                    navigator.pop(); // Close dialog
+                                    messenger.showSnackBar(
+                                      const SnackBar(
+                                        content: Text("Task shared successfully"),
+                                        backgroundColor: Colors.green,
+                                      ),
+                                    );
+                                  }
+                                } catch (e) {
+                                  if (mounted) {
+                                    setDialogState(() => isSharing = false);
+                                    messenger.showSnackBar(
+                                      const SnackBar(
+                                        content: Text("User not found"),
+                                        backgroundColor: Colors.red,
+                                      ),
+                                    );
+                                  }
+                                }
+                              },
+                        child: isSharing
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.0,
+                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                ),
+                              )
+                            : const Text("Share", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                      ),
+                      
+                      const SizedBox(height: 20),
+                      
+                      // Divider & Header
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Divider(
+                              color: isDark ? Colors.white24 : Colors.grey[300],
+                              thickness: 1,
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            child: Text(
+                              "Quick Share",
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: isDark ? Colors.white60 : Colors.grey[600],
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ),
+                          Expanded(
+                            child: Divider(
+                              color: isDark ? Colors.white24 : Colors.grey[300],
+                              thickness: 1,
+                            ),
+                          ),
+                        ],
+                      ),
+                      
+                      const SizedBox(height: 16),
+                      
+                      // Friends section
+                      StreamBuilder<QuerySnapshot>(
+                        stream: FriendService().getFriendsStream(),
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState == ConnectionState.waiting) {
+                            return const Center(
+                              child: Padding(
+                                padding: EdgeInsets.all(12.0),
+                                child: CircularProgressIndicator(),
+                              ),
+                            );
+                          }
+                          
+                          if (snapshot.hasError) {
+                            return const Center(
+                              child: Text(
+                                "Error loading friends",
+                                style: TextStyle(color: Colors.redAccent, fontSize: 13),
+                              ),
+                            );
+                          }
+                          
+                          final friendsDocs = snapshot.data?.docs ?? [];
+                          if (friendsDocs.isEmpty) {
+                            // Empty state UI
+                            return Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  "No friends added yet",
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    color: isDark ? Colors.white70 : Colors.black54,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  "Add friends to quickly share tasks.",
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: isDark ? Colors.white38 : Colors.grey[500],
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                                const SizedBox(height: 12),
+                                TextButton.icon(
+                                  style: TextButton.styleFrom(
+                                    foregroundColor: primaryColor,
+                                  ),
+                                  icon: const Icon(Icons.people_outline, size: 18),
+                                  label: const Text("Go to Connections", style: TextStyle(fontWeight: FontWeight.bold)),
+                                  onPressed: () {
+                                    navigator.pop(); // Close dialog
+                                    Navigator.push(
+                                      this.context,
+                                      MaterialPageRoute(builder: (_) => const ConnectionsScreen()),
+                                    );
+                                  },
+                                ),
+                              ],
+                            );
+                          }
+                          
+                          // We have friends!
+                          // First, filter them by name or taskerId in real-time
+                          final filteredDocs = friendsDocs.where((doc) {
+                            final data = doc.data() as Map<String, dynamic>;
+                            final displayName = (data['displayName'] ?? '').toString().toLowerCase();
+                            final taskerId = (data['taskerId'] ?? '').toString().toLowerCase();
+                            final query = searchQuery.toLowerCase();
+                            return displayName.contains(query) || taskerId.contains(query);
+                          }).toList();
+                          
+                          return Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              // Optional Search Box for friends
+                              TextField(
+                                controller: searchController,
+                                decoration: InputDecoration(
+                                  hintText: "Search friends...",
+                                  prefixIcon: const Icon(Icons.search, size: 20),
+                                  isDense: true,
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  filled: true,
+                                  fillColor: isDark ? const Color(0xFF2A2A2A) : Colors.grey[500]!.withOpacity(0.05),
+                                ),
+                                onChanged: (val) {
+                                  setDialogState(() {
+                                    searchQuery = val;
+                                  });
+                                },
+                              ),
+                              const SizedBox(height: 16),
+                              
+                              if (filteredDocs.isEmpty)
+                                const Center(
+                                  child: Padding(
+                                    padding: EdgeInsets.symmetric(vertical: 12.0),
+                                    child: Text(
+                                      "No matching friends found",
+                                      style: TextStyle(fontSize: 13, color: Colors.grey),
+                                    ),
+                                  ),
+                                )
+                              else
+                                SizedBox(
+                                  height: 105,
+                                  child: ListView.builder(
+                                    scrollDirection: Axis.horizontal,
+                                    itemCount: filteredDocs.length,
+                                    itemBuilder: (context, index) {
+                                      final data = filteredDocs[index].data() as Map<String, dynamic>;
+                                      final displayName = data['displayName'] ?? 'User';
+                                      final taskerId = data['taskerId'] ?? '';
+                                      final photoUrl = data['photoURL'] ?? '';
+                                      final email = data['email'] ?? '';
+                                      
+                                      return Padding(
+                                        padding: const EdgeInsets.only(right: 12.0),
+                                        child: InkWell(
+                                          onTap: isSharing
+                                              ? null
+                                              : () async {
+                                                  if (email.isEmpty) {
+                                                    messenger.showSnackBar(
+                                                      const SnackBar(
+                                                        content: Text("Friend has no email address"),
+                                                        backgroundColor: Colors.redAccent,
+                                                      ),
+                                                    );
+                                                    return;
+                                                  }
+                                                  
+                                                  setDialogState(() => isSharing = true);
+                                                  
+                                                  try {
+                                                    await _taskService.shareTask(taskId, email);
+                                                    if (mounted) {
+                                                      navigator.pop(); // Close dialog
+                                                      messenger.showSnackBar(
+                                                        SnackBar(
+                                                          content: Text("Task shared with $displayName"),
+                                                          backgroundColor: Colors.green,
+                                                        ),
+                                                      );
+                                                    }
+                                                  } catch (e) {
+                                                    if (mounted) {
+                                                      setDialogState(() => isSharing = false);
+                                                      messenger.showSnackBar(
+                                                        SnackBar(
+                                                          content: Text("Error sharing task: $e"),
+                                                          backgroundColor: Colors.redAccent,
+                                                        ),
+                                                      );
+                                                    }
+                                                  }
+                                                },
+                                          borderRadius: BorderRadius.circular(12),
+                                          child: Container(
+                                            width: 80,
+                                            padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+                                            decoration: BoxDecoration(
+                                              borderRadius: BorderRadius.circular(12),
+                                              border: Border.all(
+                                                color: isDark ? Colors.white10 : Colors.grey[200]!,
+                                                width: 1,
+                                              ),
+                                              color: isDark ? Colors.white.withOpacity(0.02) : Colors.white,
+                                            ),
+                                            child: Column(
+                                              mainAxisAlignment: MainAxisAlignment.center,
+                                              children: [
+                                                buildFriendAvatar(displayName, photoUrl),
+                                                const SizedBox(height: 6),
+                                                Text(
+                                                  displayName,
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
+                                                  style: const TextStyle(
+                                                    fontSize: 11,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                  textAlign: TextAlign.center,
+                                                ),
+                                                const SizedBox(height: 1),
+                                                Text(
+                                                  taskerId.startsWith('@') ? taskerId : '@$taskerId',
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
+                                                  style: TextStyle(
+                                                    fontSize: 9,
+                                                    color: isDark ? Colors.white38 : Colors.grey[500],
+                                                  ),
+                                                  textAlign: TextAlign.center,
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                            ],
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text("Cancel", style: TextStyle(color: Colors.grey)),
+                ),
+              ],
+            );
+          },
         );
       },
     );

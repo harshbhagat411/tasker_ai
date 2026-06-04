@@ -137,6 +137,7 @@ class _CollaborationRequestsScreenState extends State<CollaborationRequestsScree
   }
 
   Widget _buildTaskInvitesTab() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return StreamBuilder<QuerySnapshot>(
       stream: _taskService.getPendingInvites(),
       builder: (context, snapshot) {
@@ -164,12 +165,13 @@ class _CollaborationRequestsScreenState extends State<CollaborationRequestsScree
             final String taskTitle = data['taskTitle'] ?? 'A Task';
 
             return Card(
+              color: isDark ? const Color(0xFF1E1E24) : Colors.white,
               elevation: 2,
               shadowColor: Colors.black.withOpacity(0.1),
               margin: const EdgeInsets.only(bottom: 12),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
-                side: BorderSide(color: Colors.grey.shade200),
+                side: BorderSide(color: isDark ? Colors.grey.shade800 : Colors.grey.shade200),
               ),
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
@@ -180,14 +182,14 @@ class _CollaborationRequestsScreenState extends State<CollaborationRequestsScree
                       children: [
                         CircleAvatar(
                           radius: 16,
-                          backgroundColor: Colors.blue.shade50,
-                          child: const Icon(Icons.person, size: 18, color: Colors.blue),
+                          backgroundColor: isDark ? Colors.blue.shade900.withOpacity(0.3) : Colors.blue.shade50,
+                          child: Icon(Icons.person, size: 18, color: isDark ? Colors.blue.shade300 : Colors.blue),
                         ),
                         const SizedBox(width: 10),
                         Expanded(
                           child: RichText(
                             text: TextSpan(
-                              style: TextStyle(fontSize: 14, color: Theme.of(context).textTheme.bodyLarge?.color),
+                              style: TextStyle(fontSize: 14, color: isDark ? Colors.grey.shade300 : Colors.black87),
                               children: [
                                 TextSpan(text: fromUserName, style: const TextStyle(fontWeight: FontWeight.bold)),
                                 const TextSpan(text: " invited you to collaborate"),
@@ -201,18 +203,22 @@ class _CollaborationRequestsScreenState extends State<CollaborationRequestsScree
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Colors.grey.shade50,
+                        color: isDark ? Colors.grey.shade900 : Colors.grey.shade50,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.grey.shade200),
+                        border: Border.all(color: isDark ? Colors.grey.shade800 : Colors.grey.shade200),
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.task_alt, size: 18, color: Colors.blueGrey),
+                          Icon(Icons.task_alt, size: 18, color: isDark ? Colors.blueGrey.shade300 : Colors.blueGrey),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
                               taskTitle,
-                              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600, 
+                                fontSize: 14, 
+                                color: isDark ? Colors.white : Colors.black87,
+                              ),
                             ),
                           ),
                         ],
@@ -225,7 +231,7 @@ class _CollaborationRequestsScreenState extends State<CollaborationRequestsScree
                           child: OutlinedButton(
                             style: OutlinedButton.styleFrom(
                               foregroundColor: Colors.redAccent,
-                              side: BorderSide(color: Colors.redAccent.shade100),
+                              side: BorderSide(color: isDark ? Colors.red.shade900 : Colors.redAccent.shade100),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                             ),
                             onPressed: () async => await _taskService.rejectInvite(inviteDoc.id),
@@ -263,6 +269,7 @@ class _CollaborationRequestsScreenState extends State<CollaborationRequestsScree
   }
 
   Widget _buildProjectInvitesTab() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return StreamBuilder<QuerySnapshot>(
       stream: _workspaceService.getPendingProjectInvites(),
       builder: (context, snapshot) {
@@ -305,12 +312,13 @@ class _CollaborationRequestsScreenState extends State<CollaborationRequestsScree
             final String projectId = data['projectId'];
 
             return Card(
+              color: isDark ? const Color(0xFF1E1E24) : Colors.white,
               elevation: 2,
               shadowColor: Colors.black.withOpacity(0.1),
               margin: const EdgeInsets.only(bottom: 12),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
-                side: BorderSide(color: Colors.grey.shade200),
+                side: BorderSide(color: isDark ? Colors.grey.shade800 : Colors.grey.shade200),
               ),
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
@@ -321,14 +329,14 @@ class _CollaborationRequestsScreenState extends State<CollaborationRequestsScree
                       children: [
                         CircleAvatar(
                           radius: 16,
-                          backgroundColor: Colors.purple.shade50,
-                          child: const Icon(Icons.group_add, size: 18, color: Colors.purple),
+                          backgroundColor: isDark ? Colors.purple.shade900.withOpacity(0.3) : Colors.purple.shade50,
+                          child: Icon(Icons.group_add, size: 18, color: isDark ? Colors.purple.shade300 : Colors.purple),
                         ),
                         const SizedBox(width: 10),
                         Expanded(
                           child: RichText(
                             text: TextSpan(
-                              style: TextStyle(fontSize: 14, color: Theme.of(context).textTheme.bodyLarge?.color),
+                              style: TextStyle(fontSize: 14, color: isDark ? Colors.grey.shade300 : Colors.black87),
                               children: [
                                 TextSpan(text: senderName, style: const TextStyle(fontWeight: FontWeight.bold)),
                                 const TextSpan(text: " invited you to a project"),
@@ -342,36 +350,47 @@ class _CollaborationRequestsScreenState extends State<CollaborationRequestsScree
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Colors.grey.shade50,
+                        color: isDark ? Colors.grey.shade900 : Colors.grey.shade50,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.grey.shade200),
+                        border: Border.all(color: isDark ? Colors.grey.shade800 : Colors.grey.shade200),
                       ),
                       child: FutureBuilder<DocumentSnapshot>(
                         future: FirebaseFirestore.instance.collection('workspaces').doc(projectId).get(),
                         builder: (context, workspaceSnapshot) {
                           int memberCount = 0;
                           if (workspaceSnapshot.hasData && workspaceSnapshot.data!.exists) {
-                            final wData = workspaceSnapshot.data!.data() as Map<String, dynamic>;
-                            memberCount = (wData['members'] as List<dynamic>? ?? []).length;
+                             final wData = workspaceSnapshot.data!.data() as Map<String, dynamic>;
+                             memberCount = (wData['members'] as List<dynamic>? ?? []).length;
                           }
                           return Row(
                             children: [
-                              const Icon(Icons.workspaces, size: 18, color: Colors.purple),
+                              Icon(Icons.workspaces, size: 18, color: isDark ? Colors.purple.shade300 : Colors.purple),
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
                                   projectName,
-                                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600, 
+                                    fontSize: 14,
+                                    color: isDark ? Colors.white : Colors.black87,
+                                  ),
                                 ),
                               ),
                               if (memberCount > 0)
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                   decoration: BoxDecoration(
-                                    color: Colors.grey.shade200,
+                                    color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
                                     borderRadius: BorderRadius.circular(10),
                                   ),
-                                  child: Text("$memberCount members", style: const TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.bold)),
+                                  child: Text(
+                                    "$memberCount members", 
+                                    style: TextStyle(
+                                      fontSize: 10, 
+                                      color: isDark ? Colors.grey.shade400 : Colors.grey, 
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
                                 ),
                             ],
                           );
@@ -385,7 +404,7 @@ class _CollaborationRequestsScreenState extends State<CollaborationRequestsScree
                           child: OutlinedButton(
                             style: OutlinedButton.styleFrom(
                               foregroundColor: Colors.redAccent,
-                              side: BorderSide(color: Colors.redAccent.shade100),
+                              side: BorderSide(color: isDark ? Colors.red.shade900 : Colors.redAccent.shade100),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                             ),
                             onPressed: () async => await _workspaceService.rejectProjectInvite(inviteDoc.id),
@@ -423,13 +442,21 @@ class _CollaborationRequestsScreenState extends State<CollaborationRequestsScree
   }
 
   Widget _buildEmptyState(String message) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.inbox_outlined, size: 64, color: Colors.grey.shade400),
+          Icon(Icons.inbox_outlined, size: 64, color: isDark ? Colors.grey.shade600 : Colors.grey.shade400),
           const SizedBox(height: 16),
-          Text(message, style: TextStyle(fontSize: 16, color: Colors.grey.shade600, fontWeight: FontWeight.w500)),
+          Text(
+            message, 
+            style: TextStyle(
+              fontSize: 16, 
+              color: isDark ? Colors.grey.shade400 : Colors.grey.shade600, 
+              fontWeight: FontWeight.w500,
+            ),
+          ),
         ],
       ),
     );
@@ -470,6 +497,7 @@ class _CollaborationRequestsScreenState extends State<CollaborationRequestsScree
   }
 
   Widget _buildNotificationCard(NotificationModel notification) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     IconData icon;
     Color color;
 
@@ -477,33 +505,33 @@ class _CollaborationRequestsScreenState extends State<CollaborationRequestsScree
       case NotificationType.task_shared:
       case NotificationType.task_assigned:
         icon = Icons.assignment_ind;
-        color = Colors.blue;
+        color = isDark ? Colors.blue.shade300 : Colors.blue;
         break;
       case NotificationType.task_completed:
         icon = Icons.check_circle;
-        color = Colors.green;
+        color = isDark ? Colors.green.shade300 : Colors.green;
         break;
       case NotificationType.workspace_invite:
       case NotificationType.workspace_invite_accepted:
         icon = Icons.business_center;
-        color = Colors.purple;
+        color = isDark ? Colors.purple.shade300 : Colors.purple;
         break;
       case NotificationType.invite_accepted:
         icon = Icons.handshake;
-        color = Colors.teal;
+        color = isDark ? Colors.teal.shade300 : Colors.teal;
         break;
       case NotificationType.invite_rejected:
       case NotificationType.workspace_invite_rejected:
         icon = Icons.cancel;
-        color = Colors.red;
+        color = isDark ? Colors.red.shade300 : Colors.red;
         break;
       case NotificationType.friend_request:
         icon = Icons.person_add;
-        color = Colors.indigo;
+        color = isDark ? Colors.indigo.shade300 : Colors.indigo;
         break;
       default:
         icon = Icons.notifications;
-        color = Colors.grey;
+        color = isDark ? Colors.grey.shade400 : Colors.grey;
     }
 
     return Card(
@@ -511,9 +539,11 @@ class _CollaborationRequestsScreenState extends State<CollaborationRequestsScree
       margin: const EdgeInsets.only(bottom: 12),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: Colors.grey.shade200),
+        side: BorderSide(color: isDark ? Colors.grey.shade800 : Colors.grey.shade200),
       ),
-      color: notification.isRead ? Colors.white : Colors.blue.shade50.withOpacity(0.3),
+      color: isDark 
+          ? (notification.isRead ? const Color(0xFF1E1E24) : Colors.blue.shade900.withOpacity(0.2)) 
+          : (notification.isRead ? Colors.white : Colors.blue.shade50.withOpacity(0.3)),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: () async {
@@ -570,7 +600,11 @@ class _CollaborationRequestsScreenState extends State<CollaborationRequestsScree
                         Expanded(
                           child: Text(
                             notification.title,
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold, 
+                              fontSize: 16,
+                              color: isDark ? Colors.white : Colors.black87,
+                            ),
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
@@ -588,12 +622,12 @@ class _CollaborationRequestsScreenState extends State<CollaborationRequestsScree
                     const SizedBox(height: 4),
                     Text(
                       notification.message,
-                      style: TextStyle(color: Colors.grey.shade700, fontSize: 14),
+                      style: TextStyle(color: isDark ? Colors.grey.shade300 : Colors.grey.shade700, fontSize: 14),
                     ),
                     const SizedBox(height: 8),
                     Text(
                       timeago.format(notification.createdAt.toDate()),
-                      style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
+                      style: TextStyle(color: isDark ? Colors.grey.shade500 : Colors.grey.shade500, fontSize: 12),
                     ),
                   ],
                 ),
