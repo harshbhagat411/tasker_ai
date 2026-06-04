@@ -606,9 +606,9 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> with SingleTicker
               ),
             ),
             const SizedBox(width: 8),
-            if (actionWidget != null)
+             if (actionWidget != null)
               actionWidget
-            else
+            else if (statusText.isNotEmpty)
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
@@ -855,11 +855,15 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> with SingleTicker
                                                   ),
                                                 ),
                                               ] else ...[
-                                                Text(
-                                                  "Last seen: ${lastSeen != null ? timeago.format(lastSeen.toDate()) : 'recently'}",
-                                                  style: TextStyle(
-                                                    fontSize: 11,
-                                                    color: isDark ? Colors.white38 : Colors.grey[500],
+                                                Flexible(
+                                                  child: Text(
+                                                    "Last seen: ${lastSeen != null ? timeago.format(lastSeen.toDate()) : 'recently'}",
+                                                    style: TextStyle(
+                                                      fontSize: 11,
+                                                      color: isDark ? Colors.white38 : Colors.grey[500],
+                                                    ),
+                                                    maxLines: 1,
+                                                    overflow: TextOverflow.ellipsis,
                                                   ),
                                                 ),
                                               ],
@@ -872,11 +876,15 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> with SingleTicker
                                                 ),
                                               ),
                                               const SizedBox(width: 6),
-                                              Text(
-                                                "Friend since $friendSince",
-                                                style: TextStyle(
-                                                  fontSize: 11,
-                                                  color: isDark ? Colors.white38 : Colors.grey[500],
+                                              Flexible(
+                                                child: Text(
+                                                  "Friend since $friendSince",
+                                                  style: TextStyle(
+                                                    fontSize: 11,
+                                                    color: isDark ? Colors.white38 : Colors.grey[500],
+                                                  ),
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
                                                 ),
                                               ),
                                             ],

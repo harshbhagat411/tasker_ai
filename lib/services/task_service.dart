@@ -922,18 +922,25 @@ class TaskService {
     if (userId == null) return Stream.value([]);
     print("Combining personal, shared, and assigned workspace tasks for user: $userId");
 
-    final personalStream = getTasks();
-    final sharedStream = getSharedTasks();
-    final assignedWorkspaceStream = getAssignedWorkspaceTasksStream();
+    final personalStream = getTasks()
+        .map((snap) => snap.docs)
+        .onErrorReturn(<QueryDocumentSnapshot>[]);
+
+    final sharedStream = getSharedTasks()
+        .map((snap) => snap.docs)
+        .onErrorReturn(<QueryDocumentSnapshot>[]);
+
+    final assignedWorkspaceStream = getAssignedWorkspaceTasksStream()
+        .onErrorReturn(<QueryDocumentSnapshot>[]);
 
     return Rx.combineLatest3(
       personalStream,
       sharedStream,
       assignedWorkspaceStream,
-      (QuerySnapshot personal, QuerySnapshot shared, List<QueryDocumentSnapshot> assignedWorkspace) {
+      (List<QueryDocumentSnapshot> personal, List<QueryDocumentSnapshot> shared, List<QueryDocumentSnapshot> assignedWorkspace) {
         final List<QueryDocumentSnapshot> allDocs = [];
-        allDocs.addAll(personal.docs);
-        allDocs.addAll(shared.docs);
+        allDocs.addAll(personal);
+        allDocs.addAll(shared);
         allDocs.addAll(assignedWorkspace);
         
         // Sort combined list by createdAt descending

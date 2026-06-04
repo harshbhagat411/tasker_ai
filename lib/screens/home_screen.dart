@@ -49,10 +49,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   StreamSubscription<List<QuerySnapshot>>? _inviteSubscription;
   StreamSubscription<String?>? _notificationClickSubscription;
   bool _isInitialLoad = true;
+  late Stream<List<QueryDocumentSnapshot>> _tasksStream;
 
   @override
   void initState() {
     super.initState();
+    _tasksStream = _taskService.getAllTasks();
     WidgetsBinding.instance.addObserver(this);
     
     // Initialize realtime listeners
@@ -2487,13 +2489,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
                 // Task Stream
                 StreamBuilder<List<QueryDocumentSnapshot>>(
-                  stream: _taskService.getAllTasks(),
+                  stream: _tasksStream,
                   builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(child: CircularProgressIndicator());
+                    if (snapshot.hasError && !snapshot.hasData) {
+                      return const Center(child: Text("Unable to load tasks"));
                     }
-                    if (snapshot.hasError) {
-                      return const Center(child: Text("Error loading tasks"));
+                    if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+                      return const Center(child: CircularProgressIndicator());
                     }
                     if (!snapshot.hasData) {
                       return const Center(child: CircularProgressIndicator());

@@ -12,6 +12,7 @@ import 'package:intl/intl.dart';
 import '../models/sprint.dart';
 import '../services/sprint_service.dart';
 import 'sprint_dashboard_screen.dart';
+import 'user_profile_screen.dart';
 
 class WorkspaceDetailsScreen extends StatefulWidget {
   final Workspace workspace;
@@ -2379,6 +2380,7 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
                 final role = ws.memberRoles[memberId] ?? 'member';
                 return ListTile(
                   contentPadding: EdgeInsets.zero,
+                  onTap: () => Navigator.push(context, UserProfileScreen.route(memberId)),
                   leading: CircleAvatar(
                     backgroundColor: color.withOpacity(0.2),
                     child: Text(memberId.isNotEmpty ? memberId[0].toUpperCase() : '?', style: TextStyle(color: color, fontWeight: FontWeight.bold)),
@@ -2410,6 +2412,7 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
               
               return ListTile(
                 contentPadding: EdgeInsets.zero,
+                onTap: () => Navigator.push(context, UserProfileScreen.route(memberId)),
                 leading: Stack(
                   clipBehavior: Clip.none,
                   children: [
