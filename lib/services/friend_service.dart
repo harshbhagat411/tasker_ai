@@ -46,13 +46,14 @@ class FriendService {
       print("Error fetching current user details for self-search verification: $e");
     }
 
-    // Prepare clean tasker ID query (supporting both '@username' and 'username')
-    final taskerIdQuery = cleanQuery.startsWith('@') ? cleanQuery : '@$cleanQuery';
+    // Prepare clean tasker ID queries (supporting both '@username' and 'username')
+    final queryWithAt = cleanQuery.startsWith('@') ? cleanQuery : '@$cleanQuery';
+    final queryWithoutAt = cleanQuery.startsWith('@') ? cleanQuery.substring(1) : cleanQuery;
 
     // 1. Search by taskerId exact match (case-insensitive via taskerIdLower)
     final taskerQuerySnapshot = await _firestore
         .collection('users')
-        .where('taskerIdLower', isEqualTo: taskerIdQuery)
+        .where('taskerIdLower', whereIn: [queryWithAt, queryWithoutAt])
         .limit(1)
         .get();
 

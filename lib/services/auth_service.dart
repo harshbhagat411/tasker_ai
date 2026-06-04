@@ -21,9 +21,11 @@ class AuthService {
     int attempts = 0;
     
     while (true) {
+      final candidateLower = candidateId.toLowerCase();
+      final candidateWithoutAt = candidateLower.startsWith('@') ? candidateLower.substring(1) : candidateLower;
       final query = await _firestore
           .collection('users')
-          .where('taskerIdLower', isEqualTo: candidateId.toLowerCase())
+          .where('taskerIdLower', whereIn: [candidateLower, candidateWithoutAt])
           .limit(1)
           .get();
           

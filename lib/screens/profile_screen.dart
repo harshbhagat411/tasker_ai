@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
+import 'dart:async';
 import '../services/task_service.dart';
 import '../providers/theme_provider.dart';
 import '../main.dart';
@@ -107,6 +108,17 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
+  void _showEditTaskerIdBottomSheet(BuildContext context, String currentTaskerId) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return _EditTaskerIdBottomSheet(currentTaskerId: currentTaskerId);
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
@@ -126,8 +138,8 @@ class ProfileScreen extends StatelessWidget {
       ),
       body: user == null
           ? const Center(child: Text("Please login to view profile"))
-          : FutureBuilder<DocumentSnapshot>(
-              future: FirebaseFirestore.instance.collection('users').doc(user.uid).get(),
+          : StreamBuilder<DocumentSnapshot>(
+              stream: FirebaseFirestore.instance.collection('users').doc(user.uid).snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
@@ -135,14 +147,16 @@ class ProfileScreen extends StatelessWidget {
 
                 String joinedDateString = "Joined recently";
                 String currentModeString = 'personal';
+                String taskerId = '';
 
-                if (snapshot.hasData) {
+                if (snapshot.hasData && snapshot.data!.exists) {
                   final doc = snapshot.data!;
                   final data = doc.data() as Map<String, dynamic>?;
 
                   Timestamp? joinedTimestamp;
                   
                   if (data != null) {
+                    taskerId = data['taskerId'] ?? '';
                     if (data['createdAt'] is Timestamp) {
                       joinedTimestamp = data['createdAt'] as Timestamp;
                     } else if (data['joinedAt'] is Timestamp) {
@@ -235,7 +249,46 @@ class ProfileScreen extends StatelessWidget {
                           ),
                         ),
                       ],
-                      const SizedBox(height: 30),
+                      const SizedBox(height: 24),
+                      
+                      // 🔹 Tasker ID Section
+                      Card(
+                        elevation: 4,
+                        shadowColor: Colors.black12,
+                        color: Theme.of(context).cardColor,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
+                          side: BorderSide(color: Colors.grey[300]!, width: 0.5),
+                        ),
+                        margin: const EdgeInsets.only(bottom: 24),
+                        child: ListTile(
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                          title: Text(
+                            "Username :",
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Theme.of(context).textTheme.bodySmall?.color ?? Colors.grey,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          subtitle: Padding(
+                            padding: const EdgeInsets.only(top: 4.0),
+                            child: Text(
+                              taskerId.startsWith('@') ? taskerId : '@$taskerId',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Theme.of(context).textTheme.bodyLarge?.color,
+                              ),
+                            ),
+                          ),
+                          trailing: IconButton(
+                            icon: Icon(Icons.edit, color: Theme.of(context).primaryColor),
+                            onPressed: () => _showEditTaskerIdBottomSheet(context, taskerId),
+                            tooltip: "Edit Tasker ID",
+                          ),
+                        ),
+                      ),
 
                       // 🔹 Task Summary Section
                       StreamBuilder<QuerySnapshot>(
@@ -537,6 +590,343 @@ class ProfileScreen extends StatelessWidget {
                 );
               },
             ),
+    );
+  }
+}
+
+class _EditTaskerIdBottomSheet extends StatefulWidget {
+  final String currentTaskerId;
+
+  const _EditTaskerIdBottomSheet({
+    required this.currentTaskerId,
+  });
+
+  @override
+  State<_EditTaskerIdBottomSheet> createState() => _EditTaskerIdBottomSheetState();
+}
+
+class _EditTaskerIdBottomSheetState extends State<_EditTaskerIdBottomSheet> {
+  late final TextEditingController _controller;
+  late final String _initialId;
+  
+  Timer? _debounceTimer;
+  String _statusMessage = '';
+  Color _statusColor = Colors.grey;
+  bool _isValid = false;
+  bool _isChecking = false;
+  bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initialId = widget.currentTaskerId.startsWith('@')
+        ? widget.currentTaskerId.substring(1)
+        : widget.currentTaskerId;
+    _controller = TextEditingController(text: _initialId);
+    _controller.addListener(_onTextChanged);
+    if (_initialId.isNotEmpty) {
+      _isValid = true;
+    }
+  }
+
+  @override
+  void dispose() {
+    _debounceTimer?.cancel();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _onTextChanged() {
+    if (_debounceTimer?.isActive ?? false) _debounceTimer!.cancel();
+    
+    final cleanText = _controller.text.trim();
+    
+    if (cleanText == _initialId) {
+      setState(() {
+        _statusMessage = '';
+        _isValid = true;
+        _isChecking = false;
+      });
+      return;
+    }
+
+    if (cleanText.isEmpty) {
+      setState(() {
+        _statusMessage = '';
+        _isValid = false;
+        _isChecking = false;
+      });
+      return;
+    }
+    
+    final regex = RegExp(r'^[a-z0-9_\.]{4,25}$');
+    if (!regex.hasMatch(cleanText)) {
+      setState(() {
+        _statusMessage = "❌ Invalid format";
+        _statusColor = Colors.redAccent;
+        _isValid = false;
+        _isChecking = false;
+      });
+      return;
+    }
+    
+    setState(() {
+      _statusMessage = "Checking availability...";
+      _statusColor = Colors.grey;
+      _isChecking = true;
+      _isValid = false;
+    });
+
+    _debounceTimer = Timer(const Duration(milliseconds: 400), () async {
+      await _checkUsernameAvailability(cleanText);
+    });
+  }
+
+  Future<void> _checkUsernameAvailability(String username) async {
+    final queryText = username.toLowerCase();
+    final queryTextWithAt = "@$queryText";
+    
+    try {
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .where('taskerIdLower', whereIn: [queryText, queryTextWithAt])
+          .limit(1)
+          .get();
+          
+      if (!mounted) return;
+      
+      if (querySnapshot.docs.isEmpty) {
+        setState(() {
+          _statusMessage = "✅ Available";
+          _statusColor = Colors.green;
+          _isValid = true;
+          _isChecking = false;
+        });
+      } else {
+        final matchingDoc = querySnapshot.docs.first;
+        final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+        if (matchingDoc.id == currentUserId) {
+          setState(() {
+            _statusMessage = '';
+            _isValid = true;
+            _isChecking = false;
+          });
+        } else {
+          setState(() {
+            _statusMessage = "❌ Username already taken";
+            _statusColor = Colors.redAccent;
+            _isValid = false;
+            _isChecking = false;
+          });
+        }
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _statusMessage = "Error checking availability";
+        _statusColor = Colors.redAccent;
+        _isValid = false;
+        _isChecking = false;
+      });
+    }
+  }
+
+  Future<void> _saveTaskerId() async {
+    final cleanText = _controller.text.trim();
+    if (cleanText.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Enter a valid Tasker ID"),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+    
+    if (cleanText == _initialId) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("No changes made"),
+          backgroundColor: Colors.grey,
+        ),
+      );
+      Navigator.pop(context);
+      return;
+    }
+    
+    final regex = RegExp(r'^[a-z0-9_\.]{4,25}$');
+    if (!regex.hasMatch(cleanText)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Enter a valid Tasker ID"),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+    
+    setState(() {
+      _isSaving = true;
+    });
+    
+    try {
+      final queryText = cleanText.toLowerCase();
+      final queryTextWithAt = "@$queryText";
+      
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .where('taskerIdLower', whereIn: [queryText, queryTextWithAt])
+          .limit(1)
+          .get();
+          
+      if (querySnapshot.docs.isNotEmpty && querySnapshot.docs.first.id != FirebaseAuth.instance.currentUser?.uid) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("Username already taken"),
+              backgroundColor: Colors.redAccent,
+            ),
+          );
+          setState(() {
+            _statusMessage = "❌ Username already taken";
+            _statusColor = Colors.redAccent;
+            _isValid = false;
+            _isSaving = false;
+          });
+        }
+        return;
+      }
+      
+      final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+      if (currentUserId != null) {
+        await FirebaseFirestore.instance.collection('users').doc(currentUserId).update({
+          'taskerId': cleanText,
+          'taskerIdLower': cleanText.toLowerCase(),
+        });
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("Tasker ID updated"),
+              backgroundColor: Colors.green,
+            ),
+          );
+          Navigator.pop(context);
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Unable to update Tasker ID"),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+        setState(() {
+          _isSaving = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    return Container(
+      padding: EdgeInsets.fromLTRB(
+        24,
+        24,
+        24,
+        24 + MediaQuery.of(context).viewInsets.bottom,
+      ),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E1E24) : Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              "Edit Tasker ID",
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: isDark ? Colors.white : Colors.black87,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            TextField(
+              controller: _controller,
+              autofocus: true,
+              style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+              decoration: InputDecoration(
+                labelText: "Tasker ID",
+                prefixText: "@",
+                prefixStyle: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white70 : Colors.black54,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                filled: true,
+                fillColor: isDark ? const Color(0xFF2A2A32) : Colors.grey[100],
+              ),
+            ),
+            const SizedBox(height: 8),
+            if (_statusMessage.isNotEmpty)
+              Text(
+                _statusMessage,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: _statusColor,
+                ),
+              ),
+            const SizedBox(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text("Cancel", style: TextStyle(color: Colors.grey, fontWeight: FontWeight.w600)),
+                ),
+                const SizedBox(width: 16),
+                ElevatedButton(
+                  onPressed: (_isValid && !_isChecking && !_isSaving)
+                      ? _saveTaskerId
+                      : null,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Theme.of(context).primaryColor,
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor: Theme.of(context).primaryColor.withOpacity(0.3),
+                    disabledForegroundColor: Colors.white70,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  ),
+                  child: _isSaving
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text("Save", style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
