@@ -19,6 +19,7 @@ class WorkspaceChatMessage {
   final Timestamp createdAt;
   final bool isEdited;
   final Timestamp? editedAt;
+  final Map<String, List<String>> reactions;
 
   WorkspaceChatMessage({
     required this.messageId,
@@ -33,6 +34,7 @@ class WorkspaceChatMessage {
     required this.createdAt,
     this.isEdited = false,
     this.editedAt,
+    this.reactions = const {},
   });
 
   Map<String, dynamic> toMap() {
@@ -49,6 +51,7 @@ class WorkspaceChatMessage {
       'createdAt': createdAt,
       'isEdited': isEdited,
       'editedAt': editedAt,
+      'reactions': reactions,
     };
   }
 
@@ -59,6 +62,14 @@ class WorkspaceChatMessage {
     try {
       messageType = ChatMessageType.values.firstWhere((e) => e.name == data['type']);
     } catch (_) {}
+
+    final reactionsData = data['reactions'] as Map<String, dynamic>? ?? {};
+    final Map<String, List<String>> parsedReactions = {};
+    reactionsData.forEach((key, value) {
+      if (value is List) {
+        parsedReactions[key] = List<String>.from(value);
+      }
+    });
 
     return WorkspaceChatMessage(
       messageId: doc.id,
@@ -73,6 +84,7 @@ class WorkspaceChatMessage {
       createdAt: data['createdAt'] as Timestamp? ?? Timestamp.now(),
       isEdited: data['isEdited'] ?? false,
       editedAt: data['editedAt'] as Timestamp?,
+      reactions: parsedReactions,
     );
   }
 }

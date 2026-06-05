@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:rxdart/rxdart.dart';
+import 'dart:async';
 import '../models/workspace_model.dart';
 import '../services/workspace_service.dart';
 import '../services/task_service.dart';
@@ -14,6 +15,7 @@ import '../services/sprint_service.dart';
 import 'sprint_dashboard_screen.dart';
 import 'user_profile_screen.dart';
 import 'workspace_chat_screen.dart';
+import '../services/workspace_chat_service.dart';
 
 enum WorkspaceTab {
   overview,
@@ -52,20 +54,57 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
   Map<String, Map<String, dynamic>> _memberDetails = {};
   bool _isLoadingMembers = true;
 
+  final WorkspaceChatService _chatService = WorkspaceChatService();
+  StreamSubscription? _unreadSubscription;
+  StreamSubscription? _lastReadSubscription;
+  Timestamp? _initialLastRead;
+  bool _fetchedInitialLastRead = false;
+  int _unreadCount = 0;
+  WorkspaceTab? _previousTab;
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: _tabs.length, vsync: this);
-    _tabController.addListener(() {
-      setState(() {});
-    });
+    _previousTab = _tabs[_tabController.index];
+    _tabController.addListener(_handleTabChange);
+    _setupUnreadListener();
     _fetchMemberDetails();
     // Auto status checks and progress re-calculation on load
     SprintService().runAutoRulesAndMaintenance(widget.workspace.id);
   }
 
+  void _handleTabChange() {
+    final currentTab = _tabs[_tabController.index];
+    setState(() {}); // to rebuild the tab labels/fab
+    if (currentTab == WorkspaceTab.chat) {
+      _chatService.updateLastRead(widget.workspace.id, currentUserId);
+    } else if (_previousTab == WorkspaceTab.chat) {
+      _chatService.updateLastRead(widget.workspace.id, currentUserId);
+    }
+    _previousTab = currentTab;
+  }
+
+  void _setupUnreadListener() {
+    _unreadSubscription = _chatService
+        .getUnreadCountStream(widget.workspace.id, currentUserId)
+        .listen((count) {
+      if (mounted) {
+        setState(() {
+          _unreadCount = count;
+        });
+      }
+    });
+  }
+
   @override
   void dispose() {
+    _unreadSubscription?.cancel();
+    _lastReadSubscription?.cancel();
+    _tabController.removeListener(_handleTabChange);
+    if (_tabs[_tabController.index] == WorkspaceTab.chat) {
+      _chatService.updateLastRead(widget.workspace.id, currentUserId);
+    }
     _tabController.dispose();
     super.dispose();
   }
@@ -699,7 +738,8 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
                   case WorkspaceTab.activity:
                     return const Tab(text: "Activity");
                   case WorkspaceTab.chat:
-                    return const Tab(text: "Chat");
+                    final isCurrentTabChat = _tabs[_tabController.index] == WorkspaceTab.chat;
+                    return Tab(text: (_unreadCount > 0 && !isCurrentTabChat) ? "Chat ($_unreadCount)" : "Chat");
                 }
               }).toList(),
             ),

@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import 'package:rxdart/rxdart.dart';
 import '../models/workspace_chat_message.dart';
 
 class WorkspaceChatService {
@@ -260,6 +261,174 @@ class WorkspaceChatService {
     } catch (e) {
       debugPrint("Error editing message: $e");
       rethrow;
+    }
+  }
+
+  // 6. updateLastRead()
+  Future<void> updateLastRead(String projectId, String userId) async {
+    try {
+      await _firestore
+          .collection('projects')
+          .doc(projectId)
+          .collection('chat_last_read')
+          .doc(userId)
+          .set({
+        'lastRead': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      debugPrint("Error updating last read: $e");
+    }
+  }
+
+  // 7. getUnreadCountStream()
+  Stream<int> getUnreadCountStream(String projectId, String userId) {
+    final lastReadStream = _firestore
+        .collection('projects')
+        .doc(projectId)
+        .collection('chat_last_read')
+        .doc(userId)
+        .snapshots()
+        .map((doc) {
+          if (!doc.exists) return null;
+          return doc.data()?['lastRead'] as Timestamp?;
+        });
+
+    final messagesStream = _firestore
+        .collection('projects')
+        .doc(projectId)
+        .collection('workspace_chat')
+        .orderBy('createdAt', descending: true)
+        .limit(50)
+        .snapshots()
+        .map((snap) => snap.docs.map((d) => WorkspaceChatMessage.fromFirestore(d)).toList());
+
+    return Rx.combineLatest2<Timestamp?, List<WorkspaceChatMessage>, int>(
+      lastReadStream,
+      messagesStream,
+      (lastRead, messages) {
+        if (lastRead == null) {
+          return messages.where((msg) => msg.senderId != userId && msg.type != ChatMessageType.system).length;
+        }
+        return messages.where((msg) {
+          if (msg.senderId == userId) return false;
+          if (msg.type == ChatMessageType.system) return false;
+          return msg.createdAt.compareTo(lastRead) > 0;
+        }).length;
+      },
+    );
+  }
+
+  // 8. setTypingStatus()
+  Future<void> setTypingStatus(String projectId, String userId, bool isTyping) async {
+    try {
+      final userDoc = await _firestore.collection('users').doc(userId).get();
+      final userName = userDoc.exists
+          ? (userDoc.data()?['displayName'] ?? userDoc.data()?['name'] ?? 'User')
+          : 'User';
+
+      await _firestore
+          .collection('projects')
+          .doc(projectId)
+          .collection('typing')
+          .doc(userId)
+          .set({
+        'userName': userName,
+        'isTyping': isTyping,
+        'lastUpdated': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      debugPrint("Error setting typing status: $e");
+    }
+  }
+
+  // 9. getTypingUsersStream()
+  Stream<List<Map<String, dynamic>>> getTypingUsersStream(String projectId) {
+    return _firestore
+        .collection('projects')
+        .doc(projectId)
+        .collection('typing')
+        .snapshots()
+        .map((snapshot) {
+          final now = DateTime.now();
+          final currentUserId = _auth.currentUser?.uid;
+          final List<Map<String, dynamic>> typing = [];
+
+          for (var doc in snapshot.docs) {
+            if (doc.id == currentUserId) continue;
+
+            final data = doc.data();
+            final isTyping = data['isTyping'] as bool? ?? false;
+            final lastUpdated = data['lastUpdated'] as Timestamp?;
+
+            if (isTyping && lastUpdated != null) {
+              final diff = now.difference(lastUpdated.toDate()).inSeconds;
+              if (diff < 4) {
+                typing.add({
+                  'uid': doc.id,
+                  'userName': data['userName'] ?? 'User',
+                });
+              }
+            }
+          }
+          return typing;
+        });
+  }
+
+  // 10. toggleReaction()
+  Future<void> toggleReaction({
+    required String projectId,
+    required String messageId,
+    required String emoji,
+    required String userId,
+  }) async {
+    try {
+      final docRef = _firestore
+          .collection('projects')
+          .doc(projectId)
+          .collection('workspace_chat')
+          .doc(messageId);
+
+      await _firestore.runTransaction((transaction) async {
+        final doc = await transaction.get(docRef);
+        if (!doc.exists) return;
+
+        final data = doc.data() as Map<String, dynamic>;
+        final reactionsData = data['reactions'] as Map<String, dynamic>? ?? {};
+
+        final Map<String, List<String>> reactions = {};
+        reactionsData.forEach((key, value) {
+          if (value is List) {
+            reactions[key] = List<String>.from(value);
+          }
+        });
+
+        String? previousReactionEmoji;
+        reactions.forEach((e, users) {
+          if (users.contains(userId)) {
+            previousReactionEmoji = e;
+          }
+        });
+
+        if (previousReactionEmoji != null) {
+          reactions[previousReactionEmoji!]!.remove(userId);
+          if (reactions[previousReactionEmoji!]!.isEmpty) {
+            reactions.remove(previousReactionEmoji);
+          }
+        }
+
+        if (previousReactionEmoji != emoji) {
+          if (!reactions.containsKey(emoji)) {
+            reactions[emoji] = [];
+          }
+          reactions[emoji]!.add(userId);
+        }
+
+        transaction.update(docRef, {
+          'reactions': reactions,
+        });
+      });
+    } catch (e) {
+      debugPrint("Error toggling reaction: $e");
     }
   }
 }
