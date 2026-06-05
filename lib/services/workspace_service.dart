@@ -208,7 +208,7 @@ class WorkspaceService {
       final userDoc = await _firestore.collection('users').doc(user.uid).get();
       final senderName = userDoc.data()?['displayName'] ?? userDoc.data()?['name'] ?? 'Someone';
 
-      final inviteId = _firestore.collection('project_invites').doc().id;
+      final inviteId = "${workspaceId}_$newUserId";
 
       await _firestore.collection('project_invites').doc(inviteId).set({
         'inviteId': inviteId,
@@ -275,32 +275,42 @@ class WorkspaceService {
         'status': 'accepted'
       });
 
-      await _activityService.logProjectActivity(
-        projectId: projectId,
-        type: ActivityType.memberJoined,
-        message: 'joined the project.',
-      );
+      // Run secondary logging and notification triggers in background
+      () async {
+        try {
+          await _activityService.logProjectActivity(
+            projectId: projectId,
+            type: ActivityType.memberJoined,
+            message: 'joined the project.',
+          ).catchError((e) {
+            debugPrint("Warning: Failed to log project activity for member join: $e");
+          });
 
-      try {
-        final userName = user.displayName ?? 'Someone';
-        WorkspaceChatService().sendSystemMessage(
-          projectId: projectId,
-          message: '🟢 $userName joined the project',
-        ).catchError((e) {
-          debugPrint("Warning: Failed to send member joined system message: $e");
-          return null;
-        });
-      } catch (_) {}
+          final userName = user.displayName ?? 'Someone';
+          await WorkspaceChatService().sendSystemMessage(
+            projectId: projectId,
+            message: '🟢 $userName joined the project',
+          ).catchError((e) {
+            debugPrint("Warning: Failed to send member joined system message: $e");
+            return null;
+          });
 
-      // Send In-App Notification to Inviter
-      final String senderId = inviteData['senderId'];
-      await _inAppNotificationService.createNotification(
-        receiverId: senderId,
-        type: NotificationType.workspace_invite_accepted,
-        title: "Invite Accepted",
-        message: "${user.displayName ?? 'Someone'} joined your project.",
-        projectId: projectId,
-      );
+          // Send In-App Notification to Inviter
+          final String senderId = inviteData['senderId'];
+          await _inAppNotificationService.createNotification(
+            receiverId: senderId,
+            type: NotificationType.workspace_invite_accepted,
+            title: "Invite Accepted",
+            message: "${user.displayName ?? 'Someone'} joined your project.",
+            projectId: projectId,
+          ).catchError((e) {
+            debugPrint("Warning: Failed to send join in-app notification: $e");
+            return null;
+          });
+        } catch (e) {
+          debugPrint("Warning: Error in member joined background actions: $e");
+        }
+      }();
 
     } catch (e) {
       print("ACCEPT PROJECT INVITE ERROR: $e");
