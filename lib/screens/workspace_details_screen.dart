@@ -13,6 +13,7 @@ import '../models/sprint.dart';
 import '../services/sprint_service.dart';
 import 'sprint_dashboard_screen.dart';
 import 'user_profile_screen.dart';
+import 'workspace_chat_screen.dart';
 
 enum WorkspaceTab {
   overview,
@@ -20,6 +21,7 @@ enum WorkspaceTab {
   backlog,
   team,
   activity,
+  chat,
 }
 
 class WorkspaceDetailsScreen extends StatefulWidget {
@@ -38,6 +40,7 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
     WorkspaceTab.backlog,
     WorkspaceTab.team,
     WorkspaceTab.activity,
+    WorkspaceTab.chat,
   ];
 
   late TabController _tabController;
@@ -695,6 +698,8 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
                     return const Tab(text: "Team");
                   case WorkspaceTab.activity:
                     return const Tab(text: "Activity");
+                  case WorkspaceTab.chat:
+                    return const Tab(text: "Chat");
                 }
               }).toList(),
             ),
@@ -713,6 +718,8 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
                   return _buildMembersTab(ws);
                 case WorkspaceTab.activity:
                   return _buildActivityTab(ws);
+                case WorkspaceTab.chat:
+                  return WorkspaceChatScreen(workspace: ws);
               }
             }).toList(),
           ),
