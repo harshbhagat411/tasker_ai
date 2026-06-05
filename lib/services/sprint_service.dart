@@ -1,12 +1,46 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/sprint.dart';
+import 'workspace_chat_service.dart';
+import 'package:flutter/foundation.dart';
 
 class SprintService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
   String? get userId => _auth.currentUser?.uid;
+
+  Future<void> _sendSprintStatusSystemMessage(String projectId, String sprintId, String oldStatus, String newStatus) async {
+    if (oldStatus == newStatus) return;
+    try {
+      final doc = await _firestore
+          .collection('projects')
+          .doc(projectId)
+          .collection('sprints')
+          .doc(sprintId)
+          .get();
+      if (!doc.exists) return;
+      final sprintName = doc.data()?['title'] ?? 'Sprint';
+
+      if (newStatus == 'active') {
+        WorkspaceChatService().sendSystemMessage(
+          projectId: projectId,
+          message: '🏁 $sprintName started',
+        ).catchError((e) {
+          debugPrint("Warning: Failed to send sprint started system message: $e");
+          return null;
+        });
+      } else if (newStatus == 'completed') {
+        WorkspaceChatService().sendSystemMessage(
+          projectId: projectId,
+          message: '🎉 $sprintName completed',
+        ).catchError((e) {
+          debugPrint("Warning: Failed to send sprint completed system message: $e");
+          return null;
+        });
+      }
+    } catch (_) {}
+  }
 
   // Create planned Sprint
   Future<String> createSprint({
@@ -39,6 +73,16 @@ class SprintService {
 
     await sprintRef.set(sprint.toMap());
     
+    try {
+      WorkspaceChatService().sendSystemMessage(
+        projectId: projectId,
+        message: '🚀 $title created',
+      ).catchError((e) {
+        debugPrint("Warning: Failed to send sprint created system message: $e");
+        return null;
+      });
+    } catch (_) {}
+    
     // Automatically trigger rules/maintenance on startup/creation
     await runAutoRulesAndMaintenance(projectId);
 
@@ -60,12 +104,25 @@ class SprintService {
 
   // Update Sprint status
   Future<void> updateSprintStatus(String projectId, String sprintId, String newStatus) async {
+    String oldStatus = '';
+    try {
+      final doc = await _firestore
+          .collection('projects')
+          .doc(projectId)
+          .collection('sprints')
+          .doc(sprintId)
+          .get();
+      oldStatus = doc.data()?['status'] ?? '';
+    } catch (_) {}
+
     await _firestore
         .collection('projects')
         .doc(projectId)
         .collection('sprints')
         .doc(sprintId)
         .update({'status': newStatus});
+
+    await _sendSprintStatusSystemMessage(projectId, sprintId, oldStatus, newStatus);
   }
 
   // Archive completed Sprint
@@ -163,6 +220,7 @@ class SprintService {
               .collection('sprints')
               .doc(sprintId)
               .update({'status': currentStatus});
+          await _sendSprintStatusSystemMessage(projectId, sprintId, sprint.status, currentStatus);
         }
 
         // Recalculate metrics for non-archived sprints

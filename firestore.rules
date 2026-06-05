@@ -89,7 +89,7 @@ service cloud.firestore {
           
         allow create: if request.auth != null && 
           (request.auth.uid in get(/databases/$(database)/documents/workspaces/$(projectId)).data.members) &&
-          request.resource.data.senderId == request.auth.uid;
+          (request.resource.data.senderId == request.auth.uid || request.resource.data.type == 'system');
           
         allow update: if request.auth != null && 
           (request.auth.uid in get(/databases/$(database)/documents/workspaces/$(projectId)).data.members) &&

@@ -10,6 +10,7 @@ import 'productivity_tracking_service.dart';
 import 'workspace_service.dart';
 import 'sprint_service.dart';
 import '../widgets/sprint_selector_sheet.dart';
+import 'workspace_chat_service.dart';
 
 
 class TaskService {
@@ -18,6 +19,16 @@ class TaskService {
   final InAppNotificationService _inAppNotificationService = InAppNotificationService();
 
   String? get userId => _auth.currentUser?.uid;
+
+  Future<String> _getUserName(String uid) async {
+    try {
+      final doc = await _firestore.collection('users').doc(uid).get();
+      if (doc.exists) {
+        return doc.data()?['displayName'] ?? doc.data()?['name'] ?? 'Someone';
+      }
+    } catch (_) {}
+    return 'Someone';
+  }
 
   Future<void> addTask(String title, {String priority = 'low', DateTime? dueDate, List<Map<String, dynamic>>? subtasks}) async {
     if (userId == null) return;
@@ -254,6 +265,17 @@ class TaskService {
       if (isDone) {
         if (taskDoc.exists) {
            final title = taskDoc.data()!['title'] ?? 'Task';
+
+            try {
+              WorkspaceChatService().sendSystemMessage(
+                projectId: projectId,
+                message: '✅ $title completed',
+              ).catchError((e) {
+                debugPrint("Warning: Failed to send task completion system message: $e");
+                return null;
+              });
+            } catch (_) {}
+
            final projectDoc = await _firestore.collection('workspaces').doc(projectId).get();
            if (projectDoc.exists) {
               final ownerId = projectDoc.data()!['ownerId'];
@@ -509,17 +531,52 @@ class TaskService {
 
     final docRef = await _firestore.collection('projects').doc(projectId).collection('tasks').add(data);
     
-    // Trigger notification!
+    // Trigger notification and system message in background
     if (assignedTo != null) {
+      final String currentUserId = userId!;
+      final String taskId = docRef.id;
       final String? assigneeId = assignedTo['uid'];
-      if (assigneeId != null) {
-        await _sendTaskAssignmentNotification(
-          assigneeId: assigneeId,
-          taskTitle: title,
-          taskId: docRef.id,
-          workspaceId: projectId,
-        );
-      }
+      final String assigneeNameRaw = assignedTo['name']?.toString() ?? '';
+
+      // Secondary actions executed in a non-blocking (unawaited) asynchronous background context
+      () async {
+        try {
+          if (assigneeId != null) {
+            await _sendTaskAssignmentNotification(
+              assigneeId: assigneeId,
+              taskTitle: title.trim().isEmpty ? "Untitled Task" : title,
+              taskId: taskId,
+              workspaceId: projectId,
+            ).catchError((e) {
+              debugPrint("Warning: Failed to send task assignment notification: $e");
+            });
+          }
+
+          // Fetch names with fallback
+          String assignerName = "Unknown User";
+          try {
+            final name = await _getUserName(currentUserId);
+            if (name.isNotEmpty) {
+              assignerName = name;
+            }
+          } catch (e) {
+            debugPrint("Warning: Failed to get assigner name: $e");
+          }
+
+          final String assigneeName = assigneeNameRaw.trim().isEmpty ? "Unknown User" : assigneeNameRaw;
+          final String taskName = title.trim().isEmpty ? "Untitled Task" : title;
+
+          await WorkspaceChatService().sendSystemMessage(
+            projectId: projectId,
+            message: '📌 $assignerName assigned $taskName to $assigneeName',
+          ).catchError((e) {
+            debugPrint("Warning: Failed to send task assignment system message: $e");
+            return null;
+          });
+        } catch (e) {
+          debugPrint("Warning: Error in task creation background actions: $e");
+        }
+      }();
     }
   }
 
@@ -571,8 +628,39 @@ class TaskService {
       'assignedTo': newAssigneeDetails,
     });
 
-    // 4. Log Activity
     final newAssigneeName = newAssigneeDetails['name'] ?? 'User';
+
+    // Log Chat message in background
+    final String taskName = taskTitle.trim().isEmpty ? "Untitled Task" : taskTitle;
+    final String newAssigneeNameRaw = newAssigneeDetails['name']?.toString() ?? '';
+    final String assigneeName = newAssigneeNameRaw.trim().isEmpty ? "Unknown User" : newAssigneeNameRaw;
+
+    // Run system message trigger asynchronously without await
+    () async {
+      try {
+        String assignerName = "Unknown User";
+        try {
+          final name = await _getUserName(currentUserId);
+          if (name.isNotEmpty) {
+            assignerName = name;
+          }
+        } catch (e) {
+          debugPrint("Warning: Failed to get assigner name for reassignment: $e");
+        }
+
+        await WorkspaceChatService().sendSystemMessage(
+          projectId: projectId,
+          message: '📌 $assignerName assigned $taskName to $assigneeName',
+        ).catchError((e) {
+          debugPrint("Warning: Failed to send task reassignment system message: $e");
+          return null;
+        });
+      } catch (e) {
+        debugPrint("Warning: Error in task reassignment background actions: $e");
+      }
+    }();
+
+    // 4. Log Activity
     await ActivityService().logProjectActivity(
       projectId: projectId,
       type: ActivityType.taskAssigned,
@@ -1065,6 +1153,7 @@ class TaskService {
         .doc(taskId)
         .get();
     if (!taskDoc.exists) throw Exception("Task not found");
+    final taskTitle = taskDoc.data()?['title'] ?? 'Task';
     final oldSprintId = taskDoc.data()?['sprintId'] as String?;
 
     // 2. Update task
@@ -1074,6 +1163,37 @@ class TaskService {
         .collection('tasks')
         .doc(taskId)
         .update({'sprintId': sprintId});
+
+    if (oldSprintId != sprintId) {
+      if (sprintId != null) {
+        try {
+          final sprintDoc = await _firestore
+              .collection('projects')
+              .doc(projectId)
+              .collection('sprints')
+              .doc(sprintId)
+              .get();
+          final sprintName = sprintDoc.exists ? (sprintDoc.data()?['title'] ?? 'Sprint') : 'Sprint';
+          WorkspaceChatService().sendSystemMessage(
+            projectId: projectId,
+            message: '🚀 $taskTitle added to $sprintName',
+          ).catchError((e) {
+            debugPrint("Warning: Failed to send task added to sprint system message: $e");
+            return null;
+          });
+        } catch (_) {}
+      } else {
+        try {
+          WorkspaceChatService().sendSystemMessage(
+            projectId: projectId,
+            message: '📥 $taskTitle moved to backlog',
+          ).catchError((e) {
+            debugPrint("Warning: Failed to send task moved to backlog system message: $e");
+            return null;
+          });
+        } catch (_) {}
+      }
+    }
 
     // 3. Recalculate progress for new sprint
     if (sprintId != null) {
@@ -1109,7 +1229,7 @@ class TaskService {
     // 2. Synchronize isDone boolean with done status
     final bool isDone = (status == 'done');
 
-    // 3. Update task
+    // 3. Update Task
     await _firestore
         .collection('projects')
         .doc(projectId)
@@ -1120,11 +1240,22 @@ class TaskService {
       'isDone': isDone,
     });
 
+    if (isDone) {
+      try {
+        WorkspaceChatService().sendSystemMessage(
+          projectId: projectId,
+          message: '✅ $taskTitle completed',
+        ).catchError((e) {
+          debugPrint("Warning: Failed to send task completion system message: $e");
+          return null;
+        });
+      } catch (_) {}
+    }
+
     // 4. Log activity automatically
     final user = _auth.currentUser;
     if (user != null) {
-      final userDoc = await _firestore.collection('users').doc(user.uid).get();
-      final userName = userDoc.data()?['displayName'] ?? userDoc.data()?['name'] ?? 'Someone';
+      final userName = await _getUserName(user.uid);
 
       String logMsg = "";
       if (status == 'in_progress') {

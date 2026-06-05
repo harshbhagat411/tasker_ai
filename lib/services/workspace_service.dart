@@ -1,9 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import '../models/workspace_model.dart';
 import 'activity_service.dart';
 import 'in_app_notification_service.dart';
 import '../models/notification_model.dart';
+import 'workspace_chat_service.dart';
 
 class WorkspaceService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -79,14 +81,55 @@ class WorkspaceService {
     await _firestore.collection('workspaces').doc(workspaceId).update({
       'memberRoles.$memberId': role,
     });
+
+    try {
+      final userDoc = await _firestore.collection('users').doc(memberId).get();
+      final userName = userDoc.data()?['displayName'] ?? userDoc.data()?['name'] ?? 'User';
+      final currentUser = _auth.currentUser;
+      final ownerName = currentUser?.displayName ?? 'Owner';
+
+      if (role == 'admin') {
+        WorkspaceChatService().sendSystemMessage(
+          projectId: workspaceId,
+          message: '👑 $ownerName promoted $userName to Admin',
+        ).catchError((e) {
+          debugPrint("Warning: Failed to send promotion system message: $e");
+          return null;
+        });
+      } else if (role == 'member') {
+        WorkspaceChatService().sendSystemMessage(
+          projectId: workspaceId,
+          message: '⬇️ $userName changed to Member',
+        ).catchError((e) {
+          debugPrint("Warning: Failed to send demotion system message: $e");
+          return null;
+        });
+      }
+    } catch (_) {}
   }
 
   // Remove member
   Future<void> removeMember(String workspaceId, String memberId) async {
+    String userName = 'User';
+    try {
+      final userDoc = await _firestore.collection('users').doc(memberId).get();
+      userName = userDoc.data()?['displayName'] ?? userDoc.data()?['name'] ?? 'User';
+    } catch (_) {}
+
     await _firestore.collection('workspaces').doc(workspaceId).update({
       'members': FieldValue.arrayRemove([memberId]),
       'memberRoles.$memberId': FieldValue.delete(),
     });
+
+    try {
+      WorkspaceChatService().sendSystemMessage(
+        projectId: workspaceId,
+        message: '🚪 $userName removed from project',
+      ).catchError((e) {
+        debugPrint("Warning: Failed to send member removal system message: $e");
+        return null;
+      });
+    } catch (_) {}
   }
 
   // Delete Workspace
@@ -237,6 +280,17 @@ class WorkspaceService {
         type: ActivityType.memberJoined,
         message: 'joined the project.',
       );
+
+      try {
+        final userName = user.displayName ?? 'Someone';
+        WorkspaceChatService().sendSystemMessage(
+          projectId: projectId,
+          message: '🟢 $userName joined the project',
+        ).catchError((e) {
+          debugPrint("Warning: Failed to send member joined system message: $e");
+          return null;
+        });
+      } catch (_) {}
 
       // Send In-App Notification to Inviter
       final String senderId = inviteData['senderId'];
