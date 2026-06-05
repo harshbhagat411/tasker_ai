@@ -5,6 +5,8 @@ import 'package:intl/intl.dart';
 import '../models/workspace_model.dart';
 import '../models/workspace_chat_message.dart';
 import '../services/workspace_chat_service.dart';
+import '../widgets/task_picker_sheet.dart';
+import 'task_details_screen.dart';
 
 class WorkspaceChatScreen extends StatefulWidget {
   final Workspace workspace;
@@ -19,10 +21,71 @@ class _WorkspaceChatScreenState extends State<WorkspaceChatScreen> {
   final TextEditingController _messageController = TextEditingController();
   final WorkspaceChatService _chatService = WorkspaceChatService();
   bool _isSending = false;
+  String? _selectedTaskId;
+  String? _selectedTaskTitle;
+
+  @override
+  void initState() {
+    super.initState();
+    _messageController.addListener(_onMessageTextChanged);
+  }
+
+  void _onMessageTextChanged() {
+    if (_selectedTaskTitle != null) {
+      if (!_messageController.text.contains('@$_selectedTaskTitle')) {
+        setState(() {
+          _selectedTaskId = null;
+          _selectedTaskTitle = null;
+        });
+      }
+    }
+    
+    final text = _messageController.text;
+    if (text.endsWith('@')) {
+      _showTaskPicker();
+    }
+  }
+
+  void _showTaskPicker() async {
+    final result = await showModalBottomSheet<Map<String, String>>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => TaskPickerSheet(projectId: widget.workspace.id),
+    );
+
+    if (result != null && result['id'] != null && result['title'] != null) {
+      final taskId = result['id']!;
+      final taskTitle = result['title']!;
+
+      setState(() {
+        _selectedTaskId = taskId;
+        _selectedTaskTitle = taskTitle;
+      });
+
+      final text = _messageController.text;
+      if (text.endsWith('@')) {
+        final newText = text.substring(0, text.length - 1) + '@$taskTitle ';
+        _messageController.text = newText;
+        _messageController.selection = TextSelection.fromPosition(
+          TextPosition(offset: newText.length),
+        );
+      } else {
+        final newText = text + (text.isEmpty || text.endsWith(' ') ? '' : ' ') + '@$taskTitle ';
+        _messageController.text = newText;
+        _messageController.selection = TextSelection.fromPosition(
+          TextPosition(offset: newText.length),
+        );
+      }
+    }
+  }
 
   void _handleSend() async {
     final text = _messageController.text.trim();
     if (text.isEmpty) return;
+
+    final taskId = _selectedTaskId;
+    final taskTitle = _selectedTaskTitle;
 
     setState(() {
       _isSending = true;
@@ -31,10 +94,26 @@ class _WorkspaceChatScreenState extends State<WorkspaceChatScreen> {
     _messageController.clear();
 
     try {
-      await _chatService.sendMessage(
-        projectId: widget.workspace.id,
-        message: text,
-      );
+      if (taskId != null && taskTitle != null && text.contains('@$taskTitle')) {
+        final mentionToken = '@$taskTitle';
+        final cleanedMessage = text.replaceFirst(mentionToken, '').trim();
+
+        await _chatService.sendTaskMention(
+          projectId: widget.workspace.id,
+          taskId: taskId,
+          taskTitle: taskTitle,
+          customMessage: cleanedMessage,
+        );
+      } else {
+        await _chatService.sendMessage(
+          projectId: widget.workspace.id,
+          message: text,
+        );
+      }
+      setState(() {
+        _selectedTaskId = null;
+        _selectedTaskTitle = null;
+      });
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -158,6 +237,104 @@ class _WorkspaceChatScreenState extends State<WorkspaceChatScreen> {
     );
   }
 
+  void _onTaskMentionTap(String taskId) async {
+    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+    if (currentUserId == null) return;
+
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('projects')
+          .doc(widget.workspace.id)
+          .collection('tasks')
+          .doc(taskId)
+          .get();
+
+      if (!doc.exists) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Task unavailable")),
+          );
+        }
+        return;
+      }
+
+      if (mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => TaskDetailsScreen(
+              taskId: taskId,
+              currentUserId: currentUserId,
+              projectId: widget.workspace.id,
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Task unavailable")),
+        );
+      }
+    }
+  }
+
+  Widget _buildTaskMentionChip(WorkspaceChatMessage message, Color primaryColor) {
+    if (message.taskId == null) return const SizedBox.shrink();
+
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 6),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => _onTaskMentionTap(message.taskId!),
+          borderRadius: BorderRadius.circular(8),
+          child: Ink(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: primaryColor.withOpacity(isDark ? 0.15 : 0.08),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: primaryColor.withOpacity(0.35),
+                width: 1.0,
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  "📌",
+                  style: TextStyle(fontSize: 12),
+                ),
+                const SizedBox(width: 6),
+                Flexible(
+                  child: Text(
+                    message.taskTitle ?? 'Task',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : Colors.black87,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Icon(
+                  Icons.open_in_new,
+                  size: 11,
+                  color: isDark ? Colors.white54 : Colors.black54,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildMessageItem(WorkspaceChatMessage message, Color primaryColor) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final currentUser = FirebaseAuth.instance.currentUser;
@@ -210,13 +387,16 @@ class _WorkspaceChatScreenState extends State<WorkspaceChatScreen> {
               crossAxisAlignment: CrossAxisAlignment.end,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  message.message,
-                  style: TextStyle(
-                    color: isDark ? Colors.white : Colors.black87,
-                    fontSize: 14,
+                if (message.type == ChatMessageType.task_mention)
+                  _buildTaskMentionChip(message, primaryColor),
+                if (message.message.isNotEmpty)
+                  Text(
+                    message.message,
+                    style: TextStyle(
+                      color: isDark ? Colors.white : Colors.black87,
+                      fontSize: 14,
+                    ),
                   ),
-                ),
                 const SizedBox(height: 4),
                 Row(
                   mainAxisSize: MainAxisSize.min,
@@ -305,13 +485,16 @@ class _WorkspaceChatScreenState extends State<WorkspaceChatScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text(
-                          message.message,
-                          style: TextStyle(
-                            color: isDark ? Colors.white : Colors.black87,
-                            fontSize: 14,
+                        if (message.type == ChatMessageType.task_mention)
+                          _buildTaskMentionChip(message, primaryColor),
+                        if (message.message.isNotEmpty)
+                          Text(
+                            message.message,
+                            style: TextStyle(
+                              color: isDark ? Colors.white : Colors.black87,
+                              fontSize: 14,
+                            ),
                           ),
-                        ),
                         const SizedBox(height: 4),
                         Row(
                           mainAxisSize: MainAxisSize.min,
@@ -455,6 +638,11 @@ class _WorkspaceChatScreenState extends State<WorkspaceChatScreen> {
           child: SafeArea(
             child: Row(
               children: [
+                IconButton(
+                  icon: Icon(Icons.alternate_email, color: isDark ? Colors.white54 : Colors.grey.shade600),
+                  onPressed: _showTaskPicker,
+                  tooltip: "Mention Task",
+                ),
                 Expanded(
                   child: TextField(
                     controller: _messageController,
@@ -483,6 +671,7 @@ class _WorkspaceChatScreenState extends State<WorkspaceChatScreen> {
 
   @override
   void dispose() {
+    _messageController.removeListener(_onMessageTextChanged);
     _messageController.dispose();
     super.dispose();
   }
