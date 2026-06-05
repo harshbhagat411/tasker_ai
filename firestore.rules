@@ -63,14 +63,43 @@ service cloud.firestore {
         (request.auth.uid == resource.data.ownerId || request.auth.uid in resource.data.members);
     }
     
-    // Projects subcollections (tasks, sprints, activity)
+    // Projects subcollections (tasks, sprints, activity, workspace_chat)
     match /projects/{projectId} {
       allow read, write: if request.auth != null && 
         (request.auth.uid in get(/databases/$(database)/documents/workspaces/$(projectId)).data.members);
         
-      match /{allSubpaths=**} {
+      match /tasks/{document=**} {
         allow read, write: if request.auth != null && 
           (request.auth.uid in get(/databases/$(database)/documents/workspaces/$(projectId)).data.members);
+      }
+
+      match /sprints/{document=**} {
+        allow read, write: if request.auth != null && 
+          (request.auth.uid in get(/databases/$(database)/documents/workspaces/$(projectId)).data.members);
+      }
+
+      match /activity/{document=**} {
+        allow read, write: if request.auth != null && 
+          (request.auth.uid in get(/databases/$(database)/documents/workspaces/$(projectId)).data.members);
+      }
+
+      match /workspace_chat/{messageId} {
+        allow read: if request.auth != null && 
+          (request.auth.uid in get(/databases/$(database)/documents/workspaces/$(projectId)).data.members);
+          
+        allow create: if request.auth != null && 
+          (request.auth.uid in get(/databases/$(database)/documents/workspaces/$(projectId)).data.members) &&
+          request.resource.data.senderId == request.auth.uid;
+          
+        allow update: if request.auth != null && 
+          (request.auth.uid in get(/databases/$(database)/documents/workspaces/$(projectId)).data.members) &&
+          resource.data.senderId == request.auth.uid &&
+          resource.data.type != 'system';
+          
+        allow delete: if request.auth != null && 
+          (request.auth.uid in get(/databases/$(database)/documents/workspaces/$(projectId)).data.members) &&
+          resource.data.senderId == request.auth.uid &&
+          resource.data.type != 'system';
       }
     }
     
