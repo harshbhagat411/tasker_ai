@@ -14,6 +14,14 @@ import '../services/sprint_service.dart';
 import 'sprint_dashboard_screen.dart';
 import 'user_profile_screen.dart';
 
+enum WorkspaceTab {
+  overview,
+  tasks,
+  backlog,
+  team,
+  activity,
+}
+
 class WorkspaceDetailsScreen extends StatefulWidget {
   final Workspace workspace;
 
@@ -24,6 +32,14 @@ class WorkspaceDetailsScreen extends StatefulWidget {
 }
 
 class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with SingleTickerProviderStateMixin {
+  final List<WorkspaceTab> _tabs = [
+    WorkspaceTab.overview,
+    WorkspaceTab.tasks,
+    WorkspaceTab.backlog,
+    WorkspaceTab.team,
+    WorkspaceTab.activity,
+  ];
+
   late TabController _tabController;
   final TaskService _taskService = TaskService();
   final WorkspaceService _workspaceService = WorkspaceService();
@@ -36,13 +52,19 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 5, vsync: this);
+    _tabController = TabController(length: _tabs.length, vsync: this);
     _tabController.addListener(() {
       setState(() {});
     });
     _fetchMemberDetails();
     // Auto status checks and progress re-calculation on load
     SprintService().runAutoRulesAndMaintenance(widget.workspace.id);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
   }
 
   Future<void> _fetchMemberDetails() async {
@@ -646,28 +668,53 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
             ],
             bottom: TabBar(
               controller: _tabController,
+              isScrollable: true,
+              tabAlignment: TabAlignment.start,
+              labelPadding: const EdgeInsets.symmetric(horizontal: 20),
               indicatorColor: Colors.white,
               indicatorWeight: 3,
               labelColor: Colors.white,
               unselectedLabelColor: Colors.white70,
-              tabs: const [
-                Tab(text: "Overview"),
-                Tab(text: "Tasks"),
-                Tab(text: "Backlog"),
-                Tab(text: "Members"),
-                Tab(text: "Activity"),
-              ],
+              labelStyle: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
+              unselectedLabelStyle: const TextStyle(
+                fontWeight: FontWeight.w500,
+                fontSize: 14,
+              ),
+              tabs: _tabs.map((tab) {
+                switch (tab) {
+                  case WorkspaceTab.overview:
+                    return const Tab(text: "Overview");
+                  case WorkspaceTab.tasks:
+                    return const Tab(text: "Tasks");
+                  case WorkspaceTab.backlog:
+                    return const Tab(text: "Backlog");
+                  case WorkspaceTab.team:
+                    return const Tab(text: "Team");
+                  case WorkspaceTab.activity:
+                    return const Tab(text: "Activity");
+                }
+              }).toList(),
             ),
           ),
           body: TabBarView(
             controller: _tabController,
-            children: [
-              _buildOverviewTab(ws),
-              _buildTasksTab(ws),
-              _buildBacklogTab(ws),
-              _buildMembersTab(ws),
-              _buildActivityTab(ws),
-            ],
+            children: _tabs.map((tab) {
+              switch (tab) {
+                case WorkspaceTab.overview:
+                  return _buildOverviewTab(ws);
+                case WorkspaceTab.tasks:
+                  return _buildTasksTab(ws);
+                case WorkspaceTab.backlog:
+                  return _buildBacklogTab(ws);
+                case WorkspaceTab.team:
+                  return _buildMembersTab(ws);
+                case WorkspaceTab.activity:
+                  return _buildActivityTab(ws);
+              }
+            }).toList(),
           ),
           floatingActionButton: _buildSmartFAB(ws, color),
         );
@@ -680,14 +727,18 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
     if (currentUserRole == 'member') {
       return null;
     }
-    if (_tabController.index == 1 || _tabController.index == 2) {
+    if (_tabController.index >= _tabs.length) {
+      return null;
+    }
+    final currentTab = _tabs[_tabController.index];
+    if (currentTab == WorkspaceTab.tasks || currentTab == WorkspaceTab.backlog) {
       return FloatingActionButton.extended(
         onPressed: _showCreateTaskModal,
         backgroundColor: color,
         icon: const Icon(Icons.add, color: Colors.white),
         label: const Text("Task", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
       );
-    } else if (_tabController.index == 3) {
+    } else if (currentTab == WorkspaceTab.team) {
       return FloatingActionButton.extended(
         onPressed: _showInviteMemberModal,
         backgroundColor: color,
@@ -695,7 +746,7 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
         label: const Text("Invite", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
       );
     }
-    return null; // Hide FAB on Overview or Activity tab
+    return null; // Hide FAB on other tabs
   }
 
   Widget _buildOverviewTab(Workspace ws) {
