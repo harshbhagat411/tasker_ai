@@ -70,55 +70,9 @@ class MyApp extends StatelessWidget {
       builder: (context, themeProvider, child) {
         return MaterialApp(
           debugShowCheckedModeBanner: false,
-          themeMode: themeProvider.isDarkMode ? ThemeMode.dark : ThemeMode.light,
-          theme: ThemeData(
-            primaryColor: const Color(0xFF0D47A1),
-            scaffoldBackgroundColor: const Color(0xFFF5F6FA),
-            colorScheme: ColorScheme.fromSeed(
-              seedColor: const Color(0xFF0D47A1),
-              primary: const Color(0xFF0D47A1),
-              brightness: Brightness.light,
-            ),
-            textSelectionTheme: const TextSelectionThemeData(
-              cursorColor: Color(0xFF0D47A1),
-            ),
-            inputDecorationTheme: InputDecorationTheme(
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Color(0xFF0D47A1), width: 2.0),
-              ),
-              floatingLabelStyle: const TextStyle(color: Color(0xFF0D47A1)),
-            ),
-            datePickerTheme: const DatePickerThemeData(
-              headerBackgroundColor: Color(0xFF0D47A1),
-              headerForegroundColor: Colors.white,
-            ),
-          ),
-          darkTheme: ThemeData(
-            primaryColor: const Color(0xFF0D47A1),
-            scaffoldBackgroundColor: const Color(0xFF121212),
-            cardColor: const Color(0xFF1E1E1E),
-            colorScheme: ColorScheme.fromSeed(
-              seedColor: const Color(0xFF0D47A1),
-              primary: const Color(0xFF0D47A1),
-              brightness: Brightness.dark,
-            ),
-            textTheme: Typography.material2021().white,
-            textSelectionTheme: const TextSelectionThemeData(
-              cursorColor: Color(0xFF0D47A1),
-            ),
-            inputDecorationTheme: InputDecorationTheme(
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Color(0xFF0D47A1), width: 2.0),
-              ),
-              floatingLabelStyle: const TextStyle(color: Color(0xFF0D47A1)),
-            ),
-            datePickerTheme: const DatePickerThemeData(
-              headerBackgroundColor: Color(0xFF0D47A1),
-              headerForegroundColor: Colors.white,
-            ),
-          ),
+          themeMode: themeProvider.themeMode,
+          theme: themeProvider.themeData,
+          darkTheme: themeProvider.darkThemeData,
           home: const AuthGateScreen(),
         );
       },

@@ -113,7 +113,7 @@ class _ProjectTaskCardState extends State<ProjectTaskCard> {
                     height: 24,
                     child: Checkbox(
                       value: isDone,
-                      activeColor: const Color(0xFF0D47A1),
+                      activeColor: Theme.of(context).primaryColor,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
                       onChanged: (value) {
                         if (canEdit) {
@@ -228,7 +228,7 @@ class _ProjectTaskCardState extends State<ProjectTaskCard> {
                         child: LinearProgressIndicator(
                           value: progress,
                           backgroundColor: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
-                          color: progress == 1.0 ? Colors.green : const Color(0xFF0D47A1),
+                          color: progress == 1.0 ? Colors.green : Theme.of(context).primaryColor,
                           minHeight: 4,
                         ),
                       ),

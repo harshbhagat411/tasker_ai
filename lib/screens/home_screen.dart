@@ -323,11 +323,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                 setDialogState(() => _selectedPriority = value);
                               }
                             },
-                            selectedColor: const Color(0xFF0D47A1),
+                            selectedColor: Theme.of(context).primaryColor,
                             backgroundColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF2A2A2A) : Colors.white,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(20),
-                              side: BorderSide(color: isSelected ? const Color(0xFF0D47A1) : Colors.grey[300]!),
+                              side: BorderSide(
+                                color: isSelected 
+                                    ? Theme.of(context).primaryColor 
+                                    : (Theme.of(context).brightness == Brightness.dark ? Colors.white12 : Colors.black12),
+                              ),
                             ),
                             labelStyle: TextStyle(
                               color: isSelected ? Colors.white : Theme.of(context).textTheme.bodyLarge?.color,
@@ -462,7 +466,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    backgroundColor: const Color(0xFF0D47A1),
+                    backgroundColor: Theme.of(context).primaryColor,
                     foregroundColor: Colors.white,
                   ),
                   onPressed: () async {
@@ -539,7 +543,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             final isDark = Theme.of(context).brightness == Brightness.dark;
-            final primaryColor = const Color(0xFF0D47A1);
+            final primaryColor = Theme.of(context).primaryColor;
 
             Widget buildFriendAvatar(String name, String photoUrl) {
               final cleanPhoto = photoUrl.trim();
@@ -1925,8 +1929,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           height: 24,
                           child: Checkbox(
                             value: isDone,
-                            activeColor: const Color(0xFF0D47A1),
-                            side: BorderSide(color: isDone ? Colors.transparent : (Theme.of(context).brightness == Brightness.dark ? Colors.grey.shade500 : const Color(0xFF0D47A1).withOpacity(0.5)), width: 2),
+                            activeColor: Theme.of(context).primaryColor,
+                            side: BorderSide(color: isDone ? Colors.transparent : (Theme.of(context).brightness == Brightness.dark ? Colors.grey.shade500 : Theme.of(context).primaryColor.withOpacity(0.5)), width: 2),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(6),
                             ),
@@ -2079,7 +2083,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                             LinearProgressIndicator(
                               value: progress,
                               backgroundColor: Colors.grey.shade200,
-                              color: const Color(0xFF0D47A1),
+                              color: Theme.of(context).primaryColor,
                               minHeight: 2,
                               borderRadius: BorderRadius.circular(1),
                             ),
@@ -2101,7 +2105,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                       Icon(
                                         isSubDone ? Icons.check_box : Icons.check_box_outline_blank,
                                         size: 14,
-                                        color: isSubDone ? Colors.grey : const Color(0xFF0D47A1),
+                                        color: isSubDone ? Colors.grey : Theme.of(context).primaryColor,
                                       ),
                                       const SizedBox(width: 6),
                                       Expanded(
@@ -2136,7 +2140,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                   padding: const EdgeInsets.only(top: 4.0, bottom: 2.0),
                                   child: Text(
                                     isExpanded ? "Show less" : "+${subtasks.length - 2} more",
-                                    style: const TextStyle(fontSize: 11, color: Color(0xFF0D47A1), fontWeight: FontWeight.w600),
+                                    style: TextStyle(fontSize: 11, color: Theme.of(context).primaryColor, fontWeight: FontWeight.w600),
                                   ),
                                 ),
                               ),
@@ -2258,7 +2262,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           children: [
                             CircleAvatar(
                               radius: 24,
-                              backgroundColor: const Color(0xFF0D47A1),
+                              backgroundColor: Theme.of(context).primaryColor,
                               child: Text(currentInitial, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20)),
                             ),
                             const SizedBox(width: 12),
@@ -2365,9 +2369,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     decoration: InputDecoration(
                       hintText: 'Search tasks...',
                       hintStyle: TextStyle(color: Colors.grey[500]),
-                      prefixIcon: const Padding(
-                        padding: EdgeInsets.only(left: 12.0, right: 8.0),
-                        child: Icon(Icons.search, color: Color(0xFF0D47A1)),
+                      prefixIcon: Padding(
+                        padding: const EdgeInsets.only(left: 12.0, right: 8.0),
+                        child: Icon(Icons.search, color: Theme.of(context).primaryColor),
                       ),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(30),
@@ -2375,7 +2379,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(30),
-                        borderSide: const BorderSide(color: Color(0xFF0D47A1), width: 1.5),
+                        borderSide: BorderSide(color: Theme.of(context).primaryColor, width: 1.5),
                       ),
                       contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
                     ),
@@ -2397,7 +2401,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           onSelected: (selected) {
                             if (selected) setState(() => _filter = filter);
                           },
-                          selectedColor: const Color(0xFF0D47A1),
+                          selectedColor: Theme.of(context).primaryColor,
                           backgroundColor: Theme.of(context).cardColor,
                           labelStyle: TextStyle(
                             color: isSelected ? Colors.white : Theme.of(context).textTheme.bodyLarge?.color,
@@ -2405,7 +2409,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           ),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(20),
-                            side: BorderSide(color: isSelected ? const Color(0xFF0D47A1) : Colors.grey[300]!),
+                            side: BorderSide(
+                              color: isSelected 
+                                  ? Theme.of(context).primaryColor 
+                                  : (Theme.of(context).brightness == Brightness.dark ? Colors.white12 : Colors.black12),
+                            ),
                           ),
                         ),
                       );
@@ -2455,21 +2463,21 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                             margin: const EdgeInsets.only(right: 12, bottom: 24),
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF0D47A1).withOpacity(0.1),
+                              color: Theme.of(context).primaryColor.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: const Color(0xFF0D47A1).withOpacity(0.3)),
+                              border: Border.all(color: Theme.of(context).primaryColor.withOpacity(0.3)),
                             ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF0D47A1))),
+                                Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(context).primaryColor)),
                                 const SizedBox(height: 4),
                                 Row(
                                   children: [
-                                    const Icon(Icons.access_time, size: 14, color: Color(0xFF0D47A1)),
+                                    Icon(Icons.access_time, size: 14, color: Theme.of(context).primaryColor),
                                     const SizedBox(width: 4),
-                                    Text("Due at $time", style: const TextStyle(fontSize: 12, color: Color(0xFF0D47A1))),
+                                    Text("Due at $time", style: TextStyle(fontSize: 12, color: Theme.of(context).primaryColor)),
                                   ],
                                 ),
                               ],

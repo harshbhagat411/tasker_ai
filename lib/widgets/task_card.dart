@@ -213,9 +213,9 @@ class _TaskCardState extends State<TaskCard> {
                         height: 24,
                         child: Checkbox(
                           value: isDone,
-                          activeColor: const Color(0xFF0D47A1),
+                          activeColor: Theme.of(context).primaryColor,
                           side: BorderSide(
-                            color: isDone ? Colors.transparent : (isDark ? Colors.grey.shade500 : const Color(0xFF0D47A1).withOpacity(0.5)), 
+                            color: isDone ? Colors.transparent : (isDark ? Colors.grey.shade500 : Theme.of(context).primaryColor.withOpacity(0.5)), 
                             width: 2
                           ),
                           shape: RoundedRectangleBorder(
@@ -341,7 +341,7 @@ class _TaskCardState extends State<TaskCard> {
                                 child: LinearProgressIndicator(
                                   value: progress,
                                   backgroundColor: Colors.grey.shade200,
-                                  color: const Color(0xFF0D47A1),
+                                  color: Theme.of(context).primaryColor,
                                   minHeight: 4,
                                   borderRadius: BorderRadius.circular(2),
                                 ),

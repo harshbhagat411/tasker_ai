@@ -258,7 +258,12 @@ class ProfileScreen extends StatelessWidget {
                         color: Theme.of(context).cardColor,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(20),
-                          side: BorderSide(color: Colors.grey[300]!, width: 0.5),
+                          side: BorderSide(
+                            color: Theme.of(context).brightness == Brightness.dark 
+                                ? Colors.white12 
+                                : Colors.black12, 
+                            width: 0.5,
+                          ),
                         ),
                         margin: const EdgeInsets.only(bottom: 24),
                         child: ListTile(
@@ -340,7 +345,12 @@ class ProfileScreen extends StatelessWidget {
                                 color: Theme.of(context).cardColor,
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(20),
-                                  side: BorderSide(color: Colors.grey[300]!, width: 0.5),
+                                  side: BorderSide(
+                                    color: Theme.of(context).brightness == Brightness.dark 
+                                        ? Colors.white12 
+                                        : Colors.black12, 
+                                    width: 0.5,
+                                  ),
                                 ),
                                 child: Padding(
                                   padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
@@ -448,7 +458,11 @@ class ProfileScreen extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: Theme.of(context).cardColor,
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.grey[300]!),
+                          border: Border.all(
+                            color: Theme.of(context).brightness == Brightness.dark 
+                                ? Colors.white12 
+                                : Colors.black12,
+                          ),
                         ),
                         child: Row(
                           children: [
@@ -491,7 +505,11 @@ class ProfileScreen extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: Theme.of(context).cardColor,
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.grey[300]!),
+                          border: Border.all(
+                            color: Theme.of(context).brightness == Brightness.dark 
+                                ? Colors.white12 
+                                : Colors.black12,
+                          ),
                         ),
                         child: Row(
                           children: [
@@ -509,10 +527,12 @@ class ProfileScreen extends StatelessWidget {
                             ),
                             Switch(
                               value: Provider.of<ThemeProvider>(context).isDarkMode,
-                              onChanged: (value) {
-                                Provider.of<ThemeProvider>(context, listen: false).toggleTheme();
-                              },
-                              activeColor: const Color(0xFF1A237E),
+                              onChanged: currentModeString == 'developer'
+                                  ? null
+                                  : (value) {
+                                      Provider.of<ThemeProvider>(context, listen: false).toggleTheme();
+                                    },
+                              activeColor: Theme.of(context).primaryColor,
                             ),
                           ],
                         ),
@@ -535,7 +555,11 @@ class ProfileScreen extends StatelessWidget {
                             decoration: BoxDecoration(
                               color: Theme.of(context).cardColor,
                               borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: Colors.grey[300]!),
+                              border: Border.all(
+                                color: Theme.of(context).brightness == Brightness.dark 
+                                    ? Colors.white12 
+                                    : Colors.black12,
+                              ),
                             ),
                             child: Row(
                               children: [
