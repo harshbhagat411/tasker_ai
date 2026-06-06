@@ -1238,7 +1238,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                             children: [
                               Icon(Icons.repeat, size: 20, color: Theme.of(context).primaryColor),
                               const SizedBox(width: 8),
-                              const Text("Today's Habits", style: TextStyle(fontWeight: FontWeight.bold)),
+                              const Expanded(
+                                child: Text(
+                                  "Today's Habits",
+                                  style: TextStyle(fontWeight: FontWeight.bold),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
                             ],
                           ),
                           const SizedBox(height: 8),
@@ -1292,7 +1299,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           children: [
                             Icon(Icons.local_fire_department, size: 20, color: Theme.of(context).primaryColor),
                             const SizedBox(width: 8),
-                            const Text("Active Streaks", style: TextStyle(fontWeight: FontWeight.bold)),
+                            const Expanded(
+                              child: Text(
+                                "Active Streaks",
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
                           ],
                         ),
                         const SizedBox(height: 8),

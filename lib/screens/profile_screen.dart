@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:provider/provider.dart';
 import 'dart:async';
 import '../services/task_service.dart';
-import '../providers/theme_provider.dart';
 import '../main.dart';
 import 'connections_screen.dart';
+import 'theme_center_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -499,45 +498,50 @@ class ProfileScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 16),
 
-                      // 🔹 Dark Mode Toggle
+                      // 🔹 Theme Center Navigation Button
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).cardColor,
+                        margin: const EdgeInsets.only(bottom: 16),
+                        child: InkWell(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => const ThemeCenterScreen()),
+                            );
+                          },
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: Theme.of(context).brightness == Brightness.dark 
-                                ? Colors.white12 
-                                : Colors.black12,
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(Icons.dark_mode, color: Theme.of(context).iconTheme.color ?? Colors.grey),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Text(
-                                "Dark Mode",
-                                style: TextStyle(
-                                  fontSize: 16, 
-                                  fontWeight: FontWeight.w500,
-                                  color: Theme.of(context).textTheme.bodyLarge?.color,
-                                ),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).cardColor,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: Theme.of(context).brightness == Brightness.dark 
+                                    ? Colors.white12 
+                                    : Colors.black12,
                               ),
                             ),
-                            Switch(
-                              value: Provider.of<ThemeProvider>(context).isDarkMode,
-                              onChanged: currentModeString == 'developer'
-                                  ? null
-                                  : (value) {
-                                      Provider.of<ThemeProvider>(context, listen: false).toggleTheme();
-                                    },
-                              activeColor: Theme.of(context).primaryColor,
+                            child: Row(
+                              children: [
+                                Icon(Icons.palette_outlined, color: Theme.of(context).iconTheme.color ?? Colors.grey),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: Text(
+                                    "Theme Center",
+                                    style: TextStyle(
+                                      fontSize: 16, 
+                                      fontWeight: FontWeight.w500,
+                                      color: Theme.of(context).textTheme.bodyLarge?.color,
+                                    ),
+                                  ),
+                                ),
+                                Icon(Icons.chevron_right, color: Colors.grey[400]),
+                              ],
                             ),
-                          ],
+                          ),
                         ),
                       ),
-                      const SizedBox(height: 20),
+
+
 
                       // 🔹 Connections Button
                       Container(

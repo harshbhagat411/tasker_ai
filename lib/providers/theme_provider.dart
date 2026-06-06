@@ -8,18 +8,26 @@ import '../services/mode_service.dart';
 
 class ThemeProvider with ChangeNotifier {
   UserMode _currentMode = UserMode.personal;
-  String _personalTheme = 'classic_blue';
-  bool _darkMode = false;
-  bool _followSystem = false;
+  
+  // Decoupled states for Personal and Developer Modes
+  String _personalAppearance = 'system';
+  String _personalAccent = 'blue';
+  String _personalDarkStyle = 'matte_black';
+
+  String _developerAppearance = 'system';
+  String _developerAccent = 'teal';
+  String _developerDarkStyle = 'matte_black';
 
   StreamSubscription<User?>? _authSubscription;
   StreamSubscription<DocumentSnapshot>? _userDocSubscription;
 
   UserMode get currentMode => _currentMode;
-  String get personalTheme => _personalTheme;
-  bool get darkMode => _darkMode;
-  bool get isDarkMode => _currentMode == UserMode.developer ? true : _darkMode;
-  bool get followSystem => _followSystem;
+  String get appearance => _currentMode == UserMode.developer ? _developerAppearance : _personalAppearance;
+  String get accentColor => _currentMode == UserMode.developer ? _developerAccent : _personalAccent;
+  String get darkStyle => _currentMode == UserMode.developer ? _developerDarkStyle : _personalDarkStyle;
+
+  bool get isDarkMode => appearance == 'dark';
+  bool get followSystem => appearance == 'system';
 
   ThemeProvider() {
     _loadFallbackPreferences().then((_) {
@@ -28,29 +36,33 @@ class ThemeProvider with ChangeNotifier {
   }
 
   ThemeData get themeData {
-    if (_currentMode == UserMode.developer) {
-      return ThemeService.developerTheme;
-    }
-    final appTheme = ThemeService.personalThemes[_personalTheme] ?? ThemeService.personalThemes['classic_blue']!;
-    return appTheme.lightTheme;
+    return ThemeService.buildTheme(
+      accentColor: accentColor,
+      darkStyle: darkStyle,
+      isDark: false,
+      isDeveloper: _currentMode == UserMode.developer,
+    );
   }
 
   ThemeData get darkThemeData {
-    if (_currentMode == UserMode.developer) {
-      return ThemeService.developerTheme;
-    }
-    final appTheme = ThemeService.personalThemes[_personalTheme] ?? ThemeService.personalThemes['classic_blue']!;
-    return appTheme.darkTheme;
+    return ThemeService.buildTheme(
+      accentColor: accentColor,
+      darkStyle: darkStyle,
+      isDark: true,
+      isDeveloper: _currentMode == UserMode.developer,
+    );
   }
 
   ThemeMode get themeMode {
-    if (_currentMode == UserMode.developer) {
-      return ThemeMode.dark;
+    switch (appearance) {
+      case 'light':
+        return ThemeMode.light;
+      case 'dark':
+        return ThemeMode.dark;
+      case 'system':
+      default:
+        return ThemeMode.system;
     }
-    if (_followSystem) {
-      return ThemeMode.system;
-    }
-    return _darkMode ? ThemeMode.dark : ThemeMode.light;
   }
 
   void _initAuthListener() {
@@ -74,9 +86,13 @@ class ThemeProvider with ChangeNotifier {
 
   Future<void> _loadFallbackPreferences() async {
     final prefs = await SharedPreferences.getInstance();
-    _personalTheme = prefs.getString('personalTheme') ?? 'classic_blue';
-    _darkMode = prefs.getBool('isDarkMode') ?? false;
-    _followSystem = prefs.getBool('followSystem') ?? false;
+    _personalAppearance = prefs.getString('personal_appearance') ?? 'system';
+    _personalAccent = prefs.getString('personal_accent') ?? 'blue';
+    _personalDarkStyle = prefs.getString('personal_darkStyle') ?? 'matte_black';
+
+    _developerAppearance = prefs.getString('developer_appearance') ?? 'system';
+    _developerAccent = prefs.getString('developer_accent') ?? 'teal';
+    _developerDarkStyle = prefs.getString('developer_darkStyle') ?? 'matte_black';
     notifyListeners();
   }
 
@@ -90,89 +106,189 @@ class ThemeProvider with ChangeNotifier {
     final modeStr = data['mode'] as String?;
     _currentMode = modeStr == 'developer' ? UserMode.developer : UserMode.personal;
 
-    final themeSettings = data['themeSettings'] as Map<String, dynamic>?;
-    if (themeSettings != null) {
-      _personalTheme = themeSettings['personalTheme'] as String? ?? 'classic_blue';
-      _darkMode = themeSettings['darkMode'] as bool? ?? true;
-      _followSystem = themeSettings['followSystem'] as bool? ?? false;
-      
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('personalTheme', _personalTheme);
-      await prefs.setBool('isDarkMode', _darkMode);
-      await prefs.setBool('followSystem', _followSystem);
-    } else {
-      // Migration: Read local setting and migrate to Firestore
-      final prefs = await SharedPreferences.getInstance();
-      final localIsDark = prefs.getBool('isDarkMode') ?? false;
-      
-      _personalTheme = 'classic_blue';
-      _darkMode = localIsDark;
-      _followSystem = false;
+    final personalThemeData = data['personalTheme'] as Map<String, dynamic>?;
+    final developerThemeData = data['developerTheme'] as Map<String, dynamic>?;
 
+    bool needsWrite = false;
+
+    // Load Personal Theme
+    if (personalThemeData != null) {
+      _personalAppearance = personalThemeData['appearance'] as String? ?? 'system';
+      _personalAccent = personalThemeData['accent'] as String? ?? 'blue';
+      _personalDarkStyle = personalThemeData['darkStyle'] as String? ?? 'matte_black';
+    } else {
+      needsWrite = true;
+      // Try migrating from legacy themeSettings (Step 2 Refactor format or Step 1 format)
+      final themeSettings = data['themeSettings'] as Map<String, dynamic>?;
+      if (themeSettings != null) {
+        if (themeSettings.containsKey('appearance') || 
+            themeSettings.containsKey('accentColor') || 
+            themeSettings.containsKey('darkStyle')) {
+          _personalAppearance = themeSettings['appearance'] as String? ?? 'system';
+          _personalAccent = themeSettings['accentColor'] as String? ?? 'blue';
+          _personalDarkStyle = themeSettings['darkStyle'] as String? ?? 'matte_black';
+        } else {
+          final legacyTheme = themeSettings['personalTheme'] as String? ?? 'classic_blue';
+          final legacyDark = themeSettings['darkMode'] as bool? ?? true;
+          final legacySystem = themeSettings['followSystem'] as bool? ?? false;
+
+          _personalAccent = _mapLegacyThemeToAccent(legacyTheme);
+          _personalDarkStyle = _mapLegacyThemeToDarkStyle(legacyTheme);
+          _personalAppearance = legacySystem 
+              ? 'system' 
+              : (legacyDark ? 'dark' : 'light');
+        }
+      } else {
+        // Fallback defaults
+        _personalAppearance = 'system';
+        _personalAccent = 'blue';
+        _personalDarkStyle = 'matte_black';
+      }
+    }
+
+    // Load Developer Theme
+    if (developerThemeData != null) {
+      _developerAppearance = developerThemeData['appearance'] as String? ?? 'system';
+      _developerAccent = developerThemeData['accent'] as String? ?? 'teal';
+      _developerDarkStyle = developerThemeData['darkStyle'] as String? ?? 'matte_black';
+    } else {
+      needsWrite = true;
+      _developerAppearance = 'system';
+      _developerAccent = 'teal';
+      _developerDarkStyle = 'matte_black';
+    }
+
+    if (needsWrite) {
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
         try {
           await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
-            'themeSettings': {
-              'personalTheme': _personalTheme,
-              'darkMode': _darkMode,
-              'followSystem': _followSystem,
+            'personalTheme': {
+              'appearance': _personalAppearance,
+              'accent': _personalAccent,
+              'darkStyle': _personalDarkStyle,
+            },
+            'developerTheme': {
+              'appearance': _developerAppearance,
+              'accent': _developerAccent,
+              'darkStyle': _developerDarkStyle,
             }
           }, SetOptions(merge: true));
         } catch (e) {
-          debugPrint('Error migrating theme settings to Firestore: $e');
+          debugPrint('Error migrating user theme formats to Firestore: $e');
         }
       }
     }
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('personal_appearance', _personalAppearance);
+    await prefs.setString('personal_accent', _personalAccent);
+    await prefs.setString('personal_darkStyle', _personalDarkStyle);
+    await prefs.setString('developer_appearance', _developerAppearance);
+    await prefs.setString('developer_accent', _developerAccent);
+    await prefs.setString('developer_darkStyle', _developerDarkStyle);
+
     notifyListeners();
   }
 
+  String _mapLegacyThemeToAccent(String legacyTheme) {
+    switch (legacyTheme) {
+      case 'classic_blue':
+      case 'midnight_dark':
+      case 'amoled_black':
+        return 'blue';
+      case 'forest_green':
+        return 'green';
+      case 'purple_focus':
+      case 'cyber_purple':
+        return 'purple';
+      case 'warm_cream':
+        return 'orange';
+      default:
+        return 'blue';
+    }
+  }
+
+  String _mapLegacyThemeToDarkStyle(String legacyTheme) {
+    switch (legacyTheme) {
+      case 'midnight_dark':
+        return 'matte_black'; // midnight_dark -> matte black
+      case 'amoled_black':
+      case 'cyber_purple':
+        return 'amoled'; // amoled_black -> amoled
+      default:
+        return 'matte_black';
+    }
+  }
+
   Future<void> updateThemeSettings({
-    String? personalTheme,
-    bool? darkMode,
-    bool? followSystem,
+    String? appearance,
+    String? accentColor,
+    String? darkStyle,
   }) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
     if (_currentMode == UserMode.personal) {
-      final updates = <String, dynamic>{};
-      if (personalTheme != null) {
-        updates['personalTheme'] = personalTheme;
-        _personalTheme = personalTheme;
-      }
-      if (darkMode != null) {
-        updates['darkMode'] = darkMode;
-        _darkMode = darkMode;
-      }
-      if (followSystem != null) {
-        updates['followSystem'] = followSystem;
-        _followSystem = followSystem;
-      }
+      if (appearance != null) _personalAppearance = appearance;
+      if (accentColor != null) _personalAccent = accentColor;
+      if (darkStyle != null) _personalDarkStyle = darkStyle;
 
       notifyListeners();
 
       try {
         await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
-          'themeSettings': updates,
+          'personalTheme': {
+            'appearance': _personalAppearance,
+            'accent': _personalAccent,
+            'darkStyle': _personalDarkStyle,
+          },
         }, SetOptions(merge: true));
       } catch (e) {
-        debugPrint('Error updating theme settings in Firestore: $e');
+        debugPrint('Error updating personal theme settings: $e');
+      }
+    } else {
+      if (appearance != null) _developerAppearance = appearance;
+      if (accentColor != null) _developerAccent = accentColor;
+      if (darkStyle != null) _developerDarkStyle = darkStyle;
+
+      notifyListeners();
+
+      try {
+        await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+          'developerTheme': {
+            'appearance': _developerAppearance,
+            'accent': _developerAccent,
+            'darkStyle': _developerDarkStyle,
+          },
+        }, SetOptions(merge: true));
+      } catch (e) {
+        debugPrint('Error updating developer theme settings: $e');
       }
     }
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('personal_appearance', _personalAppearance);
+    await prefs.setString('personal_accent', _personalAccent);
+    await prefs.setString('personal_darkStyle', _personalDarkStyle);
+    await prefs.setString('developer_appearance', _developerAppearance);
+    await prefs.setString('developer_accent', _developerAccent);
+    await prefs.setString('developer_darkStyle', _developerDarkStyle);
   }
 
   Future<void> toggleTheme() async {
-    if (_currentMode == UserMode.personal) {
-      await updateThemeSettings(darkMode: !_darkMode);
-    }
+    final nextAppearance = appearance == 'dark' ? 'light' : 'dark';
+    await updateThemeSettings(appearance: nextAppearance);
   }
 
   void _resetToDefaults() {
     _currentMode = UserMode.personal;
-    _personalTheme = 'classic_blue';
-    _darkMode = false;
-    _followSystem = false;
+    _personalAppearance = 'system';
+    _personalAccent = 'blue';
+    _personalDarkStyle = 'matte_black';
+    _developerAppearance = 'system';
+    _developerAccent = 'teal';
+    _developerDarkStyle = 'matte_black';
     notifyListeners();
   }
 

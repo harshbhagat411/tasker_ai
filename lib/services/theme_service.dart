@@ -1,167 +1,130 @@
 import 'package:flutter/material.dart';
 
-class AppTheme {
-  final String id;
-  final String name;
-  final ThemeData lightTheme;
-  final ThemeData darkTheme;
-
-  const AppTheme({
-    required this.id,
-    required this.name,
-    required this.lightTheme,
-    required this.darkTheme,
-  });
-}
-
 class ThemeService {
-  // Theme definitions map
-  static final Map<String, AppTheme> personalThemes = {
-    'classic_blue': AppTheme(
-      id: 'classic_blue',
-      name: 'Classic Blue',
-      lightTheme: _buildThemeData(
-        primaryColor: const Color(0xFF0D47A1),
-        scaffoldBackgroundColor: const Color(0xFFF5F6FA),
-        cardColor: const Color(0xFFFFFFFF),
-        brightness: Brightness.light,
-      ),
-      darkTheme: _buildThemeData(
-        primaryColor: const Color(0xFF1976D2),
-        scaffoldBackgroundColor: const Color(0xFF121212),
-        cardColor: const Color(0xFF1E1E1E),
-        brightness: Brightness.dark,
-      ),
-    ),
-    'forest_green': AppTheme(
-      id: 'forest_green',
-      name: 'Forest Green',
-      lightTheme: _buildThemeData(
-        primaryColor: const Color(0xFF2E7D32),
-        scaffoldBackgroundColor: const Color(0xFFF1F8E9),
-        cardColor: const Color(0xFFFFFFFF),
-        brightness: Brightness.light,
-      ),
-      darkTheme: _buildThemeData(
-        primaryColor: const Color(0xFF4CAF50),
-        scaffoldBackgroundColor: const Color(0xFF112211),
-        cardColor: const Color(0xFF1B301E),
-        brightness: Brightness.dark,
-      ),
-    ),
-    'warm_cream': AppTheme(
-      id: 'warm_cream',
-      name: 'Warm Cream',
-      lightTheme: _buildThemeData(
-        primaryColor: const Color(0xFF8D6E63),
-        scaffoldBackgroundColor: const Color(0xFFFAF6EE),
-        cardColor: const Color(0xFFFFFFFF),
-        brightness: Brightness.light,
-      ),
-      darkTheme: _buildThemeData(
-        primaryColor: const Color(0xFFD7CCC8),
-        scaffoldBackgroundColor: const Color(0xFF1C1816),
-        cardColor: const Color(0xFF272220),
-        brightness: Brightness.dark,
-      ),
-    ),
-    'purple_focus': AppTheme(
-      id: 'purple_focus',
-      name: 'Purple Focus',
-      lightTheme: _buildThemeData(
-        primaryColor: const Color(0xFF673AB7),
-        scaffoldBackgroundColor: const Color(0xFFF3E5F5),
-        cardColor: const Color(0xFFFFFFFF),
-        brightness: Brightness.light,
-      ),
-      darkTheme: _buildThemeData(
-        primaryColor: const Color(0xFF9C27B0),
-        scaffoldBackgroundColor: const Color(0xFF140D26),
-        cardColor: const Color(0xFF1F1636),
-        brightness: Brightness.dark,
-      ),
-    ),
-    'midnight_dark': AppTheme(
-      id: 'midnight_dark',
-      name: 'Midnight Dark',
-      lightTheme: _buildThemeData(
-        primaryColor: const Color(0xFF0288D1),
-        scaffoldBackgroundColor: const Color(0xFFE0F7FA),
-        cardColor: const Color(0xFFFFFFFF),
-        brightness: Brightness.light,
-      ),
-      darkTheme: _buildThemeData(
-        primaryColor: const Color(0xFF03A9F4),
-        scaffoldBackgroundColor: const Color(0xFF0B132B),
-        cardColor: const Color(0xFF1C2541),
-        brightness: Brightness.dark,
-      ),
-    ),
-    'amoled_black': AppTheme(
-      id: 'amoled_black',
-      name: 'AMOLED Black',
-      lightTheme: _buildThemeData(
-        primaryColor: const Color(0xFF2196F3),
-        scaffoldBackgroundColor: const Color(0xFFECEFF1),
-        cardColor: const Color(0xFFFFFFFF),
-        brightness: Brightness.light,
-      ),
-      darkTheme: _buildThemeData(
-        primaryColor: const Color(0xFF64B5F6),
-        scaffoldBackgroundColor: const Color(0xFF000000),
-        cardColor: const Color(0xFF121212),
-        brightness: Brightness.dark,
-      ),
-    ),
-    'cyber_purple': AppTheme(
-      id: 'cyber_purple',
-      name: 'Cyber Purple',
-      lightTheme: _buildThemeData(
-        primaryColor: const Color(0xFFD500F9),
-        scaffoldBackgroundColor: const Color(0xFFFCE4EC),
-        cardColor: const Color(0xFFFFFFFF),
-        brightness: Brightness.light,
-      ),
-      darkTheme: _buildThemeData(
-        primaryColor: const Color(0xFFE040FB),
-        scaffoldBackgroundColor: const Color(0xFF0F051D),
-        cardColor: const Color(0xFF1A0B2E),
-        brightness: Brightness.dark,
-      ),
-    ),
+  // Accent colors mapping for Personal Mode (Light and Dark primary colors)
+  static const Map<String, Color> personalAccentColorsLight = {
+    'blue': Color(0xFF0D47A1),
+    'green': Color(0xFF2E7D32),
+    'purple': Color(0xFF673AB7),
+    'orange': Color(0xFFE65100),
+    'red': Color(0xFFC62828),
+    'cyan': Color(0xFF00838F),
   };
 
-  // Developer Theme: Fixed premium dark mode (VS Code / GitHub Dark style)
+  static const Map<String, Color> personalAccentColorsDark = {
+    'blue': Color(0xFF1976D2),
+    'green': Color(0xFF4CAF50),
+    'purple': Color(0xFF9C27B0),
+    'orange': Color(0xFFFF9800),
+    'red': Color(0xFFEF5350),
+    'cyan': Color(0xFF00ACC1),
+  };
+
+  // Accent colors mapping for Developer Mode (Light and Dark primary colors)
+  static const Map<String, Color> devAccentColorsLight = {
+    'teal': Color(0xFF0F766E),
+    'indigo': Color(0xFF3F51B5),
+    'green': Color(0xFF16A34A),
+    'amber': Color(0xFFD97706),
+    'crimson': Color(0xFFBE123C),
+  };
+
+  static const Map<String, Color> devAccentColorsDark = {
+    'teal': Color(0xFF14B8A6),
+    'indigo': Color(0xFF6366F1),
+    'green': Color(0xFF22C55E),
+    'amber': Color(0xFFF59E0B),
+    'crimson': Color(0xFFF43F5E),
+  };
+
+  // Dark styles backgrounds and cards mapping for Personal Mode
+  static const Map<String, Color> darkStyleScaffold = {
+    'soft_dark': Color(0xFF1E2026),
+    'matte_black': Color(0xFF121212),
+    'amoled': Color(0xFF000000),
+  };
+
+  static const Map<String, Color> darkStyleCard = {
+    'soft_dark': Color(0xFF282B36),
+    'matte_black': Color(0xFF1E1E1E),
+    'amoled': Color(0xFF121212),
+  };
+
+  // Dark styles backgrounds and cards mapping for Developer Mode
+  static const Map<String, Color> devDarkStyleScaffold = {
+    'soft_dark': Color(0xFF1E222B),
+    'matte_black': Color(0xFF0D1117), // GitHub Dark
+    'amoled': Color(0xFF000000),
+  };
+
+  static const Map<String, Color> devDarkStyleCard = {
+    'soft_dark': Color(0xFF282D37),
+    'matte_black': Color(0xFF161B22), // GitHub Dark card
+    'amoled': Color(0xFF121212),
+  };
+
+  // Static Developer Mode Theme fallback
   static final ThemeData developerTheme = _buildThemeData(
-    primaryColor: const Color(0xFF0F766E), // teal-700 accent
-    scaffoldBackgroundColor: const Color(0xFF090D16), // engineering dark feel
-    cardColor: const Color(0xFF161B22), // GitHub Dark card style
+    primaryColor: const Color(0xFF0F766E), // teal-700
+    scaffoldBackgroundColor: const Color(0xFF090D16), // engineering dark
+    cardColor: const Color(0xFF161B22), // GitHub Dark card
     brightness: Brightness.dark,
-  ).copyWith(
-    // Additional customizations for Developer Mode
-    textSelectionTheme: const TextSelectionThemeData(
-      cursorColor: Color(0xFF14B8A6), // teal-500 cursor
-      selectionColor: Color(0x3314B8A6),
-      selectionHandleColor: Color(0xFF14B8A6),
-    ),
-    inputDecorationTheme: InputDecorationTheme(
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Color(0xFF14B8A6), width: 2.0),
-      ),
-      floatingLabelStyle: const TextStyle(color: Color(0xFF14B8A6)),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
-    ),
+    isDeveloper: true,
   );
 
-  // Helper builder to standardise theme setups across the app
+  // Core builder to dynamically generate light/dark theme data
+  static ThemeData buildTheme({
+    required String accentColor,
+    required String darkStyle,
+    required bool isDark,
+    required bool isDeveloper,
+  }) {
+    // Falls back to defaults to ensure safety and prevent crashes
+    final resolvedAccent = accentColor.toLowerCase();
+    final resolvedDarkStyle = darkStyle.toLowerCase();
+
+    Color primaryColor;
+    Color scaffoldBg;
+    Color cardBg;
+
+    if (isDeveloper) {
+      if (isDark) {
+        primaryColor = devAccentColorsDark[resolvedAccent] ?? devAccentColorsDark['teal']!;
+        scaffoldBg = devDarkStyleScaffold[resolvedDarkStyle] ?? devDarkStyleScaffold['matte_black']!;
+        cardBg = devDarkStyleCard[resolvedDarkStyle] ?? devDarkStyleCard['matte_black']!;
+      } else {
+        primaryColor = devAccentColorsLight[resolvedAccent] ?? devAccentColorsLight['teal']!;
+        scaffoldBg = const Color(0xFFF1F5F9); // slate gray
+        cardBg = const Color(0xFFFFFFFF);
+      }
+    } else {
+      if (isDark) {
+        primaryColor = personalAccentColorsDark[resolvedAccent] ?? personalAccentColorsDark['blue']!;
+        scaffoldBg = darkStyleScaffold[resolvedDarkStyle] ?? darkStyleScaffold['matte_black']!;
+        cardBg = darkStyleCard[resolvedDarkStyle] ?? darkStyleCard['matte_black']!;
+      } else {
+        primaryColor = personalAccentColorsLight[resolvedAccent] ?? personalAccentColorsLight['blue']!;
+        scaffoldBg = const Color(0xFFF5F6FA);
+        cardBg = const Color(0xFFFFFFFF);
+      }
+    }
+
+    return _buildThemeData(
+      primaryColor: primaryColor,
+      scaffoldBackgroundColor: scaffoldBg,
+      cardColor: cardBg,
+      brightness: isDark ? Brightness.dark : Brightness.light,
+      isDeveloper: isDeveloper,
+    );
+  }
+
+  // Base builder to generate ThemeData with standardized settings
   static ThemeData _buildThemeData({
     required Color primaryColor,
     required Color scaffoldBackgroundColor,
     required Color cardColor,
     required Brightness brightness,
+    required bool isDeveloper,
   }) {
     final base = brightness == Brightness.dark
         ? ThemeData.dark(useMaterial3: true)
@@ -179,6 +142,8 @@ class ThemeService {
       ),
       textSelectionTheme: TextSelectionThemeData(
         cursorColor: primaryColor,
+        selectionColor: primaryColor.withOpacity(0.2),
+        selectionHandleColor: primaryColor,
       ),
       inputDecorationTheme: InputDecorationTheme(
         focusedBorder: OutlineInputBorder(
@@ -198,10 +163,29 @@ class ThemeService {
         backgroundColor: primaryColor,
         foregroundColor: Colors.white,
         elevation: 0,
+        titleTextStyle: TextStyle(
+          fontFamily: isDeveloper ? 'Courier New' : 'Inter',
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+          color: Colors.white,
+        ),
       ),
       dialogTheme: DialogThemeData(
         backgroundColor: cardColor,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: isDeveloper
+              ? BorderSide(color: primaryColor.withOpacity(0.5), width: 1.5)
+              : BorderSide.none,
+        ),
+      ),
+      cardTheme: CardThemeData(
+        shape: isDeveloper
+            ? RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: BorderSide(color: primaryColor.withOpacity(0.4), width: 1.0),
+              )
+            : RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
       bottomSheetTheme: BottomSheetThemeData(
         backgroundColor: cardColor,
@@ -211,10 +195,10 @@ class ThemeService {
       ),
       textTheme: brightness == Brightness.dark
           ? Typography.material2021().white.apply(
-                fontFamily: 'Inter',
+                fontFamily: isDeveloper ? 'Courier New' : 'Inter',
               )
           : Typography.material2021().black.apply(
-                fontFamily: 'Inter',
+                fontFamily: isDeveloper ? 'Courier New' : 'Inter',
               ),
     );
   }
