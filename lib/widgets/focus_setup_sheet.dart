@@ -75,7 +75,7 @@ class _FocusSetupSheetState extends State<FocusSetupSheet> {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+        color: isDark ? Theme.of(context).cardColor : Colors.white,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       ),
       child: Column(
@@ -101,13 +101,13 @@ class _FocusSetupSheetState extends State<FocusSetupSheet> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: isDark ? Colors.grey.shade900 : Colors.blue.shade50,
+              color: isDark ? Colors.grey.shade900 : Theme.of(context).primaryColor.withOpacity(0.08),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: isDark ? Colors.grey.shade800 : Colors.blue.shade100),
+              border: Border.all(color: isDark ? Colors.grey.shade800 : Theme.of(context).primaryColor.withOpacity(0.2)),
             ),
             child: Row(
               children: [
-                Icon(Icons.task_alt, color: isDark ? Colors.grey : Colors.blue),
+                Icon(Icons.task_alt, color: isDark ? Colors.grey : Theme.of(context).primaryColor),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -146,7 +146,7 @@ class _FocusSetupSheetState extends State<FocusSetupSheet> {
                 return ChoiceChip(
                   label: Text("${_durations[index]}m"),
                   selected: isSelected,
-                  selectedColor: isDark ? Colors.white : const Color(0xFF0D47A1),
+                  selectedColor: isDark ? Colors.white : Theme.of(context).primaryColor,
                   labelStyle: TextStyle(
                     color: isSelected 
                         ? (isDark ? Colors.black : Colors.white) 
@@ -166,7 +166,7 @@ class _FocusSetupSheetState extends State<FocusSetupSheet> {
               ChoiceChip(
                 label: const Text("Custom"),
                 selected: _isCustom,
-                selectedColor: isDark ? Colors.white : const Color(0xFF0D47A1),
+                selectedColor: isDark ? Colors.white : Theme.of(context).primaryColor,
                 labelStyle: TextStyle(
                   color: _isCustom 
                       ? (isDark ? Colors.black : Colors.white) 
@@ -210,8 +210,8 @@ class _FocusSetupSheetState extends State<FocusSetupSheet> {
                     value: _customDuration.toDouble(),
                     min: 1,
                     max: 180,
-                    activeColor: isDark ? Colors.white : const Color(0xFF0D47A1),
-                    inactiveColor: isDark ? Colors.white24 : Colors.blue.withOpacity(0.2),
+                    activeColor: isDark ? Colors.white : Theme.of(context).primaryColor,
+                    inactiveColor: isDark ? Colors.white24 : Theme.of(context).primaryColor.withOpacity(0.2),
                     onChanged: (val) => setState(() => _customDuration = val.toInt()),
                   ),
                 ],
@@ -239,24 +239,24 @@ class _FocusSetupSheetState extends State<FocusSetupSheet> {
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                       decoration: BoxDecoration(
                         color: isSelected 
-                            ? (isDark ? Colors.white.withOpacity(0.15) : Colors.blue.withOpacity(0.1))
+                            ? (isDark ? Colors.white.withOpacity(0.15) : Theme.of(context).primaryColor.withOpacity(0.1))
                             : Colors.transparent,
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
                           color: isSelected 
-                              ? (isDark ? Colors.white54 : Colors.blue) 
+                              ? (isDark ? Colors.white54 : Theme.of(context).primaryColor) 
                               : (isDark ? Colors.grey.shade800 : Colors.grey.shade300),
                         ),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(sound['icon'], size: 18, color: isSelected ? (isDark ? Colors.white : Colors.blue) : Colors.grey),
+                          Icon(sound['icon'], size: 18, color: isSelected ? (isDark ? Colors.white : Theme.of(context).primaryColor) : Colors.grey),
                           const SizedBox(width: 8),
                           Text(
                             sound['name'],
                             style: TextStyle(
-                              color: isSelected ? (isDark ? Colors.white : Colors.blue) : Colors.grey,
+                              color: isSelected ? (isDark ? Colors.white : Theme.of(context).primaryColor) : Colors.grey,
                               fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                             ),
                           ),
@@ -277,7 +277,7 @@ class _FocusSetupSheetState extends State<FocusSetupSheet> {
             child: ElevatedButton(
               onPressed: _enterFocusSpace,
               style: ElevatedButton.styleFrom(
-                backgroundColor: isDark ? Colors.white : const Color(0xFF0D47A1),
+                backgroundColor: isDark ? Colors.white : Theme.of(context).primaryColor,
                 foregroundColor: isDark ? Colors.black : Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 18),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),

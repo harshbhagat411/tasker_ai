@@ -195,7 +195,7 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> with SingleTicker
         final isDark = Theme.of(context).brightness == Brightness.dark;
         return Container(
           decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF1E1E24) : Colors.white,
+            color: Theme.of(context).cardColor,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
           ),
           padding: EdgeInsets.only(
@@ -463,7 +463,7 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> with SingleTicker
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E1E24).withOpacity(0.5) : Colors.grey[50]!,
+        color: isDark ? Theme.of(context).cardColor.withOpacity(0.5) : Colors.grey[50]!,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: isDark ? Colors.white10 : Colors.grey[100]!,
@@ -562,7 +562,7 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> with SingleTicker
     return Card(
       elevation: 2,
       shadowColor: Colors.black12,
-      color: isDark ? const Color(0xFF1E1E24) : Colors.white,
+      color: Theme.of(context).cardColor,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
         side: BorderSide(
@@ -764,7 +764,7 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> with SingleTicker
                         : Card(
                             elevation: 2,
                             shadowColor: Colors.black12,
-                            color: isDark ? const Color(0xFF1E1E24) : Colors.white,
+                            color: Theme.of(context).cardColor,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(16),
                               side: BorderSide(
@@ -799,7 +799,7 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> with SingleTicker
                                               color: isOnline ? Colors.green : Colors.grey,
                                               shape: BoxShape.circle,
                                               border: Border.all(
-                                                color: isDark ? const Color(0xFF1E1E24) : Colors.white,
+                                                color: Theme.of(context).cardColor,
                                                 width: 2,
                                               ),
                                             ),
@@ -1110,7 +1110,7 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> with SingleTicker
         Container(
           margin: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF1E1E24) : Colors.white,
+            color: Theme.of(context).cardColor,
             borderRadius: BorderRadius.circular(16),
             boxShadow: isDark
                 ? []
@@ -1311,7 +1311,7 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> with SingleTicker
           Container(
             margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF1E1E24) : Colors.white,
+              color: Theme.of(context).cardColor,
               borderRadius: BorderRadius.circular(20),
               boxShadow: isDark
                   ? []

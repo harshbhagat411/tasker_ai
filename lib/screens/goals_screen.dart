@@ -35,7 +35,7 @@ class _GoalsScreenState extends State<GoalsScreen> with SingleTickerProviderStat
         Container(
           margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF1E1E24) : Colors.white,
+            color: Theme.of(context).cardColor,
             borderRadius: BorderRadius.circular(20),
             boxShadow: isDark
                 ? []
@@ -132,7 +132,7 @@ class _GoalsScreenState extends State<GoalsScreen> with SingleTickerProviderStat
               margin: const EdgeInsets.all(24),
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF1E1E24) : Colors.white,
+                color: Theme.of(context).cardColor,
                 borderRadius: BorderRadius.circular(32),
                 boxShadow: isDark
                     ? []
@@ -196,7 +196,7 @@ class _GoalsScreenState extends State<GoalsScreen> with SingleTickerProviderStat
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E1E24) : Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
           color: isDark ? Colors.white10 : const Color(0xFFF1F5F9),
@@ -329,7 +329,7 @@ class _AddGoalSheetState extends State<AddGoalSheet> {
       child: Container(
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF1E1E24) : Colors.white,
+          color: Theme.of(context).cardColor,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
           boxShadow: [
             BoxShadow(
@@ -339,10 +339,11 @@ class _AddGoalSheetState extends State<AddGoalSheet> {
             ),
           ],
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
             // Slide indicator
             Center(
               child: Container(
@@ -424,7 +425,8 @@ class _AddGoalSheetState extends State<AddGoalSheet> {
           ],
         ),
       ),
-    );
+    ),
+  );
   }
 
   Widget _buildTypeChip(String type, String label) {

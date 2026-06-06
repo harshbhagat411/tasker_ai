@@ -199,13 +199,13 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: ElevatedButton(
                     onPressed: isLoading ? null : _login,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF0D47A1),
+                      backgroundColor: Theme.of(context).primaryColor,
                       foregroundColor: Colors.white,
                       elevation: 4,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(30),
                       ),
-                      disabledBackgroundColor: const Color(0xFF0D47A1).withOpacity(0.7),
+                      disabledBackgroundColor: Theme.of(context).primaryColor.withOpacity(0.7),
                     ),
                     child: isLoading
                         ? const SizedBox(
@@ -291,12 +291,12 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         );
                       },
-                      child: const Text(
+                      child: Text(
                         "Register",
                         style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.bold,
-                          color: Color(0xFF0D47A1),
+                          color: Theme.of(context).primaryColor,
                         ),
                       ),
                     ),

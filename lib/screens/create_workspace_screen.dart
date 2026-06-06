@@ -67,7 +67,7 @@ class _CreateWorkspaceScreenState extends State<CreateWorkspaceScreen> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF121212) : Colors.white,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: Text(
           "New Workspace",
@@ -76,7 +76,7 @@ class _CreateWorkspaceScreenState extends State<CreateWorkspaceScreen> {
             fontWeight: FontWeight.bold,
           ),
         ),
-        backgroundColor: isDark ? const Color(0xFF121212) : Colors.white,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
         iconTheme: IconThemeData(color: isDark ? Colors.white : Colors.black87),
       ),
@@ -132,7 +132,7 @@ class _CreateWorkspaceScreenState extends State<CreateWorkspaceScreen> {
                     borderSide: BorderSide(color: _colors[_selectedColorIndex], width: 2),
                   ),
                   filled: true,
-                  fillColor: isDark ? const Color(0xFF1E1E24) : Colors.grey.shade50,
+                  fillColor: Theme.of(context).cardColor,
                 ),
                 validator: (val) => val == null || val.isEmpty ? "Name is required" : null,
               ),
@@ -166,7 +166,7 @@ class _CreateWorkspaceScreenState extends State<CreateWorkspaceScreen> {
                     borderSide: BorderSide(color: _colors[_selectedColorIndex], width: 2),
                   ),
                   filled: true,
-                  fillColor: isDark ? const Color(0xFF1E1E24) : Colors.grey.shade50,
+                  fillColor: Theme.of(context).cardColor,
                 ),
               ),
               const SizedBox(height: 32),
@@ -229,7 +229,7 @@ class _CreateWorkspaceScreenState extends State<CreateWorkspaceScreen> {
                         decoration: BoxDecoration(
                           color: isSelected
                               ? _colors[_selectedColorIndex].withOpacity(isDark ? 0.2 : 0.1)
-                              : (isDark ? const Color(0xFF1E1E24) : Colors.grey.shade100),
+                              : (isDark ? Theme.of(context).cardColor : Colors.grey.shade100),
                           borderRadius: BorderRadius.circular(12),
                           border: isSelected
                               ? Border.all(color: _colors[_selectedColorIndex], width: 2)

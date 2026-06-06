@@ -21,7 +21,7 @@ class _HabitsScreenState extends State<HabitsScreen> {
       margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E1E24) : Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(20),
         boxShadow: isDark
             ? []
@@ -148,7 +148,7 @@ class _HabitsScreenState extends State<HabitsScreen> {
                                     margin: const EdgeInsets.all(24),
                                     padding: const EdgeInsets.all(24),
                                     decoration: BoxDecoration(
-                                      color: isDark ? const Color(0xFF1E1E24) : Colors.white,
+                                      color: Theme.of(context).cardColor,
                                       borderRadius: BorderRadius.circular(32),
                                       boxShadow: isDark
                                           ? []
@@ -218,7 +218,7 @@ class _HabitsScreenState extends State<HabitsScreen> {
     // Define card background and border colors based on completed state
     final Color cardBg = habit.isCompleted
         ? (isDark ? const Color(0xFF142D22) : const Color(0xFFF0FDF4))
-        : (isDark ? const Color(0xFF1E1E24) : Colors.white);
+        : Theme.of(context).cardColor;
         
     final Color borderCol = habit.isCompleted
         ? (isDark ? Colors.transparent : const Color(0xFFDCFCE7))
@@ -408,7 +408,7 @@ class _AddHabitSheetState extends State<AddHabitSheet> {
       child: Container(
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF1E1E24) : Colors.white,
+          color: Theme.of(context).cardColor,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
           boxShadow: [
             BoxShadow(
@@ -418,10 +418,11 @@ class _AddHabitSheetState extends State<AddHabitSheet> {
             ),
           ],
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
             // Slide indicator
             Center(
               child: Container(
@@ -512,7 +513,8 @@ class _AddHabitSheetState extends State<AddHabitSheet> {
           ],
         ),
       ),
-    );
+    ),
+  );
   }
 
   Widget _buildTypeChip(String type, String label) {

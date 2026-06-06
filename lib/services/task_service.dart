@@ -213,7 +213,7 @@ class TaskService {
                   ),
                 ],
               ),
-              backgroundColor: isDark ? const Color(0xFF1E1E24) : const Color(0xFF323232),
+              backgroundColor: isDark ? Theme.of(context).cardColor : const Color(0xFF323232),
               behavior: SnackBarBehavior.floating,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               action: isOwnerOrAdmin

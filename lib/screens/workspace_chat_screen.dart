@@ -266,7 +266,7 @@ class _WorkspaceChatScreenState extends State<WorkspaceChatScreen> {
         final isDark = Theme.of(context).brightness == Brightness.dark;
         return Container(
           decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF1E1E24) : Colors.white,
+            color: Theme.of(context).cardColor,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
           ),
           child: Column(
@@ -774,7 +774,7 @@ class _WorkspaceChatScreenState extends State<WorkspaceChatScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     decoration: BoxDecoration(
-                      color: isDark ? const Color(0xFF24242B) : Colors.grey.shade100,
+                      color: isDark ? Colors.white.withOpacity(0.08) : Colors.grey.shade100,
                       borderRadius: const BorderRadius.only(
                         topLeft: Radius.circular(2),
                         topRight: Radius.circular(12),
@@ -1065,7 +1065,7 @@ class _WorkspaceChatScreenState extends State<WorkspaceChatScreen> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF1E1E24) : Colors.white,
+            color: Theme.of(context).cardColor,
             border: Border(
               top: BorderSide(
                 color: isDark ? Colors.white10 : Colors.grey.shade200,

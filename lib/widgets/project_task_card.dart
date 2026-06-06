@@ -79,7 +79,7 @@ class _ProjectTaskCardState extends State<ProjectTaskCard> {
       elevation: 0,
       color: isPinned 
           ? (isDark ? Colors.amber.withValues(alpha: 0.05) : Colors.amber.shade50) 
-          : (isDark ? const Color(0xFF1E1E1E) : Colors.white),
+          : Theme.of(context).cardColor,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
         side: BorderSide(color: isPinned ? Colors.amber.shade300 : (isDark ? Colors.grey.shade800 : Colors.grey.shade200), width: 1),
@@ -327,7 +327,7 @@ class _ProjectTaskCardState extends State<ProjectTaskCard> {
                     decoration: BoxDecoration(
                       color: isOnline ? Colors.green : Colors.grey,
                       shape: BoxShape.circle,
-                      border: Border.all(color: isDark ? const Color(0xFF1E1E1E) : Colors.white, width: 1.5),
+                      border: Border.all(color: Theme.of(context).cardColor, width: 1.5),
                     ),
                   ),
                 ),

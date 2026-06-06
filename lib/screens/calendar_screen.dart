@@ -147,7 +147,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
             return Container(
               padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
               decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+                color: Theme.of(context).cardColor,
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
                 boxShadow: [
                   BoxShadow(
@@ -338,7 +338,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     
     // Selected Day overriding text color
     if (isSelected && !isDark) {
-      textColor = const Color(0xFF2563EB);
+      textColor = Theme.of(context).primaryColor;
     }
     
     // Custom margin and border radius for connected pills (999 for elegant pill endpoints)
@@ -397,9 +397,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       shape: BoxShape.circle,
                       color: isDark 
                           ? Colors.transparent 
-                          : (dayType == 'empty' ? const Color(0xFF2563EB).withOpacity(0.08) : Colors.transparent),
+                          : (dayType == 'empty' ? Theme.of(context).primaryColor.withOpacity(0.08) : Colors.transparent),
                       border: Border.all(
-                        color: isDark ? Theme.of(context).primaryColor : const Color(0xFF2563EB),
+                        color: Theme.of(context).primaryColor,
                         width: isDark ? 1.5 : 2.0,
                       ),
                     ),
@@ -451,7 +451,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF1E1E24) : Colors.white,
+          color: Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(isDark ? 24 : 32), // Premium 30+ radius in light mode
           boxShadow: [
             BoxShadow(
@@ -501,7 +501,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E1E24) : Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(isDark ? 24 : 32), // Premium 30+ radius in light mode
         boxShadow: [
           BoxShadow(
@@ -842,7 +842,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     child: Container(
                       padding: isDark ? const EdgeInsets.all(12) : const EdgeInsets.all(20), // airy inside margins
                       decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFF1E1E24) : Colors.white, // elevated card feel
+                        color: Theme.of(context).cardColor, // elevated card feel
                         borderRadius: BorderRadius.circular(isDark ? 24 : 32),
                         boxShadow: isDark
                             ? []
@@ -981,7 +981,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
                                 return Card(
                                   elevation: 0,
-                                  color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+                                  color: Theme.of(context).cardColor,
                                   margin: const EdgeInsets.only(bottom: 10),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(16),

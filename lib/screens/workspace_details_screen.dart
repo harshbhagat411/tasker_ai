@@ -162,7 +162,7 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
           builder: (context, setModalState) {
             return Container(
               decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF1E1E24) : Colors.white,
+                color: Theme.of(context).cardColor,
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
               ),
               padding: EdgeInsets.only(
@@ -355,8 +355,8 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
                         backgroundColor: Color(int.parse(ws.color)).withOpacity(0.2),
                         child: Text(initial, style: TextStyle(color: Color(int.parse(ws.color)), fontWeight: FontWeight.bold)),
                       ),
-                      title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                      subtitle: Text(email),
+                      title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis, maxLines: 1),
+                      subtitle: Text(email, overflow: TextOverflow.ellipsis, maxLines: 1),
                       onTap: () async {
                         Navigator.pop(context); // close sheet
                         await FirebaseFirestore.instance.collection('workspaces').doc(ws.id).update({
@@ -403,12 +403,13 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
                 right: 24,
                 top: 24,
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text("New Workspace Task", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 16),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text("New Workspace Task", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 16),
                   TextField(
                     controller: titleController,
                     decoration: InputDecoration(
@@ -506,8 +507,8 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
                       child: const Text("Create Task"),
                     ),
                   ),
-                  const SizedBox(height: 24),
-                ],
+                  ],
+                ),
               ),
             );
           }
@@ -644,8 +645,8 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
                         backgroundColor: Color(int.parse(widget.workspace.color)).withOpacity(0.2),
                         child: Text(initial, style: TextStyle(color: Color(int.parse(widget.workspace.color)), fontWeight: FontWeight.bold)),
                       ),
-                      title: Text(isCurrentUser ? "$name (You)" : name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                      subtitle: Text(email),
+                      title: Text(isCurrentUser ? "$name (You)" : name, style: const TextStyle(fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis, maxLines: 1),
+                      subtitle: Text(email, overflow: TextOverflow.ellipsis, maxLines: 1),
                       onTap: () async {
                         Navigator.pop(context); // close bottom sheet
                         try {
@@ -859,7 +860,7 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
         
         return Container(
           decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF1E1E24) : Colors.white,
+            color: Theme.of(context).cardColor,
             borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
@@ -883,12 +884,11 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
               ),
               const SizedBox(height: 16),
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  _buildProgressMetric("Total Members", totalMembers.toString(), workspaceColor),
-                  _buildProgressMetric("Active Now", activeNow.toString(), Colors.green),
-                  _buildProgressMetric("Admins", adminCount.toString(), Colors.blue),
-                  _buildProgressMetric("Pending Invites", pendingInvites.toString(), Colors.orange),
+                  Expanded(child: _buildProgressMetric("Total Members", totalMembers.toString(), workspaceColor)),
+                  Expanded(child: _buildProgressMetric("Active Now", activeNow.toString(), Colors.green)),
+                  Expanded(child: _buildProgressMetric("Admins", adminCount.toString(), Colors.blue)),
+                  Expanded(child: _buildProgressMetric("Pending Invites", pendingInvites.toString(), Colors.orange)),
                 ],
               ),
             ],
@@ -1016,7 +1016,7 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
           children: [
             Container(
               decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF1E1E24) : Colors.white,
+                color: Theme.of(context).cardColor,
                 borderRadius: BorderRadius.circular(20),
                 boxShadow: [
                   BoxShadow(
@@ -1050,12 +1050,11 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
                   ),
                   const SizedBox(height: 20),
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      _buildProgressMetric("Total", totalTasks.toString(), Colors.blue),
-                      _buildProgressMetric("Completed", completedTasks.toString(), Colors.green),
-                      _buildProgressMetric("Pending", pendingTasks.toString(), Colors.orange),
-                      _buildProgressMetric("Overdue", overdueTasks.toString(), Colors.red, isAlert: overdueTasks > 0),
+                      Expanded(child: _buildProgressMetric("Total", totalTasks.toString(), Colors.blue)),
+                      Expanded(child: _buildProgressMetric("Completed", completedTasks.toString(), Colors.green)),
+                      Expanded(child: _buildProgressMetric("Pending", pendingTasks.toString(), Colors.orange)),
+                      Expanded(child: _buildProgressMetric("Overdue", overdueTasks.toString(), Colors.red, isAlert: overdueTasks > 0)),
                     ],
                   ),
                 ],
@@ -1071,9 +1070,11 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
 
   Widget _buildProgressMetric(String label, String value, Color color, {bool isAlert = false}) {
     return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
         Text(
           value,
+          textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 20, 
             fontWeight: FontWeight.bold, 
@@ -1083,6 +1084,7 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
         const SizedBox(height: 4),
         Text(
           label,
+          textAlign: TextAlign.center,
           style: const TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.w500),
         ),
       ],
@@ -1150,7 +1152,7 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E1E24) : Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
@@ -1202,7 +1204,7 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
     
     return Container(
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E1E24) : Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
@@ -1348,7 +1350,7 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
           return Container(
             height: 140,
             decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF1E1E24) : Colors.white,
+              color: Theme.of(context).cardColor,
               borderRadius: BorderRadius.circular(20),
               border: Border.all(color: color.withOpacity(0.3), width: 1.5),
             ),
@@ -1427,7 +1429,7 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
           borderRadius: BorderRadius.circular(20),
           child: Container(
             decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF1E1E24) : Colors.white,
+              color: Theme.of(context).cardColor,
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
                 color: color.withOpacity(0.3),
@@ -1582,7 +1584,7 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
 
                 return Container(
                   decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF15151A) : Colors.grey.shade50,
+                    color: Theme.of(context).scaffoldBackgroundColor,
                     borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
                   ),
                   padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -1736,7 +1738,7 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
               margin: const EdgeInsets.only(bottom: 12),
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF1E1E24) : Colors.white,
+                color: Theme.of(context).cardColor,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: isDark ? Colors.white10 : Colors.grey.shade200),
               ),
@@ -2104,7 +2106,7 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                         decoration: BoxDecoration(
-                          color: isDark ? const Color(0xFF1E1E24) : Colors.white,
+                          color: Theme.of(context).cardColor,
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(color: isDark ? Colors.white10 : Colors.grey.shade200),
                         ),
@@ -2112,7 +2114,7 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
                           child: DropdownButton<String>(
                             value: selectedSprintId,
                             isExpanded: true,
-                            dropdownColor: isDark ? const Color(0xFF1E1E24) : Colors.white,
+                            dropdownColor: Theme.of(context).cardColor,
                             style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 14),
                             onChanged: (val) {
                               setSubState(() {
@@ -2141,7 +2143,7 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                         decoration: BoxDecoration(
-                          color: isDark ? const Color(0xFF1E1E24) : Colors.white,
+                          color: Theme.of(context).cardColor,
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(color: isDark ? Colors.white10 : Colors.grey.shade200),
                         ),
@@ -2149,7 +2151,7 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
                           child: DropdownButton<String>(
                             value: selectedTaskId,
                             isExpanded: true,
-                            dropdownColor: isDark ? const Color(0xFF1E1E24) : Colors.white,
+                            dropdownColor: Theme.of(context).cardColor,
                             style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 14),
                             onChanged: (val) {
                               setSubState(() {
@@ -2535,7 +2537,9 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
                 ),
                 title: Row(
                   children: [
-                    Text(name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                    Expanded(
+                      child: Text(name, style: const TextStyle(fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis, maxLines: 1),
+                    ),
                     const SizedBox(width: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -2547,7 +2551,7 @@ class _WorkspaceDetailsScreenState extends State<WorkspaceDetailsScreen> with Si
                     )
                   ],
                 ),
-                subtitle: Text(email),
+                subtitle: Text(email, overflow: TextOverflow.ellipsis, maxLines: 1),
                 trailing: _buildMemberTrailing(ws, memberId, role, name),
               );
             }

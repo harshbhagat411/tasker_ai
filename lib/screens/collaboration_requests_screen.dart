@@ -37,7 +37,7 @@ class _CollaborationRequestsScreenState extends State<CollaborationRequestsScree
           bottom: TabBar(
             labelColor: Theme.of(context).textTheme.bodyLarge?.color,
             unselectedLabelColor: Colors.grey,
-            indicatorColor: const Color(0xFF0D47A1),
+            indicatorColor: Theme.of(context).primaryColor,
             tabs: [
               StreamBuilder<QuerySnapshot>(
                 stream: _taskService.getPendingInvites(),
@@ -166,7 +166,7 @@ class _CollaborationRequestsScreenState extends State<CollaborationRequestsScree
             final String taskTitle = data['taskTitle'] ?? 'A Task';
 
             return Card(
-              color: isDark ? const Color(0xFF1E1E24) : Colors.white,
+              color: Theme.of(context).cardColor,
               elevation: 2,
               shadowColor: Colors.black.withOpacity(0.1),
               margin: const EdgeInsets.only(bottom: 12),
@@ -243,7 +243,7 @@ class _CollaborationRequestsScreenState extends State<CollaborationRequestsScree
                         Expanded(
                           child: ElevatedButton(
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF0D47A1),
+                              backgroundColor: Theme.of(context).primaryColor,
                               foregroundColor: Colors.white,
                               elevation: 0,
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -313,7 +313,7 @@ class _CollaborationRequestsScreenState extends State<CollaborationRequestsScree
             final String projectId = data['projectId'];
 
             return Card(
-              color: isDark ? const Color(0xFF1E1E24) : Colors.white,
+              color: Theme.of(context).cardColor,
               elevation: 2,
               shadowColor: Colors.black.withOpacity(0.1),
               margin: const EdgeInsets.only(bottom: 12),
@@ -587,7 +587,7 @@ class _CollaborationRequestsScreenState extends State<CollaborationRequestsScree
         side: BorderSide(color: isDark ? Colors.grey.shade800 : Colors.grey.shade200),
       ),
       color: isDark 
-          ? (notification.isRead ? const Color(0xFF1E1E24) : Colors.blue.shade900.withOpacity(0.2)) 
+          ? (notification.isRead ? Theme.of(context).cardColor : Colors.blue.shade900.withOpacity(0.2)) 
           : (notification.isRead ? Colors.white : Colors.blue.shade50.withOpacity(0.3)),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
@@ -642,7 +642,7 @@ class _CollaborationRequestsScreenState extends State<CollaborationRequestsScree
                       child: Container(
                         padding: const EdgeInsets.all(2),
                         decoration: BoxDecoration(
-                          color: isDark ? const Color(0xFF1E1E24) : Colors.white,
+                          color: Theme.of(context).cardColor,
                           shape: BoxShape.circle,
                           boxShadow: [
                             BoxShadow(

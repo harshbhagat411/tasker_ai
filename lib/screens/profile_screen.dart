@@ -83,7 +83,7 @@ class ProfileScreen extends StatelessWidget {
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
-                backgroundColor: const Color(0xFF0D47A1),
+                backgroundColor: Theme.of(context).primaryColor,
                 foregroundColor: Colors.white,
               ),
               onPressed: () async {
@@ -214,12 +214,15 @@ class ProfileScreen extends StatelessWidget {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Text(
-                            displayName,
-                            style: TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.bold,
-                              color: Theme.of(context).textTheme.bodyLarge?.color,
+                          Flexible(
+                            child: Text(
+                              displayName,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.bold,
+                                color: Theme.of(context).textTheme.bodyLarge?.color,
+                              ),
                             ),
                           ),
                           IconButton(
@@ -279,6 +282,8 @@ class ProfileScreen extends StatelessWidget {
                             padding: const EdgeInsets.only(top: 4.0),
                             child: Text(
                               taskerId.startsWith('@') ? taskerId : '@$taskerId',
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
                               style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
@@ -869,7 +874,7 @@ class _EditTaskerIdBottomSheetState extends State<_EditTaskerIdBottomSheet> {
         24 + MediaQuery.of(context).viewInsets.bottom,
       ),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E1E24) : Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       ),
       child: SingleChildScrollView(
@@ -903,7 +908,7 @@ class _EditTaskerIdBottomSheetState extends State<_EditTaskerIdBottomSheet> {
                   borderRadius: BorderRadius.circular(16),
                 ),
                 filled: true,
-                fillColor: isDark ? const Color(0xFF2A2A32) : Colors.grey[100],
+                fillColor: isDark ? Theme.of(context).scaffoldBackgroundColor : Colors.grey[100],
               ),
             ),
             const SizedBox(height: 8),

@@ -167,7 +167,7 @@ class _AuthGateScreenState extends State<AuthGateScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0D47A1), // Brand primary color
+      backgroundColor: Theme.of(context).primaryColor, // Brand primary color
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -186,10 +186,10 @@ class _AuthGateScreenState extends State<AuthGateScreen> {
                   ),
                 ],
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.task_alt,
                 size: 80,
-                color: Color(0xFF0D47A1),
+                color: Theme.of(context).primaryColor,
               ),
             ),
             const SizedBox(height: 40),
@@ -263,7 +263,7 @@ class _MainScreenState extends State<MainScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E1E24) : Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(32),
         boxShadow: [
           BoxShadow(
@@ -343,7 +343,7 @@ class _MainScreenState extends State<MainScreen> {
     return Container(
       width: 220,
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E1E24) : Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
@@ -562,7 +562,7 @@ class _MainScreenState extends State<MainScreen> {
                     const SizedBox(height: 24),
                     ElevatedButton(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF0D47A1),
+                        backgroundColor: Theme.of(context).primaryColor,
                         foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                       ),
@@ -731,7 +731,7 @@ class _AddTaskDialogState extends State<AddTaskDialog> {
     
     return AlertDialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      backgroundColor: isDark ? const Color(0xFF1E1E24) : Colors.white,
+      backgroundColor: Theme.of(context).cardColor,
       title: const Text("Add Task", style: TextStyle(fontWeight: FontWeight.bold)),
       content: SizedBox(
         width: MediaQuery.of(context).size.width * 0.9,
@@ -748,7 +748,7 @@ class _AddTaskDialogState extends State<AddTaskDialog> {
                   hintText: "Enter task details...",
                   hintStyle: TextStyle(color: Colors.grey[500]),
                   filled: true,
-                  fillColor: isDark ? const Color(0xFF2A2A32) : Colors.grey[100],
+                  fillColor: isDark ? Theme.of(context).scaffoldBackgroundColor : Colors.grey[100],
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(16),
                     borderSide: BorderSide.none,
@@ -795,7 +795,7 @@ class _AddTaskDialogState extends State<AddTaskDialog> {
                           }
                         },
                         selectedColor: priorityColor.withOpacity(0.2),
-                        backgroundColor: isDark ? const Color(0xFF2A2A32) : Colors.white,
+                        backgroundColor: isDark ? Theme.of(context).scaffoldBackgroundColor : Colors.white,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                           side: BorderSide(
@@ -1024,7 +1024,7 @@ class _InviteMemberDialogState extends State<InviteMemberDialog> {
     
     return AlertDialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      backgroundColor: isDark ? const Color(0xFF1E1E24) : Colors.white,
+      backgroundColor: Theme.of(context).cardColor,
       title: const Text("Invite Member", style: TextStyle(fontWeight: FontWeight.bold)),
       content: StreamBuilder<List<Workspace>>(
         stream: _workspaceService.getUserWorkspaces(),

@@ -79,7 +79,7 @@ class _SprintDashboardScreenState extends State<SprintDashboardScreen> {
     final isAllowed = _isAllowedToManage();
 
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF121212) : const Color(0xFFF5F6FA),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -212,7 +212,7 @@ class _SprintDashboardScreenState extends State<SprintDashboardScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E1E24) : Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: isDark ? Colors.white10 : Colors.grey.shade200),
       ),
@@ -273,7 +273,7 @@ class _SprintDashboardScreenState extends State<SprintDashboardScreen> {
 
     return Container(
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1A1A22) : Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: themeColor.withOpacity(0.4), width: 1.5),
         boxShadow: [
@@ -476,7 +476,7 @@ class _SprintDashboardScreenState extends State<SprintDashboardScreen> {
     return Container(
       margin: const EdgeInsets.only(top: 12),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E1E24) : Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: isDark ? Colors.white10 : Colors.grey.shade200),
       ),
@@ -595,7 +595,7 @@ class _SprintDashboardScreenState extends State<SprintDashboardScreen> {
     return Container(
       margin: const EdgeInsets.only(top: 12),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E1E24) : Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: isDark ? Colors.white10 : Colors.grey.shade200),
       ),
@@ -841,7 +841,7 @@ class _SprintDashboardScreenState extends State<SprintDashboardScreen> {
       width: 250,
       margin: const EdgeInsets.only(right: 12),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF16161C) : Colors.grey.shade100,
+        color: isDark ? Theme.of(context).cardColor.withOpacity(0.5) : Colors.grey.shade100,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: isDark ? Colors.white10 : Colors.grey.shade200),
       ),
@@ -961,7 +961,7 @@ class _SprintDashboardScreenState extends State<SprintDashboardScreen> {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E1E24) : Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: isDark ? Colors.white10 : Colors.grey.shade200),
         boxShadow: [
@@ -1069,7 +1069,7 @@ class _SprintDashboardScreenState extends State<SprintDashboardScreen> {
       builder: (context) {
         return Container(
           decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF16161C) : Colors.white,
+            color: Theme.of(context).cardColor,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
           ),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
@@ -1272,7 +1272,7 @@ class _SprintDashboardScreenState extends State<SprintDashboardScreen> {
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
                 decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF1E1E24) : Colors.white,
+                  color: Theme.of(context).cardColor,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: isDark ? Colors.white10 : Colors.grey.shade200),
                 ),
@@ -1303,7 +1303,7 @@ class _SprintDashboardScreenState extends State<SprintDashboardScreen> {
                 return Container(
                   margin: const EdgeInsets.only(bottom: 8),
                   decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF1E1E24) : Colors.white,
+                    color: Theme.of(context).cardColor,
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(color: isDark ? Colors.white10 : Colors.grey.shade200),
                   ),
@@ -1459,7 +1459,7 @@ class _CreateSprintDialogState extends State<_CreateSprintDialog> {
 
     return Container(
       decoration: BoxDecoration(
-        color: widget.isDark ? const Color(0xFF16161C) : Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
       ),
       padding: EdgeInsets.only(
@@ -1738,7 +1738,7 @@ class _LinkBacklogDialogState extends State<_LinkBacklogDialog> {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: widget.isDark ? const Color(0xFF16161C) : Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
       ),
       constraints: BoxConstraints(
@@ -1833,7 +1833,7 @@ class _LinkBacklogDialogState extends State<_LinkBacklogDialog> {
                       margin: const EdgeInsets.only(bottom: 8),
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       decoration: BoxDecoration(
-                        color: widget.isDark ? const Color(0xFF1E1E24) : Colors.grey.shade50,
+                        color: Theme.of(context).cardColor,
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
                           color: isLinkedToThis

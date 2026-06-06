@@ -417,7 +417,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                             color: isOnline ? Colors.green : Colors.grey,
                             shape: BoxShape.circle,
                             border: Border.all(
-                              color: isDark ? const Color(0xFF121212) : const Color(0xFFF5F6FA),
+                              color: Theme.of(context).scaffoldBackgroundColor,
                               width: 3,
                             ),
                           ),
@@ -449,33 +449,39 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                 ),
                 const SizedBox(height: 12),
                 // Presence Text & Joined Date
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 12,
+                  runSpacing: 6,
                   children: [
-                    Icon(
-                      isOnline ? Icons.circle : Icons.circle_outlined,
-                      size: 10,
-                      color: isOnline ? Colors.green : Colors.grey,
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          isOnline ? Icons.circle : Icons.circle_outlined,
+                          size: 10,
+                          color: isOnline ? Colors.green : Colors.grey,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          isOnline 
+                              ? "Online" 
+                              : (userData['lastSeen'] != null 
+                                  ? "Last seen: ${timeago.format((userData['lastSeen'] as Timestamp).toDate())}" 
+                                  : "Offline"),
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: isOnline ? Colors.green : Colors.grey,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 6),
-                    Text(
-                      isOnline 
-                          ? "Online" 
-                          : (userData['lastSeen'] != null 
-                              ? "Last seen: ${timeago.format((userData['lastSeen'] as Timestamp).toDate())}" 
-                              : "Offline"),
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: isOnline ? Colors.green : Colors.grey,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
                     Text(
                       "•",
                       style: TextStyle(color: isDark ? Colors.white30 : Colors.grey[400]),
                     ),
-                    const SizedBox(width: 12),
                     Text(
                       joinedDateString,
                       style: TextStyle(

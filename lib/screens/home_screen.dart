@@ -973,7 +973,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         return Container(
           padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF1E1E24) : Colors.white,
+            color: Theme.of(context).cardColor,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
             boxShadow: [
               BoxShadow(
@@ -2063,8 +2063,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                   stream: WorkspaceService().getWorkspace(data!['projectId'].toString()),
                                   builder: (context, wsSnapshot) {
                                     final wsName = wsSnapshot.data?.name ?? 'Project';
-                                    final wsColorHex = wsSnapshot.data?.color ?? '0xFF0D47A1';
-                                    final wsColor = Color(int.parse(wsColorHex));
+                                    final wsColor = wsSnapshot.data?.color != null 
+                                        ? Color(int.parse(wsSnapshot.data!.color)) 
+                                        : Theme.of(context).primaryColor;
                                     return Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                       decoration: BoxDecoration(
@@ -3024,7 +3025,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   width: double.infinity,
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF1E1E24) : Colors.grey.shade50,
+                    color: Theme.of(context).cardColor,
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
                       color: isDark ? Colors.white10 : Colors.grey.shade200, 
@@ -3065,7 +3066,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       margin: const EdgeInsets.only(right: 16),
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFF1E1E24) : Colors.white,
+                        color: Theme.of(context).cardColor,
                         borderRadius: BorderRadius.circular(20),
                         boxShadow: isDark
                             ? []

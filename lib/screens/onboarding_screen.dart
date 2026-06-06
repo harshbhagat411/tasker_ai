@@ -106,8 +106,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   SmoothPageIndicator(
                     controller: _controller,
                     count: 4,
-                    effect: const ExpandingDotsEffect(
-                      activeDotColor: Color(0xFF0D47A1),
+                    effect: ExpandingDotsEffect(
+                      activeDotColor: Theme.of(context).primaryColor,
                       dotColor: Colors.black12,
                       dotHeight: 8,
                       dotWidth: 8,
@@ -124,7 +124,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                             child: ElevatedButton(
                               onPressed: _selectedMode == null ? null : _completeOnboarding,
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF0D47A1),
+                                backgroundColor: Theme.of(context).primaryColor,
                                 disabledBackgroundColor: Colors.grey.shade300,
                                 foregroundColor: Colors.white,
                                 disabledForegroundColor: Colors.grey.shade600,
@@ -155,7 +155,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                                 );
                               },
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF0D47A1),
+                                backgroundColor: Theme.of(context).primaryColor,
                                 foregroundColor: Colors.white,
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
@@ -311,8 +311,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               title: "Team & Development",
               description: "Projects • Team collaboration • Activity feed • Sprint workflow",
               icon: Icons.code,
-              color: const Color(0xFF0D47A1),
-              lightColor: const Color(0xFFE3F2FD),
+              color: Theme.of(context).primaryColor,
+              lightColor: Theme.of(context).primaryColor.withOpacity(0.1),
             ),
           ),
           const SizedBox(height: 60), // Space for bottom controls

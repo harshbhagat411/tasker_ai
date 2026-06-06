@@ -26,7 +26,7 @@ class SprintSelectorSheet extends StatelessWidget {
           return Container(
             height: 250,
             decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF1E1E24) : Colors.white,
+              color: isDark ? Theme.of(context).cardColor : Colors.white,
               borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
             ),
             child: const Center(
@@ -40,7 +40,7 @@ class SprintSelectorSheet extends StatelessWidget {
 
         return Container(
           decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF16161C) : Colors.white,
+            color: Theme.of(context).cardColor,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
             boxShadow: [
               BoxShadow(
@@ -142,7 +142,7 @@ class SprintSelectorSheet extends StatelessWidget {
                         ElevatedButton(
                           onPressed: () => Navigator.pop(context),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF0D47A1),
+                            backgroundColor: Theme.of(context).primaryColor,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
@@ -169,7 +169,7 @@ class SprintSelectorSheet extends StatelessWidget {
                       return Container(
                         margin: const EdgeInsets.only(bottom: 12),
                         decoration: BoxDecoration(
-                          color: isDark ? const Color(0xFF1E1E24) : Colors.grey.shade50,
+                          color: isDark ? Theme.of(context).cardColor : Colors.grey.shade50,
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(
                             color: isDark ? Colors.white10 : Colors.grey.shade200,

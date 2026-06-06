@@ -115,7 +115,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> with WidgetsBindi
                         opacity: isOnline ? 1.0 : 0.6,
                         child: CircleAvatar(
                           radius: 18,
-                          backgroundColor: isOnline ? Colors.blue : Colors.grey.shade300,
+                          backgroundColor: isOnline ? Theme.of(context).primaryColor : Colors.grey.shade300,
                           child: Text(initial, style: TextStyle(color: isOnline ? Colors.white : Colors.grey.shade600, fontSize: 14, fontWeight: FontWeight.bold)),
                         ),
                       ),
@@ -135,12 +135,12 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> with WidgetsBindi
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                               decoration: BoxDecoration(
-                                color: isOwner ? Colors.blue.withOpacity(0.1) : Colors.grey.withOpacity(0.1),
+                                color: isOwner ? Theme.of(context).primaryColor.withOpacity(0.1) : Colors.grey.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: Text(
                                 role,
-                                style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: isOwner ? Colors.blue : Colors.grey),
+                                style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: isOwner ? Theme.of(context).primaryColor : Colors.grey),
                               ),
                             ),
                           ],
@@ -346,7 +346,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> with WidgetsBindi
                             height: 24,
                             child: Checkbox(
                               value: isDone,
-                              activeColor: const Color(0xFF0D47A1),
+                              activeColor: Theme.of(context).primaryColor,
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
                               onChanged: (val) {
                                 if (val != null) {
@@ -409,14 +409,14 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> with WidgetsBindi
                         duration: const Duration(milliseconds: 500),
                         child: Row(
                           children: [
-                            Icon(editing.isNotEmpty ? Icons.edit : Icons.visibility, size: 14, color: editing.isNotEmpty ? Colors.blue : Colors.grey),
+                            Icon(editing.isNotEmpty ? Icons.edit : Icons.visibility, size: 14, color: editing.isNotEmpty ? Theme.of(context).primaryColor : Colors.grey),
                             const SizedBox(width: 6),
                             Text(
                               presenceText,
                               style: TextStyle(
                                 fontSize: 13,
                                 fontStyle: FontStyle.italic,
-                                color: editing.isNotEmpty ? Colors.blue : Colors.grey,
+                                color: editing.isNotEmpty ? Theme.of(context).primaryColor : Colors.grey,
                               ),
                             ),
                           ],
@@ -458,7 +458,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> with WidgetsBindi
                           icon: const Icon(Icons.center_focus_strong),
                           label: const Text("Focus on this Task", style: TextStyle(fontWeight: FontWeight.bold)),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Theme.of(context).brightness == Brightness.dark ? Colors.white : const Color(0xFF0D47A1),
+                            backgroundColor: Theme.of(context).brightness == Brightness.dark ? Colors.white : Theme.of(context).primaryColor,
                             foregroundColor: Theme.of(context).brightness == Brightness.dark ? Colors.black : Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 16),
                             elevation: 0,
@@ -506,10 +506,10 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> with WidgetsBindi
                       Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: Colors.blue.withOpacity(0.1),
+                          color: Theme.of(context).primaryColor.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: const Icon(Icons.group, color: Colors.blue, size: 20),
+                        child: Icon(Icons.group, color: Theme.of(context).primaryColor, size: 20),
                       ),
                       const SizedBox(width: 16),
                       Column(
@@ -524,8 +524,8 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> with WidgetsBindi
                               children: [
                                 CircleAvatar(
                                   radius: 10,
-                                  backgroundColor: Colors.blue.shade100,
-                                  child: Text(sharedBy != null && sharedBy.isNotEmpty ? sharedBy[0].toUpperCase() : '?', style: const TextStyle(fontSize: 10, color: Colors.blue)),
+                                  backgroundColor: Theme.of(context).primaryColor.withOpacity(0.2),
+                                  child: Text(sharedBy != null && sharedBy.isNotEmpty ? sharedBy[0].toUpperCase() : '?', style: TextStyle(fontSize: 10, color: Theme.of(context).primaryColor, fontWeight: FontWeight.bold)),
                                 ),
                                 const SizedBox(width: 8),
                                 Text(
@@ -561,7 +561,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> with WidgetsBindi
                   width: double.infinity,
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF1E1E1E) : Colors.grey.shade50,
+                    color: isDark ? Theme.of(context).cardColor : Colors.grey.shade50,
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(color: isDark ? Colors.transparent : Colors.grey.shade200),
                   ),
@@ -588,7 +588,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> with WidgetsBindi
                       value: progress,
                       minHeight: 6,
                       backgroundColor: Colors.grey.shade200,
-                      color: const Color(0xFF0D47A1),
+                      valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).primaryColor),
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -667,7 +667,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> with WidgetsBindi
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF1E1E1E) : Colors.grey.shade50,
+                color: isDark ? Theme.of(context).cardColor : Colors.grey.shade50,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: isDark ? Colors.transparent : Colors.grey.shade200),
               ),

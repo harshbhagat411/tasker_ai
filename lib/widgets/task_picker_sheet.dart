@@ -50,128 +50,136 @@ class _TaskPickerSheetState extends State<TaskPickerSheet> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final currentUserId = FirebaseAuth.instance.currentUser?.uid;
 
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.75,
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E1E24) : Colors.white,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+    return Padding(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
       ),
-      child: Column(
-        children: [
-          // Drag handle
-          const SizedBox(height: 8),
-          Container(
-            width: 40,
-            height: 4,
-            decoration: BoxDecoration(
-              color: isDark ? Colors.white24 : Colors.grey.shade300,
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-          const SizedBox(height: 16),
-          // Title
-          const Text(
-            "Mention Task",
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 12),
-          // Search box
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Container(
+      child: Container(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.75,
+        ),
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Drag handle
+            const SizedBox(height: 8),
+            Container(
+              width: 40,
+              height: 4,
               decoration: BoxDecoration(
-                color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(12),
+                color: isDark ? Colors.white24 : Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
               ),
-              child: TextField(
-                controller: _searchController,
-                decoration: InputDecoration(
-                  hintText: "Search tasks...",
-                  hintStyle: TextStyle(color: isDark ? Colors.white38 : Colors.grey.shade500, fontSize: 14),
-                  prefixIcon: Icon(Icons.search, color: isDark ? Colors.white54 : Colors.grey.shade500),
-                  border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(vertical: 12),
+            ),
+            const SizedBox(height: 16),
+            // Title
+            const Text(
+              "Mention Task",
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 12),
+            // Search box
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: TextField(
+                  controller: _searchController,
+                  decoration: InputDecoration(
+                    hintText: "Search tasks...",
+                    hintStyle: TextStyle(color: isDark ? Colors.white38 : Colors.grey.shade500, fontSize: 14),
+                    prefixIcon: Icon(Icons.search, color: isDark ? Colors.white54 : Colors.grey.shade500),
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
                 ),
               ),
             ),
-          ),
-          const SizedBox(height: 8),
-          // Tasks Stream
-          Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: _taskService.getWorkspaceTasks(widget.projectId),
-              builder: (context, taskSnapshot) {
-                if (taskSnapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
+            const SizedBox(height: 8),
+            // Tasks Stream
+            Expanded(
+              child: StreamBuilder<QuerySnapshot>(
+                stream: _taskService.getWorkspaceTasks(widget.projectId),
+                builder: (context, taskSnapshot) {
+                  if (taskSnapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
 
-                if (!taskSnapshot.hasData || taskSnapshot.data!.docs.isEmpty) {
-                  return _buildEmptyState(isDark);
-                }
+                  if (!taskSnapshot.hasData || taskSnapshot.data!.docs.isEmpty) {
+                    return _buildEmptyState(isDark);
+                  }
 
-                // Retrieve all sprints to resolve sprint names in real-time
-                return StreamBuilder<QuerySnapshot>(
-                  stream: FirebaseFirestore.instance
-                      .collection('projects')
-                      .doc(widget.projectId)
-                      .collection('sprints')
-                      .snapshots(),
-                  builder: (context, sprintSnapshot) {
-                    final Map<String, String> sprintNames = {};
-                    if (sprintSnapshot.hasData) {
-                      for (var doc in sprintSnapshot.data!.docs) {
+                  // Retrieve all sprints to resolve sprint names in real-time
+                  return StreamBuilder<QuerySnapshot>(
+                    stream: FirebaseFirestore.instance
+                        .collection('projects')
+                        .doc(widget.projectId)
+                        .collection('sprints')
+                        .snapshots(),
+                    builder: (context, sprintSnapshot) {
+                      final Map<String, String> sprintNames = {};
+                      if (sprintSnapshot.hasData) {
+                        for (var doc in sprintSnapshot.data!.docs) {
+                          final data = doc.data() as Map<String, dynamic>;
+                          sprintNames[doc.id] = data['title'] ?? 'Sprint';
+                        }
+                      }
+
+                      final allTasks = taskSnapshot.data!.docs.where((doc) {
                         final data = doc.data() as Map<String, dynamic>;
-                        sprintNames[doc.id] = data['title'] ?? 'Sprint';
+                        final title = (data['title'] ?? '').toString().toLowerCase();
+                        return title.contains(_searchQuery);
+                      }).toList();
+
+                      if (allTasks.isEmpty) {
+                        return _buildEmptyState(isDark);
                       }
-                    }
 
-                    final allTasks = taskSnapshot.data!.docs.where((doc) {
-                      final data = doc.data() as Map<String, dynamic>;
-                      final title = (data['title'] ?? '').toString().toLowerCase();
-                      return title.contains(_searchQuery);
-                    }).toList();
+                      // Split into Assigned to Me vs Others
+                      final myTasks = <QueryDocumentSnapshot>[];
+                      final otherTasks = <QueryDocumentSnapshot>[];
 
-                    if (allTasks.isEmpty) {
-                      return _buildEmptyState(isDark);
-                    }
-
-                    // Split into Assigned to Me vs Others
-                    final myTasks = <QueryDocumentSnapshot>[];
-                    final otherTasks = <QueryDocumentSnapshot>[];
-
-                    for (var doc in allTasks) {
-                      final data = doc.data() as Map<String, dynamic>;
-                      String? assignedUid;
-                      if (data['assignedTo'] is Map) {
-                        assignedUid = data['assignedTo']['uid'];
+                      for (var doc in allTasks) {
+                        final data = doc.data() as Map<String, dynamic>;
+                        String? assignedUid;
+                        if (data['assignedTo'] is Map) {
+                          assignedUid = data['assignedTo']['uid'];
+                        }
+                        
+                        if (assignedUid != null && assignedUid == currentUserId) {
+                          myTasks.add(doc);
+                        } else {
+                          otherTasks.add(doc);
+                        }
                       }
-                      
-                      if (assignedUid != null && assignedUid == currentUserId) {
-                        myTasks.add(doc);
-                      } else {
-                        otherTasks.add(doc);
-                      }
-                    }
 
-                    return ListView(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      children: [
-                        if (myTasks.isNotEmpty) ...[
-                          _buildSectionHeader("My Assigned Tasks", isDark),
-                          ...myTasks.map((doc) => _buildTaskTile(doc, sprintNames, isDark)),
+                      return ListView(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        children: [
+                          if (myTasks.isNotEmpty) ...[
+                            _buildSectionHeader("My Assigned Tasks", isDark),
+                            ...myTasks.map((doc) => _buildTaskTile(doc, sprintNames, isDark)),
+                          ],
+                          if (otherTasks.isNotEmpty) ...[
+                            _buildSectionHeader("Other Project Tasks", isDark),
+                            ...otherTasks.map((doc) => _buildTaskTile(doc, sprintNames, isDark)),
+                          ],
                         ],
-                        if (otherTasks.isNotEmpty) ...[
-                          _buildSectionHeader("Other Project Tasks", isDark),
-                          ...otherTasks.map((doc) => _buildTaskTile(doc, sprintNames, isDark)),
-                        ],
-                      ],
-                    );
-                  },
-                );
-              },
+                      );
+                    },
+                  );
+                },
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
