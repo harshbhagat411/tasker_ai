@@ -240,7 +240,7 @@ class _AuthGateScreenState extends State<AuthGateScreen> {
             const SizedBox(height: 40),
             // App Name
             const Text(
-              "Tasker",
+              "TaskNest",
               style: TextStyle(
                 fontSize: 32,
                 fontWeight: FontWeight.bold,

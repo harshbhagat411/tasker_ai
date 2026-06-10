@@ -438,7 +438,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 8),
-                // Tasker ID
+                // TaskNest ID
                 Text(
                   taskerId.startsWith('@') ? taskerId : '@$taskerId',
                   style: TextStyle(

@@ -117,7 +117,7 @@ class _CreateWorkspaceScreenState extends State<CreateWorkspaceScreen> {
                 controller: _nameController,
                 style: TextStyle(color: isDark ? Colors.white : Colors.black87),
                 decoration: InputDecoration(
-                  hintText: "e.g., Tasker AI App",
+                  hintText: "e.g., TaskNest AI App",
                   hintStyle: TextStyle(color: isDark ? Colors.grey.shade500 : Colors.grey),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),

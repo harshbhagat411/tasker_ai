@@ -253,7 +253,7 @@ class ProfileScreen extends StatelessWidget {
                       ],
                       const SizedBox(height: 24),
                       
-                      // 🔹 Tasker ID Section
+                      // 🔹 TaskNest ID Section
                       Card(
                         elevation: 4,
                         shadowColor: Colors.black12,
@@ -294,7 +294,7 @@ class ProfileScreen extends StatelessWidget {
                           trailing: IconButton(
                             icon: Icon(Icons.edit, color: Theme.of(context).primaryColor),
                             onPressed: () => _showEditTaskerIdBottomSheet(context, taskerId),
-                            tooltip: "Edit Tasker ID",
+                            tooltip: "Edit TaskNest ID",
                           ),
                         ),
                       ),
@@ -769,7 +769,7 @@ class _EditTaskerIdBottomSheetState extends State<_EditTaskerIdBottomSheet> {
     if (cleanText.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text("Enter a valid Tasker ID"),
+          content: Text("Enter a valid TaskNest ID"),
           backgroundColor: Colors.redAccent,
         ),
       );
@@ -791,7 +791,7 @@ class _EditTaskerIdBottomSheetState extends State<_EditTaskerIdBottomSheet> {
     if (!regex.hasMatch(cleanText)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text("Enter a valid Tasker ID"),
+          content: Text("Enter a valid TaskNest ID"),
           backgroundColor: Colors.redAccent,
         ),
       );
@@ -840,7 +840,7 @@ class _EditTaskerIdBottomSheetState extends State<_EditTaskerIdBottomSheet> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text("Tasker ID updated"),
+              content: Text("TaskNest ID updated"),
               backgroundColor: Colors.green,
             ),
           );
@@ -851,7 +851,7 @@ class _EditTaskerIdBottomSheetState extends State<_EditTaskerIdBottomSheet> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text("Unable to update Tasker ID"),
+            content: Text("Unable to update TaskNest ID"),
             backgroundColor: Colors.redAccent,
           ),
         );
@@ -883,7 +883,7 @@ class _EditTaskerIdBottomSheetState extends State<_EditTaskerIdBottomSheet> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              "Edit Tasker ID",
+              "Edit TaskNest ID",
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
@@ -897,7 +897,7 @@ class _EditTaskerIdBottomSheetState extends State<_EditTaskerIdBottomSheet> {
               autofocus: true,
               style: TextStyle(color: isDark ? Colors.white : Colors.black87),
               decoration: InputDecoration(
-                labelText: "Tasker ID",
+                labelText: "TaskNest ID",
                 prefixText: "@",
                 prefixStyle: TextStyle(
                   fontSize: 16,

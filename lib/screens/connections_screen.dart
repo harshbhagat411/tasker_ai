@@ -444,7 +444,7 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> with SingleTicker
               ),
               const SizedBox(height: 8),
               Text(
-                "Search using their exact email address or @taskerId to send a connection request.",
+                "Search using their exact email address or @username to send a connection request.",
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 14,
@@ -1138,7 +1138,7 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> with SingleTicker
                   onSubmitted: (_) => _performSearch(),
                   style: TextStyle(color: isDark ? Colors.white : Colors.black87),
                   decoration: const InputDecoration(
-                    hintText: "Search by email or @taskerId",
+                    hintText: "Search by email or @username",
                     border: InputBorder.none,
                     focusedBorder: InputBorder.none,
                     enabledBorder: InputBorder.none,

@@ -263,7 +263,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             opacity: isVisible ? 1.0 : 0.0,
             duration: const Duration(milliseconds: 400),
             child: const Text(
-              "How do you plan to use Tasker?",
+              "How do you plan to use TaskNest?",
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 28,
@@ -278,7 +278,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             opacity: isVisible ? 1.0 : 0.0,
             duration: const Duration(milliseconds: 500),
             child: const Text(
-              "Tasker adapts to the way you work.",
+              "TaskNest adapts to the way you work.",
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 16,
