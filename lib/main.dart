@@ -66,26 +66,63 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<ThemeProvider>(
-      builder: (context, themeProvider, child) {
+    return Selector<ThemeProvider, _ThemeSettings>(
+      selector: (context, provider) => _ThemeSettings(
+        themeMode: provider.themeMode,
+        themeData: provider.themeData,
+        darkThemeData: provider.darkThemeData,
+      ),
+      builder: (context, settings, child) {
         return MaterialApp(
           debugShowCheckedModeBanner: false,
-          themeMode: themeProvider.themeMode,
-          theme: themeProvider.themeData,
-          darkTheme: themeProvider.darkThemeData,
+          themeMode: settings.themeMode,
+          theme: settings.themeData,
+          darkTheme: settings.darkThemeData,
           builder: (context, child) {
             return AnimatedTheme(
               data: Theme.of(context),
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeInOut,
-              child: child!,
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeOutCubic,
+              child: Builder(
+                builder: (innerContext) {
+                  return Container(
+                    color: Theme.of(innerContext).scaffoldBackgroundColor,
+                    child: child!,
+                  );
+                },
+              ),
             );
           },
-          home: const AuthGateScreen(),
+          home: child,
         );
       },
+      child: const AuthGateScreen(),
     );
   }
+}
+
+class _ThemeSettings {
+  final ThemeMode themeMode;
+  final ThemeData themeData;
+  final ThemeData darkThemeData;
+
+  _ThemeSettings({
+    required this.themeMode,
+    required this.themeData,
+    required this.darkThemeData,
+  });
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is _ThemeSettings &&
+          runtimeType == other.runtimeType &&
+          themeMode == other.themeMode &&
+          themeData == other.themeData &&
+          darkThemeData == other.darkThemeData;
+
+  @override
+  int get hashCode => themeMode.hashCode ^ themeData.hashCode ^ darkThemeData.hashCode;
 }
 
 class AuthGateScreen extends StatefulWidget {
