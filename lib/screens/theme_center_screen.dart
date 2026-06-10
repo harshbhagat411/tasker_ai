@@ -216,31 +216,41 @@ class ThemeCenterScreen extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(15),
-        child: AnimatedContainer(
+        child: AnimatedScale(
+          scale: isSelected ? 1.05 : 1.0,
           duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(vertical: 14),
-          decoration: BoxDecoration(
-            color: isSelected ? activeColor.withOpacity(0.08) : Colors.transparent,
-            borderRadius: BorderRadius.circular(15),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                icon,
-                color: isSelected ? activeColor : Theme.of(context).iconTheme.color?.withOpacity(0.7),
-                size: 22,
-              ),
-              const SizedBox(height: 6),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                  color: isSelected ? activeColor : Theme.of(context).textTheme.bodyMedium?.color,
+          curve: Curves.easeOutBack,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            decoration: BoxDecoration(
+              color: isSelected ? activeColor.withOpacity(0.08) : Colors.transparent,
+              borderRadius: BorderRadius.circular(15),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                AnimatedRotation(
+                  turns: isSelected ? 0.0 : -0.05,
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeOutBack,
+                  child: Icon(
+                    icon,
+                    color: isSelected ? activeColor : Theme.of(context).iconTheme.color?.withOpacity(0.7),
+                    size: 22,
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 6),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                    color: isSelected ? activeColor : Theme.of(context).textTheme.bodyMedium?.color,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -301,37 +311,47 @@ class ThemeCenterScreen extends StatelessWidget {
               onTap: () => themeProvider.updateThemeSettings(accentColor: accent['id'] as String),
               child: Tooltip(
                 message: accent['name'] as String,
-                child: AnimatedContainer(
+                child: AnimatedScale(
+                  scale: isSelected ? 1.1 : 0.9,
                   duration: const Duration(milliseconds: 200),
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: color,
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: isSelected 
-                          ? (Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black87)
-                          : Colors.transparent,
-                      width: 2.5,
-                    ),
-                    boxShadow: [
-                      if (isSelected)
-                        BoxShadow(
-                          color: color.withOpacity(0.4),
-                          blurRadius: 8,
-                          offset: const Offset(0, 3),
-                        ),
-                    ],
-                  ),
-                  child: isSelected
-                      ? const Center(
-                          child: Icon(
-                            Icons.check,
-                            color: Colors.white,
-                            size: 20,
+                  curve: Curves.easeOutBack,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: color,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: isSelected 
+                            ? (Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black87)
+                            : Colors.transparent,
+                        width: 2.5,
+                      ),
+                      boxShadow: [
+                        if (isSelected)
+                          BoxShadow(
+                            color: color.withOpacity(0.4),
+                            blurRadius: 8,
+                            offset: const Offset(0, 3),
                           ),
-                        )
-                      : null,
+                      ],
+                    ),
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 150),
+                      transitionBuilder: (child, animation) => ScaleTransition(scale: animation, child: child),
+                      child: isSelected
+                          ? const Center(
+                              key: ValueKey('check'),
+                              child: Icon(
+                                Icons.check,
+                                color: Colors.white,
+                                size: 20,
+                              ),
+                            )
+                          : const SizedBox.shrink(key: ValueKey('empty')),
+                    ),
+                  ),
                 ),
               ),
             );
@@ -389,28 +409,40 @@ class ThemeCenterScreen extends StatelessWidget {
             children: [
               ListTile(
                 contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                leading: Container(
-                  width: 38,
-                  height: 38,
-                  decoration: BoxDecoration(
-                    color: style['color'] as Color,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: Theme.of(context).brightness == Brightness.dark 
-                          ? Colors.white24 
-                          : Colors.black12,
-                      width: 1,
+                leading: AnimatedScale(
+                  scale: isSelected ? 1.08 : 1.0,
+                  duration: const Duration(milliseconds: 200),
+                  curve: Curves.easeOutBack,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      color: style['color'] as Color,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: isSelected 
+                            ? Theme.of(context).primaryColor
+                            : (Theme.of(context).brightness == Brightness.dark 
+                                ? Colors.white24 
+                                : Colors.black12),
+                        width: isSelected ? 2 : 1,
+                      ),
+                    ),
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 150),
+                      child: isSelected
+                          ? const Center(
+                              key: ValueKey('checked'),
+                              child: Icon(
+                                Icons.check_circle,
+                                color: Colors.white,
+                                size: 18,
+                              ),
+                            )
+                          : const SizedBox.shrink(key: ValueKey('empty')),
                     ),
                   ),
-                  child: isSelected
-                      ? const Center(
-                          child: Icon(
-                            Icons.check_circle,
-                            color: Colors.white,
-                            size: 18,
-                          ),
-                        )
-                      : null,
                 ),
                 title: Text(
                   style['name'] as String,
@@ -427,23 +459,27 @@ class ThemeCenterScreen extends StatelessWidget {
                     color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.6),
                   ),
                 ),
-                trailing: isSelected
-                    ? Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).primaryColor.withOpacity(0.12),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          "Active",
-                          style: TextStyle(
-                            color: Theme.of(context).primaryColor,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
+                trailing: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 200),
+                  child: isSelected
+                      ? Container(
+                          key: const ValueKey('active_tag'),
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).primaryColor.withOpacity(0.12),
+                            borderRadius: BorderRadius.circular(8),
                           ),
-                        ),
-                      )
-                    : null,
+                          child: Text(
+                            "Active",
+                            style: TextStyle(
+                              color: Theme.of(context).primaryColor,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        )
+                      : const SizedBox.shrink(key: ValueKey('inactive_tag')),
+                ),
                 onTap: () => themeProvider.updateThemeSettings(darkStyle: style['id'] as String),
               ),
               if (!isLast)

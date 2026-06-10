@@ -73,6 +73,14 @@ class MyApp extends StatelessWidget {
           themeMode: themeProvider.themeMode,
           theme: themeProvider.themeData,
           darkTheme: themeProvider.darkThemeData,
+          builder: (context, child) {
+            return AnimatedTheme(
+              data: Theme.of(context),
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeInOut,
+              child: child!,
+            );
+          },
           home: const AuthGateScreen(),
         );
       },
@@ -238,6 +246,7 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
   bool _isMenuExpanded = false;
+  bool? _lastIsDeveloper;
 
   @override
   void initState() {
@@ -589,6 +598,13 @@ class _MainScreenState extends State<MainScreen> {
         final data = snapshot.data!.data() as Map<String, dynamic>?;
         final isDeveloper = data?['mode'] == 'developer';
 
+        if (_lastIsDeveloper != null && _lastIsDeveloper != isDeveloper) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _showModeSwitchToast(context, isDeveloper);
+          });
+        }
+        _lastIsDeveloper = isDeveloper;
+
         final screens = [
           const HomeScreen(),
           const HabitsScreen(),
@@ -692,6 +708,62 @@ class _MainScreenState extends State<MainScreen> {
           ],
         );
       },
+    );
+  }
+
+  void _showModeSwitchToast(BuildContext context, bool isDeveloper) {
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    scaffoldMessenger.removeCurrentSnackBar();
+
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    scaffoldMessenger.showSnackBar(
+      SnackBar(
+        content: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              isDeveloper ? Icons.bolt_rounded : Icons.auto_awesome,
+              color: isDeveloper ? Colors.amberAccent : Colors.orangeAccent,
+              size: 20,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                isDeveloper ? "Developer Workspace Active" : "Personal Mode Active",
+                style: TextStyle(
+                  color: isDark ? Colors.white : Colors.black87,
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  fontFamily: isDeveloper ? 'Courier New' : 'Inter',
+                ),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+              ),
+            ),
+          ],
+        ),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: isDark ? const Color(0xFF1E1E24) : Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(30),
+          side: BorderSide(
+            color: isDeveloper 
+                ? (isDark ? const Color(0x8014B8A6) : const Color(0x4D0F766E))
+                : (isDark ? const Color(0x801976D2) : const Color(0x4D0D47A1)),
+            width: 1.5,
+          ),
+        ),
+        margin: EdgeInsets.only(
+          bottom: MediaQuery.of(context).size.height * 0.12,
+          left: 48,
+          right: 48,
+        ),
+        duration: const Duration(milliseconds: 2500),
+        elevation: 6,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      ),
     );
   }
 }
