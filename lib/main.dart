@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import 'firebase_options.dart';
 import 'screens/login_screen.dart';
+import 'screens/email_verification_screen.dart';
 import 'screens/onboarding_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/calendar_screen.dart';
@@ -156,6 +157,21 @@ class _AuthGateScreenState extends State<AuthGateScreen> {
         PageRouteBuilder(
           pageBuilder: (context, animation, secondaryAnimation) => 
               seenOnboarding ? const LoginScreen() : const OnboardingScreen(),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            return FadeTransition(opacity: animation, child: child);
+          },
+        ),
+      );
+      return;
+    }
+
+    // Check if user has verified their email (exclude Google Sign-In users)
+    final isGoogle = user.providerData.any((p) => p.providerId == 'google.com');
+    if (!isGoogle && !user.emailVerified) {
+      if (!mounted) return;
+      Navigator.of(context).pushReplacement(
+        PageRouteBuilder(
+          pageBuilder: (context, animation, secondaryAnimation) => const EmailVerificationScreen(),
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
             return FadeTransition(opacity: animation, child: child);
           },

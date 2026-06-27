@@ -68,6 +68,7 @@ class AuthService {
         }, SetOptions(merge: true));
         await FCMService.saveToken();
         await ProductivityEngine().initializeTodayDocument();
+        await cred.user!.sendEmailVerification();
       }
 
       return null; // success = no error
